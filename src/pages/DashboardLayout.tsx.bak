@@ -1,0 +1,133 @@
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+
+export default function DashboardLayout() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // User state from OAuth
+    const [user, setUser] = useState<{
+        name: string | null;
+        email: string | null;
+        avatar: string | null;
+    } | null>(() => {
+        const stored = localStorage.getItem("github_user");
+        return stored ? JSON.parse(stored) : null;
+    });
+
+    // Check authentication and handle OAuth callback on mount
+    useEffect(() => {
+        const hasUser = localStorage.getItem("github_user");
+        const code = searchParams?.get("code");
+
+        // Handle OAuth callback
+        if (code) {
+            // Exchange code for token and user data
+            fetch(`/api/auth/github/token?code=${code}`)
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data.error) {
+                        toast({
+                            title: "Authentication failed",
+                            description: data.error,
+                            variant: "destructive",
+                        });
+                        router.replace("/login");
+                        return;
+                    }
+
+                    // Store user data
+                    const userData = {
+                        name: data.user.name || data.user.login,
+                        email: data.user.email,
+                        avatar: data.user.avatar_url,
+                    };
+
+                    setUser(userData);
+                    localStorage.setItem(
+                        "github_user",
+                        JSON.stringify(userData)
+                    );
+                    localStorage.setItem("access_token", data.access_token);
+
+                    // Clean up URL and redirect to nodes page
+                    setIsAuthenticated(true);
+                    setIsLoading(false);
+
+                    toast({
+                        title: "Welcome!",
+                        description: `Logged in as ${
+                            userData.name || userData.email
+                        }`,
+                    });
+
+                    // Redirect to nodes page after successful auth
+                    router.replace("/dashboard/nodes");
+                })
+                .catch((err) => {
+                    console.error("OAuth error:", err);
+                    toast({
+                        title: "Authentication failed",
+                        description: "Could not complete GitHub login",
+                        variant: "destructive",
+                    });
+                    router.replace("/login");
+                });
+        } else if (!hasUser) {
+            // No user and no OAuth code, redirect to login
+            setIsLoading(false);
+            router.replace("/login");
+        } else {
+            // User is authenticated
+            setIsAuthenticated(true);
+            setIsLoading(false);
+
+            // If on /dashboard root, redirect to nodes
+            if (window.location.pathname === "/dashboard") {
+                router.replace("/dashboard/nodes");
+            }
+        }
+    }, [router, searchParams, toast]);
+
+    const handleLogout = () => {
+        // Clear all auth data
+        localStorage.removeItem("github_user");
+        localStorage.removeItem("access_token");
+        sessionStorage.removeItem("github_oauth_state");
+
+        toast({
+            title: "Logged out",
+            description: "You have been successfully logged out",
+        });
+
+        router.replace("/login");
+    };
+
+    // Show loading or nothing while checking authentication
+    if (isLoading || !isAuthenticated) {
+        return null;
+    }
+
+    // Render the layout with Header, child routes, and Footer
+    return (
+        <div className="min-h-screen bg-background">
+            {/* Background effects */}
+            <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_50%)]" />
+            <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_bottom_left,hsl(var(--accent)/0.05),transparent_50%)]" />
+
+            <Header onLogout={handleLogout} />
+
+            <main className="relative z-10">
+                {/* Content goes here - this component is not used as a layout in Next.js */}
+            </main>
+
+            <Footer />
+        </div>
+    );
+}
