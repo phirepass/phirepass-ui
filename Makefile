@@ -1,7 +1,7 @@
 # Docker image name
 IMAGE_NAME=phirepass-ui
 CONTAINER_NAME=phirepass-ui
-PORT=3000
+PORT=8084
 DEV_PORT=8084
 
 # Load environment variables if .env.local exists
@@ -21,7 +21,7 @@ start-prod:
 	node .next/standalone/server.js
 
 # Build the Docker image
-build:
+docker-build:
 	docker build -t $(IMAGE_NAME) \
 		--build-arg NEXT_PUBLIC_API_URL="$(NEXT_PUBLIC_API_URL)" \
 		--build-arg NEXT_PUBLIC_API_BASE_URL="$(NEXT_PUBLIC_API_BASE_URL)" \
@@ -31,9 +31,9 @@ build:
 
 # Run the container
 docker-run:
-	docker run -d --name $(CONTAINER_NAME) \
+	docker run -it --rm --name $(CONTAINER_NAME) \
 		--env-file .env.local \
-		-p $(PORT):3000 $(IMAGE_NAME)
+		-p $(PORT):8084 $(IMAGE_NAME)
 
 # Stop the container
 stop:
