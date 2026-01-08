@@ -35,6 +35,15 @@ docker-run:
 		--env-file .env.local \
 		-p $(PORT):8084 $(IMAGE_NAME)
 
+docker-push:
+	docker buildx build \
+		-t dimitrmok/phirepass-ui:latest \
+		--platform linux/amd64,linux/arm64 \
+		-f Dockerfile \
+		--progress=plain \
+		--push \
+		.
+
 # Stop the container
 stop:
 	docker stop $(CONTAINER_NAME) || true
