@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
@@ -7,6 +6,7 @@ import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddServerDialog } from '@/components/AddServerDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
 import { ShareManagementDialog } from '@/components/ShareManagementDialog';
+import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
 import { TunnelNode } from '@/types/node';
@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export default function Nodes() {
-    const router = useRouter();
     const [nodes, setNodes] = useState<TunnelNode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -55,6 +54,9 @@ export default function Nodes() {
     const [filePanelOpen, setFilePanelOpen] = useState(false);
     const [selectedFileNode, setSelectedFileNode] = useState<TunnelNode | null>(null);
 
+    // Create tunnel panel state
+    const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
+
     // Add server dialog
     const [addServerOpen, setAddServerOpen] = useState(false);
 
@@ -72,7 +74,7 @@ export default function Nodes() {
     );
 
     const handleCreateTunnel = (node: TunnelNode) => {
-        router.push('/tunnels?create=true');
+        setCreateTunnelPanelOpen(true);
     };
 
     const handleOpenFiles = (node: TunnelNode) => {
@@ -267,6 +269,12 @@ export default function Nodes() {
                         nodes={nodes}
                         selectedNode={selectedFileNode}
                         onSelectNode={setSelectedFileNode}
+                    />
+
+                    {/* Create Tunnel Panel */}
+                    <CreateTunnelPanel
+                        isOpen={createTunnelPanelOpen}
+                        onClose={() => setCreateTunnelPanelOpen(false)}
                     />
 
                     {/* Add Server Dialog */}
