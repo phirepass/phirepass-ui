@@ -305,7 +305,7 @@ export function NodeCard({
                         disabled={/*!node.isOnline*/false}
                     >
                         <Globe className="w-4 h-4" />
-                        Create Tunnel
+                        Connect
                     </Button>
                     <Button
                         variant="outline"
