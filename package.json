@@ -1,7 +1,11 @@
 {
     "name": "phirepass-ui",
     "private": true,
+<<<<<<< HEAD
     "version": "0.0.20",
+=======
+    "version": "0.0.15",
+>>>>>>> 6381961 (chore: bump version to v0.0.15)
     "type": "module",
     "scripts": {
         "dev": "next dev -p 8084",
