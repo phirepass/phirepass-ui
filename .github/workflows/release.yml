@@ -10,7 +10,7 @@ env:
   IMAGE_NAME: dimitrmok/phirepass-ui
 
 jobs:
-  release:
+  Release:
     runs-on: ubuntu-latest
     permissions:
       contents: write

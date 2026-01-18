@@ -18,29 +18,22 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Accept build arguments for NEXT_PUBLIC_* variables
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_WS_URL
-ARG NEXT_PUBLIC_APP_URL
-
-# Set environment variables for build time
+# Set production environment
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
-ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV PORT=8084
+ENV NEXT_PUBLIC_SERVER_HOST=localhost
+ENV NEXT_PUBLIC_SERVER_PORT=8080
+
+# github oauth (placeholders, replace with real values or use secrets management)
+ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=client
+ENV GITHUB_CLIENT_SECRET=secret
 
 RUN bun run build
 
 # Stage 3: Runner (minimal production image)
 FROM oven/bun:1-alpine AS runner
 WORKDIR /app
-
-# Set production environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=8084
 
 # Copy necessary files from builder with proper ownership
 COPY --from=builder --chown=1001:1001 /app/public ./public
