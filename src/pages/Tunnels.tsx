@@ -8,16 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  Globe,
-  Search,
-  Terminal,
-  Copy,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Database,
-  Users,
-  Plus,
-  Server
+    Globe,
+    Search,
+    Terminal,
+    Copy,
+    ArrowDownToLine,
+    ArrowUpFromLine,
+    Database,
+    Users,
+    Plus,
+    Server
 } from 'lucide-react';
 import { mockTunnels } from '@/data/mockTunnels';
 import { mockTcpTunnels } from '@/data/mockTcpTunnels';
@@ -28,677 +28,680 @@ import { SshTunnel } from '@/types/ssh-tunnel';
 import { TerminalTab, TunnelNode } from '@/types/node';
 import { toast } from 'sonner';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from '@/components/ui/dialog';
 
 const Tunnels = () => {
-  const [initialDialog, setInitialDialog] = useState<string | null>(null);
+    const [initialDialog, setInitialDialog] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    setInitialDialog(params.get('create'));
-    }
-  }, []);
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setInitialDialog(params.get('create'));
+        }
+    }, []);
 
-  const [httpTunnels, setHttpTunnels] = useState<Tunnel[]>(mockTunnels);
-  const [tcpTunnels, setTcpTunnels] = useState<TcpTunnel[]>(mockTcpTunnels);
-  const [sshTunnels, setSshTunnels] = useState<SshTunnel[]>(mockSshTunnels);
-  const [httpFilter, setHttpFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [tcpFilter, setTcpFilter] = useState<'all' | 'tcp' | 'udp'>('all');
-  const [sshFilter, setSshFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'http' | 'tcp' | 'ssh'>('http');
-  const [showCreateDialog, setShowCreateDialog] = useState(initialDialog === 'true');
+    const [httpTunnels, setHttpTunnels] = useState<Tunnel[]>(mockTunnels);
+    const [tcpTunnels, setTcpTunnels] = useState<TcpTunnel[]>(mockTcpTunnels);
+    const [sshTunnels, setSshTunnels] = useState<SshTunnel[]>(mockSshTunnels);
+    const [httpFilter, setHttpFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [tcpFilter, setTcpFilter] = useState<'all' | 'tcp' | 'udp'>('all');
+    const [sshFilter, setSshFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState<'http' | 'tcp' | 'ssh'>('http');
+    const [showCreateDialog, setShowCreateDialog] = useState(initialDialog === 'true');
 
-  // Terminal state
-  const [terminalOpen, setTerminalOpen] = useState(false);
-  const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
-  const [activeTerminalTab, setActiveTerminalTab] = useState<string | null>(null);
+    // Terminal state
+    const [terminalOpen, setTerminalOpen] = useState(false);
+    const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
+    const [activeTerminalTab, setActiveTerminalTab] = useState<string | null>(null);
 
-  // SFTP state
-  const [sftpOpen, setSftpOpen] = useState(false);
-  const [sftpInitialTunnel, setSftpInitialTunnel] = useState<SshTunnel | null>(null);
+    // SFTP state
+    const [sftpOpen, setSftpOpen] = useState(false);
+    const [sftpInitialTunnel, setSftpInitialTunnel] = useState<SshTunnel | null>(null);
 
-  // Convert SSH tunnels to TunnelNode format for terminal panel
-  const sshTunnelsAsNodes: TunnelNode[] = sshTunnels
+    // Convert SSH tunnels to TunnelNode format for terminal panel
+    const sshTunnelsAsNodes: TunnelNode[] = [];
+    /*
+    sshTunnels
     .filter(t => t.status === 'active')
     .map(t => ({
-    id: t.id,
-    name: t.nodeName,
-    hostname: t.nodeName,
-    ip: t.nodeIp,
-    isOnline: t.status === 'active',
-    lastSeen: t.lastConnected,
-    os: 'Linux',
-    tags: [],
-    stats: {
-        cpu: 0, memory: 0, disk: 0, uptime: '', ping: 0,
-        networkIn: 0, networkOut: 0, processes: 0,
-        loadAvg: [0, 0, 0] as [number, number, number],
-        swapUsed: 0, openConnections: t.sessions
-    }
-    }));
+        id: t.id,
+        name: t.nodeName,
+        hostname: t.nodeName,
+        ip: t.nodeIp,
+        isOnline: t.status === 'active',
+        lastSeen: t.lastConnected,
+        os: 'Linux',
+        tags: [],
+        stats: {
+            cpu: 0, memory: 0, disk: 0, uptime: '', ping: 0,
+            networkIn: 0, networkOut: 0, processes: 0,
+            loadAvg: [0, 0, 0] as [number, number, number],
+            swapUsed: 0, openConnections: t.sessions
+        }
+    }))*/
+    ;
 
-  // Get connected tunnel IDs
-  const connectedTunnelIds = terminalTabs.map(tab => tab.nodeId);
+    // Get connected tunnel IDs
+    const connectedTunnelIds = terminalTabs.map(tab => tab.nodeId);
 
-  // Clear URL param when dialog closes
-  const handleDialogChange = (open: boolean) => {
-    setShowCreateDialog(open);
-    // Note: searchParams is read-only in Next.js App Router
-    // URL param cleanup would need router.push or router.replace
-  };
-
-  const filteredHttpTunnels = httpTunnels.filter(tunnel => {
-    const matchesFilter = httpFilter === 'all' || tunnel.status === httpFilter;
-    const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tunnel.publicUrl.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const filteredTcpTunnels = tcpTunnels.filter(tunnel => {
-    const matchesFilter = tcpFilter === 'all' || tunnel.protocol === tcpFilter;
-    const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tunnel.publicEndpoint.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const filteredSshTunnels = sshTunnels.filter(tunnel => {
-    const matchesFilter = sshFilter === 'all' || tunnel.status === sshFilter;
-    const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tunnel.nodeName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const handleDeleteHttp = (id: string) => {
-    setHttpTunnels(prev => prev.filter(t => t.id !== id));
-    toast.success('Tunnel deleted');
-  };
-
-  const handleDeleteTcp = (id: string) => {
-    setTcpTunnels(prev => prev.filter(t => t.id !== id));
-    toast.success('Tunnel deleted');
-  };
-
-  const handleDeleteSsh = (id: string) => {
-    setSshTunnels(prev => prev.filter(t => t.id !== id));
-    toast.success('Tunnel deleted');
-  };
-
-  const handleOpenTerminal = (tunnel: SshTunnel) => {
-    const existingTab = terminalTabs.find((t) => t.nodeId === tunnel.id);
-    if (existingTab) {
-    setActiveTerminalTab(existingTab.id);
-    } else {
-    const newTab: TerminalTab = {
-        id: `tab-${Date.now()}`,
-        nodeId: tunnel.id,
-        nodeName: tunnel.nodeName,
-        isConnected: true,
-        history: [],
+    // Clear URL param when dialog closes
+    const handleDialogChange = (open: boolean) => {
+        setShowCreateDialog(open);
+        // Note: searchParams is read-only in Next.js App Router
+        // URL param cleanup would need router.push or router.replace
     };
-    setTerminalTabs((prev) => [...prev, newTab]);
-    setActiveTerminalTab(newTab.id);
-    }
-    setTerminalOpen(true);
-  };
 
-  const handleOpenSftp = (tunnel: SshTunnel) => {
-    setSftpInitialTunnel(tunnel);
-    setSftpOpen(true);
-  };
+    const filteredHttpTunnels = httpTunnels.filter(tunnel => {
+        const matchesFilter = httpFilter === 'all' || tunnel.status === httpFilter;
+        const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            tunnel.publicUrl.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+    });
 
-  const handleCloseTerminalTab = (tabId: string) => {
-    setTerminalTabs((prev) => prev.filter((t) => t.id !== tabId));
-    if (activeTerminalTab === tabId) {
-    const remaining = terminalTabs.filter((t) => t.id !== tabId);
-    setActiveTerminalTab(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
-    }
-  };
+    const filteredTcpTunnels = tcpTunnels.filter(tunnel => {
+        const matchesFilter = tcpFilter === 'all' || tunnel.protocol === tcpFilter;
+        const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            tunnel.publicEndpoint.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+    });
 
-  const handleAddTerminalTab = (node: TunnelNode) => {
-    const tunnel = sshTunnels.find(t => t.id === node.id);
-    if (tunnel) {
-    handleOpenTerminal(tunnel);
-    }
-  };
+    const filteredSshTunnels = sshTunnels.filter(tunnel => {
+        const matchesFilter = sshFilter === 'all' || tunnel.status === sshFilter;
+        const matchesSearch = tunnel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            tunnel.nodeName.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesFilter && matchesSearch;
+    });
 
-  const copyCommand = (command: string) => {
-    navigator.clipboard.writeText(command);
-    toast.success('Command copied to clipboard');
-  };
+    const handleDeleteHttp = (id: string) => {
+        setHttpTunnels(prev => prev.filter(t => t.id !== id));
+        toast.success('Tunnel deleted');
+    };
 
-  // HTTP Stats
-  const activeHttpTunnels = httpTunnels.filter(t => t.status === 'active').length;
-  const totalHttpRequests = httpTunnels.reduce((acc, t) => acc + t.requestCount, 0);
-  const totalHttpBytesIn = httpTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
-  const totalHttpBytesOut = httpTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+    const handleDeleteTcp = (id: string) => {
+        setTcpTunnels(prev => prev.filter(t => t.id !== id));
+        toast.success('Tunnel deleted');
+    };
 
-  // TCP Stats
-  const activeTcpTunnels = tcpTunnels.filter(t => t.status === 'active').length;
-  const totalConnections = tcpTunnels.reduce((acc, t) => acc + t.connections, 0);
-  const totalTcpBytesIn = tcpTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
-  const totalTcpBytesOut = tcpTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+    const handleDeleteSsh = (id: string) => {
+        setSshTunnels(prev => prev.filter(t => t.id !== id));
+        toast.success('Tunnel deleted');
+    };
 
-  // SSH Stats
-  const activeSshTunnels = sshTunnels.filter(t => t.status === 'active').length;
-  const totalSessions = sshTunnels.reduce((acc, t) => acc + t.sessions, 0);
-  const totalSshBytesIn = sshTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
-  const totalSshBytesOut = sshTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+    const handleOpenTerminal = (tunnel: SshTunnel) => {
+        const existingTab = terminalTabs.find((t) => t.nodeId === tunnel.id);
+        if (existingTab) {
+            setActiveTerminalTab(existingTab.id);
+        } else {
+            const newTab: TerminalTab = {
+                id: `tab-${Date.now()}`,
+                nodeId: tunnel.id,
+                nodeName: tunnel.nodeName,
+                isConnected: true,
+                history: [],
+            };
+            setTerminalTabs((prev) => [...prev, newTab]);
+            setActiveTerminalTab(newTab.id);
+        }
+        setTerminalOpen(true);
+    };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
-    return `${(bytes / 1073741824).toFixed(1)} GB`;
-  };
+    const handleOpenSftp = (tunnel: SshTunnel) => {
+        setSftpInitialTunnel(tunnel);
+        setSftpOpen(true);
+    };
 
-  return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 className="text-2xl font-bold text-foreground">Tunnels</h1>
-            <p className="text-muted-foreground">Expose your local services to the internet</p>
+    const handleCloseTerminalTab = (tabId: string) => {
+        setTerminalTabs((prev) => prev.filter((t) => t.id !== tabId));
+        if (activeTerminalTab === tabId) {
+            const remaining = terminalTabs.filter((t) => t.id !== tabId);
+            setActiveTerminalTab(remaining.length > 0 ? remaining[remaining.length - 1].id : null);
+        }
+    };
+
+    const handleAddTerminalTab = (node: TunnelNode) => {
+        const tunnel = sshTunnels.find(t => t.id === node.id);
+        if (tunnel) {
+            handleOpenTerminal(tunnel);
+        }
+    };
+
+    const copyCommand = (command: string) => {
+        navigator.clipboard.writeText(command);
+        toast.success('Command copied to clipboard');
+    };
+
+    // HTTP Stats
+    const activeHttpTunnels = httpTunnels.filter(t => t.status === 'active').length;
+    const totalHttpRequests = httpTunnels.reduce((acc, t) => acc + t.requestCount, 0);
+    const totalHttpBytesIn = httpTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
+    const totalHttpBytesOut = httpTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+
+    // TCP Stats
+    const activeTcpTunnels = tcpTunnels.filter(t => t.status === 'active').length;
+    const totalConnections = tcpTunnels.reduce((acc, t) => acc + t.connections, 0);
+    const totalTcpBytesIn = tcpTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
+    const totalTcpBytesOut = tcpTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+
+    // SSH Stats
+    const activeSshTunnels = sshTunnels.filter(t => t.status === 'active').length;
+    const totalSessions = sshTunnels.reduce((acc, t) => acc + t.sessions, 0);
+    const totalSshBytesIn = sshTunnels.reduce((acc, t) => acc + t.bytesIn, 0);
+    const totalSshBytesOut = sshTunnels.reduce((acc, t) => acc + t.bytesOut, 0);
+
+    const formatBytes = (bytes: number): string => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+        if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+        return `${(bytes / 1073741824).toFixed(1)} GB`;
+    };
+
+    return (
+        <div className="container mx-auto px-4 py-6 space-y-6">
+            {/* Page Header */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-foreground">Tunnels</h1>
+                    <p className="text-muted-foreground">Expose your local services to the internet</p>
+                </div>
+
+                <Button className="gap-2" onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="h-4 w-4" />
+                    Create Tunnel
+                </Button>
+            </div>
+
+            {/* Main Tabs */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'http' | 'tcp' | 'ssh')}>
+                <TabsList className="mb-4">
+                    <TabsTrigger value="http" className="gap-2">
+                        <Globe className="h-4 w-4" />
+                        HTTP ({httpTunnels.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="tcp" className="gap-2">
+                        <Database className="h-4 w-4" />
+                        TCP/UDP ({tcpTunnels.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="ssh" className="gap-2">
+                        <Terminal className="h-4 w-4" />
+                        SSH ({sshTunnels.length})
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* HTTP Tab */}
+                <TabsContent value="http" className="space-y-6">
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Globe className="h-4 w-4" />
+                                Active Tunnels
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{activeHttpTunnels}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Terminal className="h-4 w-4" />
+                                Total Requests
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{totalHttpRequests.toLocaleString()}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowDownToLine className="h-4 w-4" />
+                                Data In
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalHttpBytesIn)}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowUpFromLine className="h-4 w-4" />
+                                Data Out
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalHttpBytesOut)}</p>
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search tunnels..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Tabs value={httpFilter} onValueChange={(v) => setHttpFilter(v as typeof httpFilter)}>
+                            <TabsList>
+                                <TabsTrigger value="all">All ({httpTunnels.length})</TabsTrigger>
+                                <TabsTrigger value="active">Active ({httpTunnels.filter(t => t.status === 'active').length})</TabsTrigger>
+                                <TabsTrigger value="inactive">Inactive ({httpTunnels.filter(t => t.status === 'inactive').length})</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+
+                    {/* Tunnel List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredHttpTunnels.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                <p>No tunnels found</p>
+                                <p className="text-sm mt-1">Start a new tunnel using the CLI</p>
+                            </div>
+                        ) : (
+                            filteredHttpTunnels.map(tunnel => (
+                                <TunnelCard
+                                    key={tunnel.id}
+                                    tunnel={tunnel}
+                                    onDelete={handleDeleteHttp}
+                                />
+                            ))
+                        )}
+                    </div>
+                </TabsContent>
+
+                {/* TCP/UDP Tab */}
+                <TabsContent value="tcp" className="space-y-6">
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Database className="h-4 w-4" />
+                                Active Tunnels
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{activeTcpTunnels}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Users className="h-4 w-4" />
+                                Active Connections
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{totalConnections}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowDownToLine className="h-4 w-4" />
+                                Data In
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalTcpBytesIn)}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowUpFromLine className="h-4 w-4" />
+                                Data Out
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalTcpBytesOut)}</p>
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search tunnels..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Tabs value={tcpFilter} onValueChange={(v) => setTcpFilter(v as typeof tcpFilter)}>
+                            <TabsList>
+                                <TabsTrigger value="all">All ({tcpTunnels.length})</TabsTrigger>
+                                <TabsTrigger value="tcp">TCP ({tcpTunnels.filter(t => t.protocol === 'tcp').length})</TabsTrigger>
+                                <TabsTrigger value="udp">UDP ({tcpTunnels.filter(t => t.protocol === 'udp').length})</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+
+                    {/* Tunnel List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredTcpTunnels.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                <p>No tunnels found</p>
+                                <p className="text-sm mt-1">Start a new tunnel using the CLI</p>
+                            </div>
+                        ) : (
+                            filteredTcpTunnels.map(tunnel => (
+                                <TcpTunnelCard
+                                    key={tunnel.id}
+                                    tunnel={tunnel}
+                                    onDelete={handleDeleteTcp}
+                                />
+                            ))
+                        )}
+                    </div>
+                </TabsContent>
+
+                {/* SSH Tab */}
+                <TabsContent value="ssh" className="space-y-6">
+                    {/* Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Terminal className="h-4 w-4" />
+                                Active Tunnels
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{activeSshTunnels}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <Users className="h-4 w-4" />
+                                Active Sessions
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{totalSessions}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowDownToLine className="h-4 w-4" />
+                                Data In
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalSshBytesIn)}</p>
+                        </div>
+                        <div className="p-4 bg-card border border-border rounded-lg">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <ArrowUpFromLine className="h-4 w-4" />
+                                Data Out
+                            </div>
+                            <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalSshBytesOut)}</p>
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search tunnels..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                        <Tabs value={sshFilter} onValueChange={(v) => setSshFilter(v as typeof sshFilter)}>
+                            <TabsList>
+                                <TabsTrigger value="all">All ({sshTunnels.length})</TabsTrigger>
+                                <TabsTrigger value="active">Active ({sshTunnels.filter(t => t.status === 'active').length})</TabsTrigger>
+                                <TabsTrigger value="inactive">Inactive ({sshTunnels.filter(t => t.status === 'inactive').length})</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+
+                    {/* Tunnel List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {filteredSshTunnels.length === 0 ? (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Terminal className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                <p>No SSH tunnels found</p>
+                                <p className="text-sm mt-1">Start a new SSH tunnel using the CLI</p>
+                            </div>
+                        ) : (
+                            filteredSshTunnels.map(tunnel => (
+                                <SshTunnelCard
+                                    key={tunnel.id}
+                                    tunnel={tunnel}
+                                    onDelete={handleDeleteSsh}
+                                    onOpenTerminal={handleOpenTerminal}
+                                    onOpenSftp={handleOpenSftp}
+                                    isConnected={connectedTunnelIds.includes(tunnel.id)}
+                                />
+                            ))
+                        )}
+                    </div>
+                </TabsContent>
+            </Tabs>
+
+            {/* Create Tunnel Dialog */}
+            <Dialog open={showCreateDialog} onOpenChange={handleDialogChange}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Create a New Tunnel</DialogTitle>
+                        <DialogDescription>
+                            Run the Phirepass CLI to expose your local service
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Tabs defaultValue="http" className="pt-4">
+                        <TabsList className="w-full">
+                            <TabsTrigger value="http" className="flex-1">HTTP</TabsTrigger>
+                            <TabsTrigger value="tcp" className="flex-1">TCP/UDP</TabsTrigger>
+                            <TabsTrigger value="ssh" className="flex-1">SSH</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="http" className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">1. Install the CLI</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">npm install -g phirepass</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('npm install -g phirepass')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">2. Authenticate</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass auth login</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass auth login')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">3. Start the tunnel</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass http 3000</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass http 3000')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Replace 3000 with your local port number
+                                </p>
+                            </div>
+
+                            <div className="pt-2 border-t border-border">
+                                <h4 className="text-sm font-medium text-foreground mb-2">Additional Options</h4>
+                                <div className="space-y-2 text-xs text-muted-foreground font-mono">
+                                    <p><span className="text-foreground">--name</span> Custom tunnel name</p>
+                                    <p><span className="text-foreground">--region</span> Server region (us-east-1, eu-west-1, ap-southeast-1)</p>
+                                    <p><span className="text-foreground">--subdomain</span> Custom subdomain</p>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="tcp" className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">TCP Tunnel (e.g., MySQL)</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass tcp 3306</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass tcp 3306')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">UDP Tunnel (e.g., Game Server)</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass udp 27015</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass udp 27015')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass tcp 5432 --remote-port 45432</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass tcp 5432 --remote-port 45432')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-border">
+                                <h4 className="text-sm font-medium text-foreground mb-2">Common Use Cases</h4>
+                                <div className="space-y-1 text-xs text-muted-foreground">
+                                    <p><span className="text-foreground font-medium">MySQL:</span> phirepass tcp 3306</p>
+                                    <p><span className="text-foreground font-medium">PostgreSQL:</span> phirepass tcp 5432</p>
+                                    <p><span className="text-foreground font-medium">Redis:</span> phirepass tcp 6379</p>
+                                    <p><span className="text-foreground font-medium">MongoDB:</span> phirepass tcp 27017</p>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="ssh" className="space-y-4 pt-4">
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">SSH Tunnel (Reverse SSH)</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass ssh 22</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass ssh 22')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass ssh 22 --remote-port 2222</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass ssh 22 --remote-port 2222')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-foreground">Named Tunnel</h4>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">phirepass ssh 22 --name "production-server"</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('phirepass ssh 22 --name "production-server"')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-border">
+                                <h4 className="text-sm font-medium text-foreground mb-2">Connect to Your Server</h4>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    Once the tunnel is active, connect using:
+                                </p>
+                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
+                                    <Server className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <code className="flex-1 text-foreground">ssh -p 2222 user@tunnel.phirepass.io</code>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        onClick={() => copyCommand('ssh -p 2222 user@tunnel.phirepass.io')}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
+            {/* Terminal Panel */}
+            <TerminalPanel
+                isOpen={terminalOpen}
+                onClose={() => setTerminalOpen(false)}
+                tabs={terminalTabs}
+                onCloseTab={handleCloseTerminalTab}
+                activeTabId={activeTerminalTab}
+                onSelectTab={setActiveTerminalTab}
+                nodes={sshTunnelsAsNodes}
+                onAddTab={handleAddTerminalTab}
+            />
+
+            {/* SFTP Panel */}
+            <SftpPanel
+                isOpen={sftpOpen}
+                onClose={() => setSftpOpen(false)}
+                tunnels={sshTunnels}
+                initialTunnel={sftpInitialTunnel}
+            />
+
+            {/* Overlay */}
+            {(terminalOpen || sftpOpen) && (
+                <div
+                    className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
+                    onClick={() => {
+                        setTerminalOpen(false);
+                        setSftpOpen(false);
+                    }}
+                />
+            )}
         </div>
-
-        <Button className="gap-2" onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4" />
-            Create Tunnel
-        </Button>
-        </div>
-
-        {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'http' | 'tcp' | 'ssh')}>
-        <TabsList className="mb-4">
-            <TabsTrigger value="http" className="gap-2">
-            <Globe className="h-4 w-4" />
-            HTTP ({httpTunnels.length})
-            </TabsTrigger>
-            <TabsTrigger value="tcp" className="gap-2">
-            <Database className="h-4 w-4" />
-            TCP/UDP ({tcpTunnels.length})
-            </TabsTrigger>
-            <TabsTrigger value="ssh" className="gap-2">
-            <Terminal className="h-4 w-4" />
-            SSH ({sshTunnels.length})
-            </TabsTrigger>
-        </TabsList>
-
-        {/* HTTP Tab */}
-        <TabsContent value="http" className="space-y-6">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Globe className="h-4 w-4" />
-                Active Tunnels
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{activeHttpTunnels}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Terminal className="h-4 w-4" />
-                Total Requests
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{totalHttpRequests.toLocaleString()}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowDownToLine className="h-4 w-4" />
-                Data In
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalHttpBytesIn)}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowUpFromLine className="h-4 w-4" />
-                Data Out
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalHttpBytesOut)}</p>
-            </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Search tunnels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                />
-            </div>
-            <Tabs value={httpFilter} onValueChange={(v) => setHttpFilter(v as typeof httpFilter)}>
-                <TabsList>
-                <TabsTrigger value="all">All ({httpTunnels.length})</TabsTrigger>
-                <TabsTrigger value="active">Active ({httpTunnels.filter(t => t.status === 'active').length})</TabsTrigger>
-                <TabsTrigger value="inactive">Inactive ({httpTunnels.filter(t => t.status === 'inactive').length})</TabsTrigger>
-                </TabsList>
-            </Tabs>
-            </div>
-
-            {/* Tunnel List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredHttpTunnels.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No tunnels found</p>
-                <p className="text-sm mt-1">Start a new tunnel using the CLI</p>
-                </div>
-            ) : (
-                filteredHttpTunnels.map(tunnel => (
-                <TunnelCard
-                    key={tunnel.id}
-                    tunnel={tunnel}
-                    onDelete={handleDeleteHttp}
-                />
-                ))
-            )}
-            </div>
-        </TabsContent>
-
-        {/* TCP/UDP Tab */}
-        <TabsContent value="tcp" className="space-y-6">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Database className="h-4 w-4" />
-                Active Tunnels
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{activeTcpTunnels}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Users className="h-4 w-4" />
-                Active Connections
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{totalConnections}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowDownToLine className="h-4 w-4" />
-                Data In
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalTcpBytesIn)}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowUpFromLine className="h-4 w-4" />
-                Data Out
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalTcpBytesOut)}</p>
-            </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Search tunnels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                />
-            </div>
-            <Tabs value={tcpFilter} onValueChange={(v) => setTcpFilter(v as typeof tcpFilter)}>
-                <TabsList>
-                <TabsTrigger value="all">All ({tcpTunnels.length})</TabsTrigger>
-                <TabsTrigger value="tcp">TCP ({tcpTunnels.filter(t => t.protocol === 'tcp').length})</TabsTrigger>
-                <TabsTrigger value="udp">UDP ({tcpTunnels.filter(t => t.protocol === 'udp').length})</TabsTrigger>
-                </TabsList>
-            </Tabs>
-            </div>
-
-            {/* Tunnel List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredTcpTunnels.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No tunnels found</p>
-                <p className="text-sm mt-1">Start a new tunnel using the CLI</p>
-                </div>
-            ) : (
-                filteredTcpTunnels.map(tunnel => (
-                <TcpTunnelCard
-                    key={tunnel.id}
-                    tunnel={tunnel}
-                    onDelete={handleDeleteTcp}
-                />
-                ))
-            )}
-            </div>
-        </TabsContent>
-
-        {/* SSH Tab */}
-        <TabsContent value="ssh" className="space-y-6">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Terminal className="h-4 w-4" />
-                Active Tunnels
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{activeSshTunnels}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Users className="h-4 w-4" />
-                Active Sessions
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{totalSessions}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowDownToLine className="h-4 w-4" />
-                Data In
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalSshBytesIn)}</p>
-            </div>
-            <div className="p-4 bg-card border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <ArrowUpFromLine className="h-4 w-4" />
-                Data Out
-                </div>
-                <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalSshBytesOut)}</p>
-            </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                placeholder="Search tunnels..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                />
-            </div>
-            <Tabs value={sshFilter} onValueChange={(v) => setSshFilter(v as typeof sshFilter)}>
-                <TabsList>
-                <TabsTrigger value="all">All ({sshTunnels.length})</TabsTrigger>
-                <TabsTrigger value="active">Active ({sshTunnels.filter(t => t.status === 'active').length})</TabsTrigger>
-                <TabsTrigger value="inactive">Inactive ({sshTunnels.filter(t => t.status === 'inactive').length})</TabsTrigger>
-                </TabsList>
-            </Tabs>
-            </div>
-
-            {/* Tunnel List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredSshTunnels.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                <Terminal className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No SSH tunnels found</p>
-                <p className="text-sm mt-1">Start a new SSH tunnel using the CLI</p>
-                </div>
-            ) : (
-                filteredSshTunnels.map(tunnel => (
-                <SshTunnelCard
-                    key={tunnel.id}
-                    tunnel={tunnel}
-                    onDelete={handleDeleteSsh}
-                    onOpenTerminal={handleOpenTerminal}
-                    onOpenSftp={handleOpenSftp}
-                    isConnected={connectedTunnelIds.includes(tunnel.id)}
-                />
-                ))
-            )}
-            </div>
-        </TabsContent>
-        </Tabs>
-
-        {/* Create Tunnel Dialog */}
-        <Dialog open={showCreateDialog} onOpenChange={handleDialogChange}>
-        <DialogContent className="max-w-lg">
-            <DialogHeader>
-            <DialogTitle>Create a New Tunnel</DialogTitle>
-            <DialogDescription>
-                Run the Phirepass CLI to expose your local service
-            </DialogDescription>
-            </DialogHeader>
-
-            <Tabs defaultValue="http" className="pt-4">
-            <TabsList className="w-full">
-                <TabsTrigger value="http" className="flex-1">HTTP</TabsTrigger>
-                <TabsTrigger value="tcp" className="flex-1">TCP/UDP</TabsTrigger>
-                <TabsTrigger value="ssh" className="flex-1">SSH</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="http" className="space-y-4 pt-4">
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">1. Install the CLI</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">npm install -g phirepass</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('npm install -g phirepass')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">2. Authenticate</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass auth login</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass auth login')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">3. Start the tunnel</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass http 3000</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass http 3000')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                    Replace 3000 with your local port number
-                </p>
-                </div>
-
-                <div className="pt-2 border-t border-border">
-                <h4 className="text-sm font-medium text-foreground mb-2">Additional Options</h4>
-                <div className="space-y-2 text-xs text-muted-foreground font-mono">
-                    <p><span className="text-foreground">--name</span> Custom tunnel name</p>
-                    <p><span className="text-foreground">--region</span> Server region (us-east-1, eu-west-1, ap-southeast-1)</p>
-                    <p><span className="text-foreground">--subdomain</span> Custom subdomain</p>
-                </div>
-                </div>
-            </TabsContent>
-
-            <TabsContent value="tcp" className="space-y-4 pt-4">
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">TCP Tunnel (e.g., MySQL)</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass tcp 3306</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass tcp 3306')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">UDP Tunnel (e.g., Game Server)</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass udp 27015</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass udp 27015')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass tcp 5432 --remote-port 45432</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass tcp 5432 --remote-port 45432')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="pt-2 border-t border-border">
-                <h4 className="text-sm font-medium text-foreground mb-2">Common Use Cases</h4>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                    <p><span className="text-foreground font-medium">MySQL:</span> phirepass tcp 3306</p>
-                    <p><span className="text-foreground font-medium">PostgreSQL:</span> phirepass tcp 5432</p>
-                    <p><span className="text-foreground font-medium">Redis:</span> phirepass tcp 6379</p>
-                    <p><span className="text-foreground font-medium">MongoDB:</span> phirepass tcp 27017</p>
-                </div>
-                </div>
-            </TabsContent>
-
-            <TabsContent value="ssh" className="space-y-4 pt-4">
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">SSH Tunnel (Reverse SSH)</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass ssh 22</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass ssh 22')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass ssh 22 --remote-port 2222</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass ssh 22 --remote-port 2222')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="space-y-2">
-                <h4 className="text-sm font-medium text-foreground">Named Tunnel</h4>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">phirepass ssh 22 --name "production-server"</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('phirepass ssh 22 --name "production-server"')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-
-                <div className="pt-2 border-t border-border">
-                <h4 className="text-sm font-medium text-foreground mb-2">Connect to Your Server</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                    Once the tunnel is active, connect using:
-                </p>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                    <Server className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <code className="flex-1 text-foreground">ssh -p 2222 user@tunnel.phirepass.io</code>
-                    <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => copyCommand('ssh -p 2222 user@tunnel.phirepass.io')}
-                    >
-                    <Copy className="h-4 w-4" />
-                    </Button>
-                </div>
-                </div>
-            </TabsContent>
-            </Tabs>
-        </DialogContent>
-        </Dialog>
-
-    {/* Terminal Panel */}
-    <TerminalPanel
-        isOpen={terminalOpen}
-        onClose={() => setTerminalOpen(false)}
-        tabs={terminalTabs}
-        onCloseTab={handleCloseTerminalTab}
-        activeTabId={activeTerminalTab}
-        onSelectTab={setActiveTerminalTab}
-        nodes={sshTunnelsAsNodes}
-        onAddTab={handleAddTerminalTab}
-    />
-
-    {/* SFTP Panel */}
-    <SftpPanel
-        isOpen={sftpOpen}
-        onClose={() => setSftpOpen(false)}
-        tunnels={sshTunnels}
-        initialTunnel={sftpInitialTunnel}
-    />
-
-    {/* Overlay */}
-    {(terminalOpen || sftpOpen) && (
-        <div
-        className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
-        onClick={() => {
-            setTerminalOpen(false);
-            setSftpOpen(false);
-        }}
-        />
-    )}
-    </div>
-  );
+    );
 };
 
 export default Tunnels;

@@ -22,35 +22,30 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
     const alerts: Alert[] = [];
 
     nodes.forEach((node) => {
-        // High CPU alert
-        if (node.stats.cpu > 90) {
-            /*
+        if (node.stats.host_cpu > 90) {
             alerts.push({
                 id: `cpu-${node.id}`,
                 type: "error",
                 title: "Critical CPU Usage",
-                message: `CPU usage at ${node.stats.cpu}%`,
+                message: `CPU usage at ${node.stats.host_cpu}%`,
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: node.stats.host_name,
                 timestamp: new Date(),
             });
-            */
-        } else if (node.stats.cpu > 75) {
-            /*
+        } else if (node.stats.host_cpu > 75) {
             alerts.push({
                 id: `cpu-warn-${node.id}`,
                 type: 'warning',
                 title: 'High CPU Usage',
-                message: `CPU usage at ${node.stats.cpu}%`,
+                message: `CPU usage at ${node.stats.host_cpu}%`,
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: node.stats.host_name,
                 timestamp: new Date(),
             });
-            */
         }
 
         // High Memory alert
-        if (node.stats.memory > 90) {
+        //if (node.stats.memory > 90) {
             /*
             alerts.push({
                 id: `mem-${node.id}`,
@@ -62,7 +57,7 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
                 timestamp: new Date(),
             });
             */
-        } else if (node.stats.memory > 80) {
+        //} else if (node.stats.memory > 80) {
             /*
             alerts.push({
                 id: `mem-warn-${node.id}`,
@@ -74,10 +69,10 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
                 timestamp: new Date(),
             });
             */
-        }
+        //}
 
         // Offline node alert
-        if (!node.isOnline) {
+        //if (!node.isOnline) {
             /*
             alerts.push({
                 id: `offline-${node.id}`,
@@ -89,10 +84,10 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
                 timestamp: new Date(),
             });
             */
-        }
+        //}
 
         // High ping alert
-        if (node.stats.ping > 200) {
+        //if (node.stats.ping > 200) {
             /*
             alerts.push({
                 id: `ping-${node.id}`,
@@ -104,7 +99,7 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
                 timestamp: new Date(),
             });
             */
-        }
+        //}
     });
 
     return alerts.sort((a, b) => {
