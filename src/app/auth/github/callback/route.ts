@@ -1,3 +1,6 @@
+import { query } from '@/app/lib/db';
+import { fetch_github_token, fetch_github_user } from '@/app/lib/github';
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
@@ -8,64 +11,10 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Verify state (optional but recommended)
-        // In a real app, verify that state matches what was stored
+        const accessToken = await fetch_github_token(code, state);
 
-        // Exchange code for access token
-        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                client_id: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
-                client_secret: process.env.GITHUB_CLIENT_SECRET,
-                code,
-                state,
-            }),
-        });
+        const userInfo = await fetch_github_user(accessToken);
 
-        const tokenData = await tokenResponse.json();
-
-        if (tokenData.error) {
-            return new Response(`Authentication failed: ${tokenData.error}`, { status: 401 });
-        }
-
-        const accessToken = tokenData.access_token;
-
-        // Fetch user information
-        const userResponse = await fetch('https://api.github.com/user', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/vnd.github.v3+json',
-            },
-        });
-
-        const userData = await userResponse.json();
-
-        // Fetch user email
-        const emailResponse = await fetch('https://api.github.com/user/emails', {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Accept': 'application/vnd.github.v3+json',
-            },
-        });
-
-        const emails = await emailResponse.json();
-        const primaryEmail = emails.find((e: { primary: boolean }) => e.primary)?.email || userData.email || emails[0]?.email;
-
-        // Prepare user data to be stored
-        const userInfo = {
-            id: userData.id,
-            login: userData.login,
-            name: userData.name || userData.login,
-            email: primaryEmail,
-            avatar_url: userData.avatar_url,
-            accessToken,
-        };
-
-        // Redirect to dashboard with user data encoded in URL
         const requestUrl = new URL(request.url);
         const dashboardUrl = new URL('/dashboard', requestUrl.origin);
         dashboardUrl.searchParams.set('user', JSON.stringify(userInfo));
