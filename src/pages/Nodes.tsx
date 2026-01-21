@@ -57,8 +57,8 @@ export default function Nodes() {
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
 
-    // Add server dialog
-    const [addServerOpen, setAddServerOpen] = useState(false);
+    // Add Node dialog
+    const [addNodeOpen, setAddNodeOpen] = useState(false);
 
     // Share dialogs
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -103,8 +103,8 @@ export default function Nodes() {
         setShareDialogOpen(true);
     };
 
-    const handleAddServer = () => {
-        setAddServerOpen(true);
+    const handleAddNode = () => {
+        setAddNodeOpen(true);
     };
 
     return (
@@ -116,9 +116,9 @@ export default function Nodes() {
                     <p className="text-muted-foreground">Manage your connected servers and infrastructure</p>
                 </div>
 
-                <Button size="sm" onClick={handleAddServer} className="gap-2">
+                <Button size="sm" onClick={handleAddNode} className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Add Server
+                    Add Node
                 </Button>
             </div>
 
@@ -277,8 +277,8 @@ export default function Nodes() {
                         onClose={() => setCreateTunnelPanelOpen(false)}
                     />
 
-                    {/* Add Server Dialog */}
-                    <AddServerDialog open={addServerOpen} onOpenChange={setAddServerOpen} />
+                    {/* Add Node Dialog */}
+                    <AddServerDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
 
                     {/* Share Node Dialog */}
                     <ShareNodeDialog
