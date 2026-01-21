@@ -1,3 +1,5 @@
+import { UserInfo } from "./types";
+
 export async function fetch_github_token(code: string, state: string | null) {
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
@@ -22,41 +24,34 @@ export async function fetch_github_token(code: string, state: string | null) {
     return tokenData.access_token;
 }
 
-export async function fetch_github_user(accessToken: string) {
-    const userResponse = await fetch('https://api.github.com/user/emails', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.github.v3+json',
-        },
-    });
+export async function fetch_github_user(accessToken: string): Promise<UserInfo> {
+    const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/vnd.github+json',
+    };
 
-    if (!userResponse.ok) {
-        throw new Error('Failed to fetch GitHub user');
+    const profileResponse = await fetch('https://api.github.com/user', { headers });
+
+    if (!profileResponse.ok) {
+        throw new Error('Failed to fetch GitHub user profile');
     }
 
-    const userData = await userResponse.json();
+    const profileData = await profileResponse.json();
 
-    const emailResponse = await fetch('https://api.github.com/user/emails', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept': 'application/vnd.github.v3+json',
-        },
-    });
+    const emailResponse = await fetch('https://api.github.com/user/emails', { headers });
 
     if (!emailResponse.ok) {
         throw new Error('Failed to fetch GitHub user email(s)');
     }
 
     const emails = await emailResponse.json();
-    const primaryEmail = emails.find((e: { primary: boolean }) => e.primary)?.email || userData.email || emails[0]?.email;
+    const primaryEmail = emails.find((e: { primary: boolean }) => e.primary)?.email || profileData.email || emails[0]?.email;
 
-    // Prepare user data to be stored
     const userInfo = {
-        id: userData.id,
-        login: userData.login,
-        name: userData.name || userData.login,
+        id: String(profileData.id),
+        username: profileData.login,
         email: primaryEmail,
-        avatar_url: userData.avatar_url,
+        avatar_url: profileData.avatar_url,
         accessToken,
     };
 
