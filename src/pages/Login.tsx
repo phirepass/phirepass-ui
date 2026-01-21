@@ -27,7 +27,7 @@ export default function Login() {
     sessionStorage.setItem('github_oauth_state', state);
 
     // Redirect to GitHub OAuth
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email&state=${state}`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('user:email read:user')}&state=${state}`;
     }
     // Google OAuth not implemented - do nothing
   };
