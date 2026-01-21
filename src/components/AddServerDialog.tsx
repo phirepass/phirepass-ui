@@ -1,4 +1,6 @@
-import { useState } from 'react';
+"use client";
+
+import { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -54,18 +56,20 @@ export function AddServerDialog({ open, onOpenChange }: AddServerDialogProps) {
         }
     };
 
-    const handleClose = () => {
-        setCurrentStep(0);
-        onOpenChange(false);
+    const handleOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen) {
+            setCurrentStep(0);
+        }
+        onOpenChange(nextOpen);
     };
 
     return (
-        <Dialog open={open} onOpenChange={handleClose}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Server className="w-5 h-5 text-primary" />
-                        Add New Server
+                        Add New Node
                     </DialogTitle>
                 </DialogHeader>
 
@@ -222,7 +226,7 @@ export function AddServerDialog({ open, onOpenChange }: AddServerDialogProps) {
                         Back
                     </Button>
                     {currentStep === steps.length - 1 ? (
-                        <Button variant="glow" onClick={handleClose}>
+                        <Button variant="glow" onClick={() => handleOpenChange(false)}>
                             Done
                         </Button>
                     ) : (

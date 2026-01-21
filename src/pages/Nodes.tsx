@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
@@ -277,9 +279,6 @@ export default function Nodes() {
                         onClose={() => setCreateTunnelPanelOpen(false)}
                     />
 
-                    {/* Add Node Dialog */}
-                    <AddServerDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
-
                     {/* Share Node Dialog */}
                     <ShareNodeDialog
                         open={shareDialogOpen}
@@ -295,6 +294,9 @@ export default function Nodes() {
                     />
                 </>
             )}
+
+            {/* Add Node Dialog (always mounted so it can open even during loading/error states) */}
+            <AddServerDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
         </div>
     );
 }
