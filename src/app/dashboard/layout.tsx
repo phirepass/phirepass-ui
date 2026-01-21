@@ -14,67 +14,46 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // User state from OAuth
+    // User state fetched from API
     const [user, setUser] = useState<{
         name: string | null;
         email: string | null;
         avatar: string | null;
     } | null>(null);
 
-    // Check authentication and handle OAuth callback on mount
+    // Fetch user profile from API using HttpOnly cookies (auth + GitHub token)
     useEffect(() => {
-        const hasUser =
-            typeof window !== "undefined"
-                ? localStorage.getItem("github_user")
-                : null;
-        const userParam =
-            typeof window !== "undefined"
-                ? new URLSearchParams(window.location.search).get("user")
-                : null;
-
-        // Handle OAuth callback with user data from API route
-        if (userParam) {
+        const load = async () => {
             try {
-                const userData = JSON.parse(userParam);
-                const userInfo = {
-                    name: userData.name || userData.login,
-                    email: userData.email,
-                    avatar: userData.avatar_url,
-                };
-                localStorage.setItem("github_user", JSON.stringify(userInfo));
-                setUser(userInfo);
-                setIsAuthenticated(true);
-                setIsLoading(false);
-                // Clean up the URL
-                window.history.replaceState({}, document.title, "/dashboard");
+                const res = await fetch('/api/profile', { credentials: 'include' });
+                if (res.status === 200) {
+                    const data = await res.json();
+                    const userInfo = {
+                        name: data.username || null,
+                        email: data.email || null,
+                        avatar: data.avatar_url || null,
+                    };
+                    setUser(userInfo);
+                    setIsAuthenticated(true);
+                    setIsLoading(false);
+                    // Clean URL in case callback left params
+                    if (typeof window !== 'undefined' && window.location.search) {
+                        window.history.replaceState({}, document.title, '/dashboard');
+                    }
+                } else {
+                    setIsAuthenticated(false);
+                    setIsLoading(false);
+                    router.push('/login');
+                }
             } catch (err) {
-                console.error("Failed to parse user data:", err);
-                toast({
-                    title: "Authentication failed",
-                    description: "Failed to process authentication response",
-                    variant: "destructive",
-                });
+                console.error('Failed to load profile', err);
+                setIsAuthenticated(false);
                 setIsLoading(false);
-                router.push("/login");
+                router.push('/login');
             }
-        } else if (hasUser) {
-            try {
-                const userData = JSON.parse(hasUser);
-                setUser(userData);
-                setIsAuthenticated(true);
-                setIsLoading(false);
-            } catch (err) {
-                console.error("Failed to parse stored user:", err);
-                localStorage.removeItem("github_user");
-                setIsLoading(false);
-                router.push("/login");
-            }
-        } else {
-            setIsAuthenticated(false);
-            setIsLoading(false);
-            router.push("/login");
-        }
-    }, [router, toast]);
+        };
+        load();
+    }, [router]);
 
     if (isLoading) {
         return (
@@ -88,17 +67,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         return null;
     }
 
-    const handleLogout = () => {
-        // Clear all auth data
-        localStorage.removeItem("github_user");
-        localStorage.removeItem("access_token");
-        sessionStorage.removeItem("github_oauth_state");
-
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+        } catch {}
         toast({
             title: "Logged out",
             description: "You have been successfully logged out",
         });
-
         router.push("/login");
     };
 

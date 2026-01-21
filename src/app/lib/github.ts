@@ -47,7 +47,7 @@ export async function fetch_github_user(accessToken: string): Promise<UserInfo> 
     const emails = await emailResponse.json();
     const primaryEmail = emails.find((e: { primary: boolean }) => e.primary)?.email || profileData.email || emails[0]?.email;
 
-    const userInfo = {
+    const userInfo: UserInfo = {
         id: String(profileData.id),
         username: profileData.login,
         email: primaryEmail,
