@@ -1,5 +1,6 @@
 import { query } from '@/app/lib/db';
 import { fetch_github_token, fetch_github_user } from '@/app/lib/github';
+import { signJWT, buildAuthCookie, buildCookie } from '@/app/lib/auth';
 import { UserInfo } from '@/app/lib/types';
 
 async function get_user_by_email(email: string) {
@@ -55,11 +56,33 @@ export async function GET(request: Request) {
             existingUser = await get_user_by_email(userInfo.email);
         }
 
+        // Issue session token with minimal info only
+        const payload = {
+            sub: existingUser?.id,
+            provider: 'github',
+        };
+
+        // 7 days
+        const maxAge = 7 * 24 * 60 * 60;
+        const token = signJWT(payload, maxAge);
+
         const requestUrl = new URL(request.url);
         const dashboardUrl = new URL('/dashboard', requestUrl.origin);
-        dashboardUrl.searchParams.set('user', JSON.stringify(userInfo));
 
-        return Response.redirect(dashboardUrl.toString());
+        // Also set a short-lived GitHub token cookie for server-side profile fetches
+        const cookieDomain = process.env.COOKIE_DOMAIN || undefined; // e.g., example.com
+        const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
+        const ghCookie = buildCookie('phirepass_token', accessToken, 24 * 60 * 60, cookieDomain); // 1 day
+
+        const headers = new Headers();
+        headers.set('Location', dashboardUrl.toString());
+        headers.append('Set-Cookie', authCookie);
+        headers.append('Set-Cookie', ghCookie);
+
+        return new Response(null, {
+            status: 302,
+            headers,
+        });
     } catch (error) {
         console.error('OAuth error:', error);
         return new Response('Authentication failed', { status: 500 });
