@@ -5,7 +5,7 @@ import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
-import { AddServerDialog } from '@/components/AddServerDialog';
+import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
 import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
@@ -296,7 +296,7 @@ export default function Nodes() {
             )}
 
             {/* Add Node Dialog (always mounted so it can open even during loading/error states) */}
-            <AddServerDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
+            <AddNodeDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
         </div>
     );
 }
