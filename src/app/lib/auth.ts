@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers';
 import crypto from 'node:crypto';
+import { query } from './db';
 
 type JWTPayload = Record<string, unknown> & {
     iat: number;
@@ -55,6 +57,10 @@ export function verifyJWT(token: string): JWTPayload | null {
     }
 }
 
+export function hasSub(p: unknown): p is { sub: string } {
+  return typeof p === 'object' && p !== null && 'sub' in p && typeof (p as { sub?: unknown }).sub === 'string';
+}
+
 export function buildAuthCookie(token: string, maxAgeSeconds: number, domain?: string) {
     const isProd = process.env.NODE_ENV === 'production';
     const parts = [
@@ -109,4 +115,24 @@ export function clearCookie(name: string, domain?: string) {
     if (domain) parts.push(`Domain=${domain}`);
     if (isProd) parts.push('Secure');
     return parts.join('; ');
+}
+
+export async function verifyToken() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token)
+        throw new Error('Token not found');
+
+    const payload = verifyJWT(token);
+    if (!payload)
+        throw new Error('Invalid token');
+
+    if (!hasSub(payload))
+        throw new Error('Invalid token payload');
+
+    const result = await query('SELECT id FROM users WHERE id = $1', [payload.sub]);
+    if (result.rowCount === 0)
+        throw new Error('User not found');
+
+    return result.rows[0];
 }
