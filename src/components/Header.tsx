@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Menu, X, LogOut, User, Settings, Shield, ChevronDown, Webhook, Key, Gauge, Activity } from 'lucide-react';
+import { Menu, X, LogOut, User, Settings, Shield, ChevronDown, Webhook, Key, KeyRound, Gauge, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -115,6 +115,9 @@ export function Header({ user: initialUser, onLogout }: HeaderProps) {
         <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/nodes')}>
             Nodes
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/pat-tokens')}>
+            Tokens
+        </Button>
         <div className="w-px h-6 bg-border" />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -196,6 +199,10 @@ export function Header({ user: initialUser, onLogout }: HeaderProps) {
         <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/nodes'); setMenuOpen(false); }}>
             <Shield className="w-5 h-5 mr-3" />
             Nodes
+        </Button>
+        <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}>
+            <KeyRound className="w-5 h-5 mr-3" />
+            Tokens
         </Button>
         <div className="border-t border-border my-2 pt-2">
             <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}>

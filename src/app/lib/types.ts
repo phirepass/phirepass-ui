@@ -19,7 +19,6 @@ export type PAToken = {
     scopes: string[]; // permissions associated with the token
     created_at: string;
     expires_at?: string;
-    revoked_at?: string;
 };
 
 export type CreatePATInput = {
