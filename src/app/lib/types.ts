@@ -5,4 +5,7 @@ export type UserInfo = {
     email: string;
     avatar_url: string;
     accessToken?: string;
+    created_at?: string;
+    updated_at?: string;
+    provider?: string;
 }
