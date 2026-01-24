@@ -160,6 +160,7 @@ useEffect(() => {
 - `/dashboard` → redirects to `/dashboard/nodes`
 - `/dashboard/nodes` - Node management
 - `/dashboard/api-keys` - API keys
+- `/dashboard/pat-tokens` - Personal Access Tokens
 - `/dashboard/webhooks` - Webhooks
 - `/dashboard/monitoring` - Monitoring
 - `/dashboard/rate-limiting` - Rate limits

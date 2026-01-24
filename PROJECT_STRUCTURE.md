@@ -29,6 +29,8 @@ phirepass-ui/
 │   │   │   │   └── page.tsx
 │   │   │   ├── api-keys/
 │   │   │   │   └── page.tsx
+│   │   │   ├── pat-tokens/
+│   │   │   │   └── page.tsx
 │   │   │   ├── webhooks/
 │   │   │   │   └── page.tsx
 │   │   │   ├── monitoring/
@@ -57,6 +59,7 @@ phirepass-ui/
 │   │   ├── Index.tsx
 │   │   ├── Nodes.tsx
 │   │   ├── ApiKeys.tsx
+│   │   ├── PatTokens.tsx
 │   │   ├── Webhooks.tsx
 │   │   ├── Monitoring.tsx
 │   │   ├── RateLimiting.tsx
@@ -218,6 +221,7 @@ export default nextConfig;
 - `/dashboard` - Dashboard home (redirects to /dashboard/nodes)
 - `/dashboard/nodes` - Node management
 - `/dashboard/api-keys` - API key management
+- `/dashboard/pat-tokens` - Personal Access Token management
 - `/dashboard/webhooks` - Webhook management
 - `/dashboard/monitoring` - System monitoring
 - `/dashboard/rate-limiting` - Rate limit configuration
