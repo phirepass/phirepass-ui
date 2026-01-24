@@ -184,17 +184,14 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
                                                 const res = await fetch('/api/pat', {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        name: `Node Token ${new Date().toLocaleString()}`,
-                                                        scopes: ['nodes:read', 'nodes:write', 'tunnels:write'],
-                                                    }),
                                                 });
                                                 if (!res.ok) {
                                                     const err = await res.json().catch(() => ({ error: 'Failed to create token' }));
                                                     throw new Error(err.error || 'Failed to create token');
                                                 }
+
                                                 const data = await res.json();
-                                                setPatKey(data.key as string);
+                                                setPatKey(data.token as string);
                                                 toast({ title: 'PAT created', description: 'Token generated successfully.' });
                                             } catch (e) {
                                                 const msg = e instanceof Error ? e.message : 'Unexpected error';

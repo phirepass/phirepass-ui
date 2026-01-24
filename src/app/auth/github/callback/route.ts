@@ -2,6 +2,7 @@ import { query } from '@/app/lib/db';
 import { fetch_github_token, fetch_github_user } from '@/app/lib/github';
 import { signJWT, buildAuthCookie, buildCookie } from '@/app/lib/auth';
 import { UserInfo } from '@/app/lib/types';
+import { empty_response, json_response } from '@/app/lib/framework';
 
 async function get_user_by_email(email: string) {
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
@@ -38,8 +39,8 @@ async function create_github_user(userInfo: UserInfo) {
     return result.rows[0];
 }
 
-export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url);
+export async function GET(req: Request) {
+    const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const state = searchParams.get('state');
 
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
         const maxAge = 7 * 24 * 60 * 60;
         const token = signJWT(payload, maxAge);
 
-        const requestUrl = new URL(request.url);
+        const requestUrl = new URL(req.url);
         const dashboardUrl = new URL('/dashboard', requestUrl.origin);
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
@@ -79,12 +80,9 @@ export async function GET(request: Request) {
         headers.append('Set-Cookie', authCookie);
         headers.append('Set-Cookie', ghCookie);
 
-        return new Response(null, {
-            status: 302,
-            headers,
-        });
-    } catch (error) {
-        console.error('OAuth error:', error);
-        return new Response('Authentication failed', { status: 500 });
+        return empty_response(302, headers);
+    } catch (e) {
+        console.warn(`[server][get][${req.url}]`, e);
+        return json_response({ error: 'Authentication failed' }, 500);
     }
 }
