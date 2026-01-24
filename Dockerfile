@@ -24,17 +24,13 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # database
-ENV DATABASE_HOST=localhost
-ENV DATABASE_PORT=5432
-ENV DATABASE_NAME=postgres
-ENV DATABASE_USER=postgres
-ENV DATABASE_PASSWORD=password
+ENV DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
 
 # server configuration
 ENV NEXT_PUBLIC_SERVER_HOST=localhost
 ENV NEXT_PUBLIC_SERVER_PORT=8080
 
-# secrets
+# authentication
 ENV COOKIE_DOMAIN=localhost
 ENV JWT_SECRET=something-strong-and-random
 
