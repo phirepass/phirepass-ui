@@ -131,7 +131,7 @@ export async function verifyToken(): Promise<UserInfo> {
     if (!hasSub(payload))
         throw new Error('Invalid token payload');
 
-    const result = await query('SELECT id FROM users WHERE id = $1', [payload.sub]);
+    const result = await query('SELECT * FROM users WHERE id = $1', [payload.sub]);
     if (result.rowCount === 0)
         throw new Error('User not found');
 

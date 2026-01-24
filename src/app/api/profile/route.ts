@@ -1,22 +1,12 @@
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/app/lib/auth';
-import { fetch_github_user } from '@/app/lib/github';
+import { verifyToken } from '@/app/lib/auth';
+import { json_response } from '@/app/lib/framework';
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
-        const cookieStore = await cookies();
-        const token = cookieStore.get('auth_token')?.value;
-        if (!token) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-        const payload = verifyJWT(token);
-        if (!payload || !payload.sub) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-
-        const ghToken = cookieStore.get('phirepass_token')?.value;
-        if (!ghToken) return new Response(JSON.stringify({ error: 'Re-auth required' }), { status: 401 });
-
-        // Fetch full profile from GitHub using server-side token
-        const profile = await fetch_github_user(ghToken);
-        return new Response(JSON.stringify(profile), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        const user = await verifyToken();
+        return json_response(user, 200);
     } catch (e) {
-        return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 });
+        console.warn(`[server][get][${req.url}]`, e);
+        return json_response({ error: 'Server error' }, 500);
     }
 }

@@ -70,7 +70,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const handleLogout = async () => {
         try {
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-        } catch {}
+        } catch { /* empty */ }
         toast({
             title: "Logged out",
             description: "You have been successfully logged out",
