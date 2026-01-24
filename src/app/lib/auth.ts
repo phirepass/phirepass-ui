@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import crypto from 'node:crypto';
 import { query } from './db';
+import { UserInfo } from './types';
 
 type JWTPayload = Record<string, unknown> & {
     iat: number;
@@ -117,7 +118,7 @@ export function clearCookie(name: string, domain?: string) {
     return parts.join('; ');
 }
 
-export async function verifyToken() {
+export async function verifyToken(): Promise<UserInfo> {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
     if (!token)
