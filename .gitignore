@@ -3,3 +3,6 @@ node_modules
 .env.example
 dist
 .next
+certs
+.vscode
+.idea
