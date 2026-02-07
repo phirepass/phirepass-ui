@@ -11,7 +11,7 @@ import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
-import { TunnelNode } from '@/types/node';
+import { NodeStats, TunnelNode } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -25,22 +25,29 @@ export default function Nodes() {
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedNodes, setSelectedNodes] = useState<TunnelNode[]>([]);
 
-    // Fetch nodes from API
+    // Fetch nodes from same-origin API
     useEffect(() => {
         const fetchNodes = async () => {
             try {
                 setLoading(true);
-                const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-                const serverHost = process.env.NEXT_PUBLIC_SERVER_HOST || 'localhost';
-                const serverPort = process.env.NEXT_PUBLIC_SERVER_PORT || '8080';
-                const apiUrl = `${protocol}//${serverHost}:${serverPort}/api/nodes`;
-
-                const response = await fetch(apiUrl);
+                const response = await fetch('/api/nodes');
                 if (!response.ok) {
                     throw new Error(`Failed to fetch nodes: ${response.statusText}`);
                 }
                 const data = await response.json();
-                setNodes(data);
+                const statsList = Array.isArray(data)
+                    ? data
+                    : (data?.nodes ?? data?.node_stats ?? []);
+                const normalizedNodes = (statsList as NodeStats[])
+                    .filter((stats) => Boolean(stats) && typeof stats === 'object')
+                    .map((stats, index) => ({
+                        id: String(stats.proc_id ?? index),
+                        ip: String(stats.host_ip ?? '0.0.0.0'),
+                        connected_for_secs: stats.proc_uptime_secs ?? 0,
+                        since_last_heartbeat_secs: stats.last_refreshed_secs ?? 0,
+                        stats,
+                    }));
+                setNodes(normalizedNodes);
                 setError(null);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch nodes');
