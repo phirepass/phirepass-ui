@@ -8,9 +8,20 @@ export async function getRedisClient(): Promise<RedisClientType | null> {
     if (!redisUrl) return null;
 
     if (!client) {
-        client = createClient({ url: redisUrl });
+        client = createClient({
+            url: redisUrl,
+            socket: {
+                reconnectStrategy: (retries) => Math.min(1000 * 2 ** retries, 10000),
+            },
+        });
         client.on('error', (err) => {
             console.warn('[redis] client error', err);
+            if (client && !client.isOpen) {
+                connectPromise = null;
+            }
+        });
+        client.on('end', () => {
+            connectPromise = null;
         });
     }
 

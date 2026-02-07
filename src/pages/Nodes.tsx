@@ -62,7 +62,7 @@ export default function Nodes() {
     const [shareManagementOpen, setShareManagementOpen] = useState(false);
     const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
 
-    const filteredNodes = nodes.filter(
+    const filteredNodes = nodes.filter(node => !!node.stats).filter(
         (node) =>
             node.stats.host_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             node.ip.includes(searchQuery)

@@ -21,7 +21,7 @@ interface MonitoringAlertsProps {
 function generateAlerts(nodes: TunnelNode[]): Alert[] {
     const alerts: Alert[] = [];
 
-    nodes.forEach((node) => {
+    nodes.filter(node => !!node.stats).forEach((node) => {
         if (node.stats.host_cpu > 90) {
             alerts.push({
                 id: `cpu-${node.id}`,
