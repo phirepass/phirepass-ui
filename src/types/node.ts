@@ -22,6 +22,8 @@ export interface TunnelNode {
     connected_for_secs: number;
     id: string;
     ip: string;
+    name: string;
+    serde_id: string;
     since_last_heartbeat_secs: number;
     stats: NodeStats;
 }
