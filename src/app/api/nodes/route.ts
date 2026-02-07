@@ -8,6 +8,7 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
     const statsKeyPattern = `phirepass:users:${userId}:nodes:*:stats`;
     const keys: string[] = [];
 
+    console.log(`[server][getUserNodeStats] scanning keys with pattern: ${statsKeyPattern}`);
     for await (const key of redis.scanIterator({ MATCH: statsKeyPattern, COUNT: 1000 })) {
         keys.push(key as string);
     }
