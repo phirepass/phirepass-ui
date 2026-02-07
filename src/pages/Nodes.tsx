@@ -34,20 +34,8 @@ export default function Nodes() {
                 if (!response.ok) {
                     throw new Error(`Failed to fetch nodes: ${response.statusText}`);
                 }
-                const data = await response.json();
-                const statsList = Array.isArray(data)
-                    ? data
-                    : (data?.nodes ?? data?.node_stats ?? []);
-                const normalizedNodes = (statsList as NodeStats[])
-                    .filter((stats) => Boolean(stats) && typeof stats === 'object')
-                    .map((stats, index) => ({
-                        id: String(stats.proc_id ?? index),
-                        ip: String(stats.host_ip ?? '0.0.0.0'),
-                        connected_for_secs: stats.proc_uptime_secs ?? 0,
-                        since_last_heartbeat_secs: stats.last_refreshed_secs ?? 0,
-                        stats,
-                    }));
-                setNodes(normalizedNodes);
+                const nodes = await response.json();
+                setNodes(nodes);
                 setError(null);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch nodes');
