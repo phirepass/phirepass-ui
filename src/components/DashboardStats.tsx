@@ -6,8 +6,8 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ nodes }: DashboardStatsProps) {
-    const online = nodes/*.filter((n) => n.isOnline)*/.length;
-    const offline = /*nodes.filter((n) => !n.isOnline).length;*/ 0;
+    const online = nodes.filter((n) => n.is_online).length;
+    const offline = nodes.length - online;
     const avgPing = /*Math.round(
     nodes.filter((n) => n.isOnline).reduce((acc, n) => acc + n.stats.ping, 0) / online || 0
   );*/ 0;

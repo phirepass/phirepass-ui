@@ -33,6 +33,8 @@ export function StatBar({ label, value, unit = '%', variant = 'default', icon }:
     secondary: 'text-muted-foreground',
   };
 
+  const displayValue = unit === '%' ? value.toFixed(2) : value;
+
   return (
     <div className="space-y-1">
     <div className="flex items-center justify-between text-xs">
@@ -41,7 +43,7 @@ export function StatBar({ label, value, unit = '%', variant = 'default', icon }:
         {label}
         </span>
         <span className={cn('font-mono font-medium', textColors[colorVariant])}>
-        {value}{unit}
+        {displayValue}{unit}
         </span>
     </div>
     <div className="h-1.5 bg-secondary rounded-full overflow-hidden">

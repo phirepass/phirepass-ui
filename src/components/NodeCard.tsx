@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { TunnelNode } from '@/types/node';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
@@ -8,24 +8,14 @@ import {
     FolderOpen,
     Clock,
     Wifi,
-    MoreVertical,
-    Power,
-    RefreshCw,
-    Settings,
     Activity,
     Cpu,
     Users,
     Share2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NodeCardProps {
     node: TunnelNode;
@@ -66,6 +56,38 @@ export function NodeCard({
 
     const SWIPE_THRESHOLD = 80;
     const MAX_SWIPE = 160;
+
+    const formatDuration = (totalSeconds: number) => {
+        const seconds = Math.max(0, Math.floor(totalSeconds));
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ${minutes % 60}m`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ${hours % 24}h`;
+    };
+
+    const formatBytes = (bytes: number) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+        const value = bytes / Math.pow(1024, unitIndex);
+        return `${value.toFixed(value < 10 ? 2 : value < 100 ? 1 : 0)} ${units[unitIndex]}`;
+    };
+
+    const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+    const memoryPercent = node.stats.host_mem_total_bytes
+        ? clampPercent((node.stats.host_mem_used_bytes / node.stats.host_mem_total_bytes) * 100)
+        : 0;
+    const cpuPercent = clampPercent(node.stats.host_cpu);
+    const loadAverageLabel = node.stats.host_load_average.map((value) => value.toFixed(2)).join(' / ');
+    const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
+    const heartbeatVariant = node.since_last_heartbeat_secs > 180
+        ? 'text-destructive'
+        : node.since_last_heartbeat_secs > 60
+            ? 'text-warning'
+            : 'text-primary';
 
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartX.current = e.touches[0].clientX;
@@ -147,7 +169,7 @@ export function NodeCard({
                     'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     isSelected ? 'border-primary bg-primary/5' : 'border-border',
-                    // !node.isOnline && 'opacity-60',
+                    !node.is_online && 'opacity-60',
                     isSwiping ? '' : 'transition-transform duration-300'
                 )}
                 style={{
@@ -165,7 +187,7 @@ export function NodeCard({
                 )}
 
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                         {showSelection && (
                             <Checkbox
@@ -174,113 +196,131 @@ export function NodeCard({
                                 className="data-[state=checked]:bg-primary data-[state=checked]:border-primary flex-shrink-0"
                             />
                         )}
-                        <StatusIndicator isOnline={/*node.isOnline*/ true } size="md" />
+                        <StatusIndicator isOnline={node.is_online} size="md" />
                         <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                                {node.stats.host_name}
-                            </h3>
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                                    {node.name}
+                                </h3>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <span className="text-xs text-muted-foreground bg-secondary px-1 py-1 rounded">
+                                        {node.stats.host_os_info}
+                                    </span>
+                                </div>
+                            </div>
                             {isShared && sharedBy ? (
                                 <p className="text-xs text-accent truncate">
                                     <span className="bg-accent/20 px-1.5 py-0.5 rounded mr-1">Shared</span>
                                     by {sharedBy}
                                 </p>
-                            ) : (
-                                <p className="text-xs text-muted-foreground font-mono">{node.ip}</p>
-                            )}
-                            {isShared && sharedBy && (
-                                <p className="text-xs text-muted-foreground font-mono">{node.ip}</p>
-                            )}
+                            ) : null}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded">
-                            {node.stats.host_os_info}
-                        </span>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 md:h-8 md:w-8">
-                                    <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => onRefreshStats?.(node)} className="h-11 md:h-9">
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Refresh Stats
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onConfigure?.(node)} className="h-11 md:h-9">
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    Configure
-                                </DropdownMenuItem>
-                                {!isShared && (
-                                    <DropdownMenuItem onClick={() => onShare?.(node)} className="h-11 md:h-9">
-                                        <Share2 className="w-4 h-4 mr-2" />
-                                        Share
-                                    </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => onReboot?.(node)}
-                                    disabled={/*!node.isOnline*/ false}
-                                    className="h-11 md:h-9"
-                                >
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Reboot
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={() => onShutdown?.(node)}
-                                    disabled={/*!node.isOnline*/ false}
-                                    className="text-destructive focus:text-destructive h-11 md:h-9"
-                                >
-                                    <Power className="w-4 h-4 mr-2" />
-                                    Shutdown
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 mb-8">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs text-muted-foreground font-mono block truncate">
+                                    {node.stats.host_name}
+                                </p>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            MAC {node.stats.host_mac}
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
 
                 {/* Primary Stats - Side by Side */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                    <StatBar label="CPU" value={node.stats.host_cpu} icon={<Cpu className="w-4 h-4" />} />
-                    <StatBar label="Memory" value={node.stats.host_mem_used_bytes} icon={<Activity className="w-4 h-4" />} />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div>
+                                <StatBar label="CPU" value={cpuPercent} icon={<Cpu className="w-4 h-4" />} />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Host CPU: {node.stats.host_cpu.toFixed(2)}%
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div>
+                                <StatBar label="Memory" value={memoryPercent} icon={<Activity className="w-4 h-4" />} />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {formatBytes(node.stats.host_mem_used_bytes)} / {formatBytes(node.stats.host_mem_total_bytes)} • Free {formatBytes(freeMemoryBytes)}
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
 
                 {/* Extended Stats Grid */}
                 <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-                    <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                        <Clock className="w-5 h-5 text-primary" />
-                        <div>
-                            <span className="text-muted-foreground">Uptime</span>
-                            <p className="font-mono text-foreground">{node.stats.host_uptime_secs}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                        <Wifi className="w-5 h-5 text-primary" />
-                        <div>
-                            <span className="text-muted-foreground">Ping</span>
-                            <p className="font-mono text-foreground">{node.connected_for_secs}ms</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                        <Activity className="w-5 h-5 text-accent" />
-                        <div>
-                            <span className="text-muted-foreground">Load Avg</span>
-                            <p className="font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</p>
-                        </div>
-                    </div>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
+                                <Clock className="w-5 h-5 text-primary" />
+                                <div>
+                                    <span className="text-muted-foreground">Uptime</span>
+                                    <p className="font-mono text-foreground">{formatDuration(node.stats.host_uptime_secs)}</p>
+                                </div>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {node.stats.host_uptime_secs}s
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
+                                <Wifi className={cn('w-5 h-5', heartbeatVariant)} />
+                                <div>
+                                    <span className="text-muted-foreground">Ping</span>
+                                    <p className="font-mono text-foreground">{formatDuration(0)}</p>
+                                </div>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Ping 0s
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
+                                <Activity className="w-5 h-5 text-accent" />
+                                <div>
+                                    <span className="text-muted-foreground">Load Avg</span>
+                                    <p className="font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</p>
+                                </div>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {loadAverageLabel}
+                        </TooltipContent>
+                    </Tooltip>
                     <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
                         <Users className="w-5 h-5 text-accent" />
                         <div>
-                            <span className="text-muted-foreground">Connections</span>
-                            <p className="font-mono text-foreground">{node.stats.host_connections}</p>
+                            <span className="text-muted-foreground">Active Sessions</span>
+                            <p className="font-mono text-foreground">0</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Processes count */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-4 px-1">
-                    <span>{node.stats.host_processes} processes running</span>
-                    <span className="text-muted-foreground/60">Last seen: {node.connected_for_secs}</span>
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="text-muted-foreground/60">
+                                Connected: {formatDuration(node.connected_for_secs)}
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Connected for {node.connected_for_secs}s
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
 
                 {/* Tags */}
@@ -302,7 +342,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1"
                         onClick={() => onCreateTunnel(node)}
-                        disabled={/*!node.isOnline*/false}
+                        disabled={!node.is_online}
                     >
                         <Globe className="w-4 h-4" />
                         Connect
@@ -312,7 +352,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1"
                         onClick={() => onOpenFiles(node)}
-                        disabled={/*!node.isOnline*/false}
+                        disabled
                     >
                         <FolderOpen className="w-4 h-4" />
                         Files
