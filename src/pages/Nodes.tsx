@@ -62,16 +62,53 @@ export default function Nodes() {
     const [shareManagementOpen, setShareManagementOpen] = useState(false);
     const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
 
-    const filteredNodes = nodes.filter(node => !!node.stats).filter(
-        (node) =>
-            node.stats.host_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            node.ip.includes(searchQuery)
-            /* ||
-             node.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))*/
-    );
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const filteredNodes = nodes.filter(node => !!node.stats).filter((node) => {
+        if (!normalizedQuery) return true;
+
+        const name = (node.name ?? '').toLowerCase();
+        const hostName = (node.stats.host_name ?? '').toLowerCase();
+        const ip = (node.ip ?? '').toLowerCase();
+        const osInfo = (node.stats.host_os_info ?? '').toLowerCase();
+
+        return (
+            name.includes(normalizedQuery) ||
+            hostName.includes(normalizedQuery) ||
+            ip.includes(normalizedQuery) ||
+            osInfo.includes(normalizedQuery)
+        );
+        /* ||
+         node.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))*/
+    });
 
     const handleCreateTunnel = (node: TunnelNode) => {
         setCreateTunnelPanelOpen(true);
+    };
+
+    const handleRefreshStats = async (node: TunnelNode) => {
+        const params = new URLSearchParams({
+            refresh: '1',
+            id: node.id,
+        });
+
+        try {
+            const response = await fetch(`/api/nodes?${params.toString()}`);
+            if (!response.ok) {
+                throw new Error(`Refresh failed: ${response.statusText}`);
+            }
+
+            const refreshedNodes = await response.json() as TunnelNode[];
+            if (!Array.isArray(refreshedNodes) || refreshedNodes.length === 0) {
+                return;
+            }
+
+            const refreshedNode = refreshedNodes[0];
+            setNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
+            setSelectedNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
+            setSelectedFileNode((prev) => (prev?.id === refreshedNode.id ? refreshedNode : prev));
+        } catch (err) {
+            console.warn('[client][refresh-stats] failed', err);
+        }
     };
 
     const handleOpenFiles = (node: TunnelNode) => {
@@ -248,6 +285,7 @@ export default function Nodes() {
                                 }}
                                 onCreateTunnel={handleCreateTunnel}
                                 onOpenFiles={handleOpenFiles}
+                                onRefreshStats={handleRefreshStats}
                                 onShare={handleShare}
                             />
                         ))}
