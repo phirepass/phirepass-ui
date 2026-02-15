@@ -5,38 +5,22 @@ import { getRedisClient } from '@/app/lib/redis';
 async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>>, userId: string) {
     if (!redis) return [] as unknown[];
 
-    const statsKeyPattern = `phirepass:users:${userId}:nodes:*:stats`;
+    const statsKeyPattern = `phirepass:users:${userId}:nodes:*`;
     const keys: string[] = [];
 
     console.log(`[server][getUserNodeStats] scanning keys with pattern: ${statsKeyPattern}`);
-    for await (const key of redis.scanIterator({ MATCH: statsKeyPattern, COUNT: 1000 })) {
+    for await (const key of redis.scanIterator({ MATCH: statsKeyPattern, COUNT: 100 })) {
         keys.push(key as string);
     }
 
-    if (keys.length === 0) {
-        return [] as unknown[];
+    const entries = [];
+
+    for (const key of keys) {
+        const stats = await redis.hGet(key, "stats");
+        if (stats) {
+            entries.push(JSON.parse(stats));
+        }
     }
-
-    const entries = await Promise.all(
-        keys.map(async (key) => {
-            const keyType = await redis.type(key);
-            if (keyType === 'hash') {
-                return await redis.hGetAll(key);
-            }
-
-            if (keyType === 'string') {
-                const raw = await redis.get(key);
-                if (raw == null) return null;
-                try {
-                    return JSON.parse(raw);
-                } catch {
-                    return raw;
-                }
-            }
-
-            return null;
-        })
-    );
 
     return entries;
 }
