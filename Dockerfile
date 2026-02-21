@@ -14,9 +14,22 @@ RUN bun install
 FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+RUN bun run build
+
+# Stage 3: Runner (minimal production image)
+FROM oven/bun:1-alpine AS runner
+WORKDIR /app
+
+# Copy necessary files from builder with proper ownership
+COPY --from=builder --chown=1001:1001 /app/public ./public
+COPY --from=builder --chown=1001:1001 /app/.next/standalone ./
+COPY --from=builder --chown=1001:1001 /app/.next/static ./.next/static
+
+# Switch to non-root user (numeric UID avoids need to create user)
+USER 1001
 
 # generic
 ENV PORT=8084
@@ -37,22 +50,6 @@ ENV JWT_SECRET=something-strong-and-random
 # github
 ENV NEXT_PUBLIC_GITHUB_CLIENT_ID=client
 ENV GITHUB_CLIENT_SECRET=secret
-
-RUN bun run build
-
-# Stage 3: Runner (minimal production image)
-FROM oven/bun:1-alpine AS runner
-WORKDIR /app
-
-# Copy necessary files from builder with proper ownership
-COPY --from=builder --chown=1001:1001 /app/public ./public
-COPY --from=builder --chown=1001:1001 /app/.next/standalone ./
-COPY --from=builder --chown=1001:1001 /app/.next/static ./.next/static
-
-# Switch to non-root user (numeric UID avoids need to create user)
-USER 1001
-
-EXPOSE 8084
 
 # Start the app
 CMD ["bun", "server.js"]

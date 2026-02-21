@@ -39,7 +39,7 @@ export interface TerminalTab {
 
 export interface FileItem {
     name: string;
-    type: 'file' | 'directory';
+    type: "file" | "directory";
     size?: number;
     modified: string;
     permissions: string;
@@ -52,5 +52,5 @@ export interface FileTransfer {
     sourcePath: string;
     destPath: string;
     progress: number;
-    status: 'pending' | 'transferring' | 'completed' | 'failed';
+    status: "pending" | "transferring" | "completed" | "failed";
 }
