@@ -1,3 +1,13 @@
+let isReadyLocal = false;
+
+export function setReady(value: boolean) {
+    isReadyLocal = value;
+}
+
+export function isReady() {
+    return isReadyLocal;
+}
+
 export async function json_response(data: unknown, status: number = 200) {
     return new Response(JSON.stringify(data), {
         status,

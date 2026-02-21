@@ -13,21 +13,21 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 const queryClient = new QueryClient();
 
 export default function RootLayout({
-  children,
+    children,
 }: {
-  children: ReactNode;
+    children: ReactNode;
 }) {
-  return (
-    <html lang="en">
-    <body>
-        <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            {children}
-        </TooltipProvider>
-        </QueryClientProvider>
-    </body>
-    </html>
-  );
+    return (
+        <html lang="en">
+            <body>
+                <QueryClientProvider client={queryClient}>
+                    <TooltipProvider>
+                        <Toaster />
+                        <Sonner />
+                        {children}
+                    </TooltipProvider>
+                </QueryClientProvider>
+            </body>
+        </html>
+    );
 }

@@ -1,13 +1,13 @@
-import { query } from '@/app/lib/db';
-import { fetch_github_token, fetch_github_user } from '@/app/lib/github';
-import { signJWT, buildAuthCookie, buildCookie } from '@/app/lib/auth';
-import { UserInfo } from '@/app/lib/types';
-import { empty_response, json_response } from '@/app/lib/framework';
+import { query } from "@/app/lib/db";
+import { fetch_github_token, fetch_github_user } from "@/app/lib/github";
+import { signJWT, buildAuthCookie, buildCookie } from "@/app/lib/auth";
+import { UserInfo } from "@/app/lib/types";
+import { empty_response, json_response } from "@/app/lib/framework";
 
 async function get_user_by_email(email: string) {
-    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await query("SELECT * FROM users WHERE email = $1", [email]);
     if (!result) {
-        throw new Error('Database query failed');
+        throw new Error("Database query failed");
     }
 
     if (result.rows.length === 0) {
@@ -28,12 +28,12 @@ async function create_github_user(userInfo: UserInfo) {
         "github",
         userInfo.email,
         userInfo.username,
-        userInfo.avatar_url
+        userInfo.avatar_url,
     ];
 
     const result = await query(insertQuery, values);
     if (!result) {
-        throw new Error('Failed to create user in the database');
+        throw new Error("Failed to create user in the database");
     }
 
     return result.rows[0];
@@ -41,11 +41,11 @@ async function create_github_user(userInfo: UserInfo) {
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
 
     if (!code) {
-        return new Response('Missing authorization code', { status: 400 });
+        return new Response("Missing authorization code", { status: 400 });
     }
 
     try {
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
         // Issue session token with minimal info only
         const payload = {
             sub: existingUser?.id,
-            provider: 'github',
+            provider: "github",
         };
 
         // 7 days
@@ -68,21 +68,26 @@ export async function GET(req: Request) {
         const token = signJWT(payload, maxAge);
 
         const requestUrl = new URL(req.url);
-        const dashboardUrl = new URL('/dashboard', requestUrl.origin);
+        const dashboardUrl = new URL("/dashboard", requestUrl.origin);
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
         const cookieDomain = process.env.COOKIE_DOMAIN || undefined; // e.g., example.com
         const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
-        const ghCookie = buildCookie('phirepass_token', accessToken, 24 * 60 * 60, cookieDomain); // 1 day
+        const ghCookie = buildCookie(
+            "phirepass_token",
+            accessToken,
+            24 * 60 * 60,
+            cookieDomain,
+        ); // 1 day
 
         const headers = new Headers();
-        headers.set('Location', dashboardUrl.toString());
-        headers.append('Set-Cookie', authCookie);
-        headers.append('Set-Cookie', ghCookie);
+        headers.set("Location", dashboardUrl.toString());
+        headers.append("Set-Cookie", authCookie);
+        headers.append("Set-Cookie", ghCookie);
 
         return empty_response(302, headers);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
-        return json_response({ error: 'Authentication failed' }, 500);
+        return json_response({ error: "Authentication failed" }, 500);
     }
 }
