@@ -71,3 +71,63 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Database schema
+
+```sql
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  updated_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  provider text NOT NULL,
+  email text NOT NULL UNIQUE,
+  password text,
+  username text NOT NULL,
+  avatar_url text NOT NULL,
+  roles text[] NOT NULL DEFAULT '{user}'::text[],
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.pat_tokens (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  token_id text NOT NULL UNIQUE,
+  token_hash text NOT NULL,
+  user_id uuid NOT NULL,
+  name text NOT NULL DEFAULT ''::text,
+  scopes text[] NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  expires_at timestamp with time zone,
+  CONSTRAINT pat_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT pat_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.nodes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  name text,
+  public_key text NOT NULL UNIQUE,
+  hostname text NOT NULL DEFAULT ''::text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT (now() AT TIME ZONE 'utc'::text),
+  last_seen timestamp with time zone,
+  revoked boolean NOT NULL DEFAULT false,
+  CONSTRAINT nodes_pkey PRIMARY KEY (id),
+  CONSTRAINT nodes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.auth_challenges (
+  node_id uuid NOT NULL,
+  challenge text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  CONSTRAINT auth_challenges_pkey PRIMARY KEY (node_id),
+  CONSTRAINT auth_challenges_node_id_fkey FOREIGN KEY (node_id) REFERENCES public.nodes(id) ON DELETE CASCADE
+);
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+SELECT cron.schedule(
+   'phirepass-auth-challenge-cleanup',
+   '* * * * *', -- every minute
+   $$DELETE FROM auth_challenges WHERE expires_at <= NOW();$$
+);
+```

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,7 +19,7 @@ import {
 import { mockApiKeys, generateApiKey } from '@/data/mockApiKeys';
 import { ApiKey, ApiKeyScope } from '@/types/api-key';
 import { toast } from 'sonner';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -71,18 +71,20 @@ const ApiKeys = () => {
   };
 
   const copyKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    toast.success('API key copied to clipboard');
+    navigator.clipboard.writeText(key).then(() => {
+        toast.success('API key copied to clipboard');
+    });
   };
 
   const handleCreateKey = () => {
     if (!newKeyName.trim()) {
-    toast.error('Please enter a name for the API key');
-    return;
+        toast.error('Please enter a name for the API key');
+        return;
     }
+
     if (newKeyScopes.length === 0) {
-    toast.error('Please select at least one scope');
-    return;
+        toast.error('Please select at least one scope');
+        return;
     }
 
     const newKey = generateApiKey();
@@ -90,13 +92,13 @@ const ApiKeys = () => {
     const fullKey = prefix + newKey;
 
     const apiKey: ApiKey = {
-    id: `key-${Date.now()}`,
-    name: newKeyName,
-    key: fullKey,
-    prefix,
-    createdAt: new Date(),
-    scopes: newKeyScopes,
-    status: 'active',
+        id: `key-${Date.now()}`,
+        name: newKeyName,
+        key: fullKey,
+        prefix,
+        createdAt: new Date(),
+        scopes: newKeyScopes,
+        status: 'active',
     };
 
     setKeys(prev => [apiKey, ...prev]);
@@ -107,9 +109,11 @@ const ApiKeys = () => {
 
   const handleRevokeKey = (key: ApiKey) => {
     setKeys(prev => prev.map(k =>
-    k.id === key.id ? { ...k, status: 'revoked' as const } : k
+        k.id === key.id ? { ...k, status: 'revoked' as const } : k
     ));
+
     setKeyToRevoke(null);
+
     toast.success('API key revoked');
   };
 

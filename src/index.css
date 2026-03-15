@@ -81,7 +81,7 @@
     }
 
     html {
-        font-family: var(--font-sans);
+        font-family: var(--font-sans), serif;
     }
 
     body {
@@ -93,7 +93,7 @@
     code,
     pre,
     .font-mono {
-        font-family: var(--font-mono);
+        font-family: var(--font-mono), ui-monospace;
     }
 }
 

@@ -36,7 +36,6 @@ type NodeStatsPayload = {
 type UserNodeRow = {
     id: string;
     name: string | null;
-    token_id: string;
     created_at: string;
 };
 
@@ -147,7 +146,7 @@ export async function GET(req: Request) {
         const requestedId = url.searchParams.get('id');
 
         const result = await query(
-            `SELECT id, name, token_id, created_at
+            `SELECT id, name, created_at
              FROM nodes
              WHERE user_id = $1
              ORDER BY created_at DESC`,
