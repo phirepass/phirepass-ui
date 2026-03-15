@@ -15,15 +15,13 @@ export async function GET(req: Request) {
                 p.scopes,
                 p.created_at,
                 p.expires_at,
-                COUNT(n.id) as node_count,
+                0::integer as node_count,
                 CASE
                     WHEN p.expires_at IS NOT NULL AND p.expires_at < NOW() THEN 'expired'
                     ELSE 'active'
                 END as status
              FROM pat_tokens p
-             LEFT JOIN nodes n ON n.token_id = p.id
              WHERE p.user_id = $1
-             GROUP BY p.id, p.token_id, p.name, p.scopes, p.created_at, p.expires_at
              ORDER BY p.created_at DESC`,
             [user.id]
         );

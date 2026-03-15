@@ -1,9 +1,10 @@
 export type UserInfo = {
     id: string;
     username: string;
-    password?: string;
+    password?: string | null;
     email: string;
     avatar_url: string;
+    roles?: string[];
     accessToken?: string;
     created_at?: string;
     updated_at?: string;
