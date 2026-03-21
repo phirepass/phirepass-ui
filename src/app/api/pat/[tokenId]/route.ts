@@ -12,8 +12,8 @@ export async function DELETE(
 
         const result = await query(
             `DELETE FROM pat_tokens
-             WHERE token_id = $1 AND user_id = $2
-             RETURNING id`,
+            WHERE token_id = $1 AND user_id = $2
+            RETURNING id`,
             [tokenId, user.id],
         );
 

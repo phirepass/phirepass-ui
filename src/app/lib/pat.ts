@@ -19,7 +19,7 @@ export async function create_pat(input: CreatePATInput): Promise<string> {
 
     await query(
         `INSERT INTO pat_tokens (token_id, token_hash, name, user_id, scopes, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        VALUES ($1, $2, $3, $4, $5, $6)`,
         [
             tokenId,
             tokenHash,

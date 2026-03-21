@@ -147,9 +147,9 @@ export async function GET(req: Request) {
 
         const result = await query(
             `SELECT id, name, created_at
-             FROM nodes
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
+            FROM nodes
+            WHERE user_id = $1
+            ORDER BY created_at DESC`,
             [user.id]
         );
 

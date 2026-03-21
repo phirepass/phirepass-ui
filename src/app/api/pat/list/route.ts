@@ -20,9 +20,9 @@ export async function GET(req: Request) {
                     WHEN p.expires_at IS NOT NULL AND p.expires_at < NOW() THEN 'expired'
                     ELSE 'active'
                 END as status
-             FROM pat_tokens p
-             WHERE p.user_id = $1
-             ORDER BY p.created_at DESC`,
+            FROM pat_tokens p
+            WHERE p.user_id = $1
+            ORDER BY p.created_at DESC`,
             [user.id]
         );
 
