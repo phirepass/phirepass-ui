@@ -27,31 +27,99 @@ const sslConfig = sslRootCert ? {
 const databaseUrl = process.env.DATABASE_URL;
 const parsedUrl = databaseUrl ? new URL(databaseUrl) : null;
 
-const client = new Client({
+const clientConfig = {
     user: parsedUrl?.username || process.env.PGUSER,
     password: parsedUrl?.password || process.env.PGPASSWORD,
     host: parsedUrl?.hostname || process.env.PGHOST,
     port: parsedUrl?.port ? Number(parsedUrl.port) : (process.env.PGPORT ? Number(process.env.PGPORT) : undefined),
     database: parsedUrl?.pathname ? parsedUrl.pathname.replace(/^\//, '') : process.env.PGDATABASE,
     ssl: sslConfig,
-});
+};
+
+let client: Client = createClient();
 
 let clientReady: Promise<void> | null = null;
+let reconnecting: Promise<void> | null = null;
+
+function markDisconnected() {
+    clientReady = null;
+}
+
+function createClient() {
+    const nextClient = new Client(clientConfig);
+
+    nextClient.on('error', () => {
+        markDisconnected();
+    });
+
+    return nextClient;
+}
 
 async function ensureConnected() {
     if (!clientReady) {
-        clientReady = client.connect();
+        clientReady = client.connect().catch((error) => {
+            markDisconnected();
+            throw error;
+        });
     }
 
     return clientReady;
 }
 
+function isRetryableConnectionError(error: unknown) {
+    const candidate = error as { code?: string; message?: string };
+    const message = candidate?.message?.toLowerCase() || '';
+
+    return candidate?.code === 'ECONNRESET'
+        || candidate?.code === 'EPIPE'
+        || candidate?.code === '57P01'
+        || message.includes('connection terminated unexpectedly')
+        || message.includes('connection ended unexpectedly')
+        || message.includes('not queryable')
+        || message.includes('connection closed');
+}
+
+async function reconnect() {
+    if (!reconnecting) {
+        reconnecting = (async () => {
+            const oldClient = client;
+            markDisconnected();
+
+            try {
+                await oldClient.end();
+            } catch {
+                // Ignore shutdown errors while forcing reconnection.
+            }
+
+            client = createClient();
+            await ensureConnected();
+        })().finally(() => {
+            reconnecting = null;
+        });
+    }
+
+    await reconnecting;
+}
+
 export async function query(text: string, params?: unknown[]): Promise<QueryResult> {
-    await ensureConnected();
-    return client.query(text, params)
+    const execute = async () => {
+        await ensureConnected();
+        return client.query(text, params);
+    };
+
+    try {
+        return await execute();
+    } catch (error) {
+        if (!isRetryableConnectionError(error)) {
+            throw error;
+        }
+
+        await reconnect();
+        return execute();
+    }
 }
 
 export async function getClient() {
     await ensureConnected();
-    return client
+    return client;
 }

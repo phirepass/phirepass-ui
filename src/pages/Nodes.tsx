@@ -53,6 +53,7 @@ export default function Nodes() {
 
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
+    const [selectedTunnelNode, setSelectedTunnelNode] = useState<TunnelNode | null>(null);
 
     // Add Node dialog
     const [addNodeOpen, setAddNodeOpen] = useState(false);
@@ -82,6 +83,7 @@ export default function Nodes() {
     });
 
     const handleCreateTunnel = (node: TunnelNode) => {
+        setSelectedTunnelNode(node);
         setCreateTunnelPanelOpen(true);
     };
 
@@ -309,7 +311,11 @@ export default function Nodes() {
                     {/* Create Tunnel Panel */}
                     <CreateTunnelPanel
                         isOpen={createTunnelPanelOpen}
-                        onClose={() => setCreateTunnelPanelOpen(false)}
+                        onClose={() => {
+                            setCreateTunnelPanelOpen(false);
+                            setSelectedTunnelNode(null);
+                        }}
+                        nodeId={selectedTunnelNode?.id ?? null}
                     />
 
                     {/* Share Node Dialog */}
