@@ -83,7 +83,7 @@ export async function GET(req: Request) {
         const headers = new Headers();
         headers.set("Location", dashboardUrl.toString());
         headers.append("Set-Cookie", authCookie);
-        headers.append("Set-Cookie", ghCookie);
+        // headers.append("Set-Cookie", ghCookie);
 
         return empty_response(302, headers);
     } catch (e) {

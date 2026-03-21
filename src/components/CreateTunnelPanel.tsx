@@ -1,18 +1,129 @@
-import { X, Terminal, Copy, Server } from 'lucide-react';
+"use client";
+
+import { createElement, useEffect, useState } from 'react';
+import { X, Terminal } from 'lucide-react';
 import { Button } from './ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { toast } from 'sonner';
+
+const PHIREPASS_WIDGETS_SCRIPT_ID = 'phirepass-widgets-esm';
+const PHIREPASS_WIDGETS_SCRIPT_SRC = 'https://unpkg.com/phirepass-widgets@0.0.14/dist/phirepass-widgets/phirepass-widgets.esm.js';
 
 interface CreateTunnelPanelProps {
     isOpen: boolean;
     onClose: () => void;
+    nodeId: string | null;
 }
 
-export function CreateTunnelPanel({ isOpen, onClose }: CreateTunnelPanelProps) {
-    const copyCommand = (command: string) => {
-        navigator.clipboard.writeText(command);
-        toast.success('Command copied to clipboard');
-    };
+export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanelProps) {
+    const [token, setToken] = useState<string | null>(null);
+    const [tokenError, setTokenError] = useState<string | null>(null);
+    const [loadingToken, setLoadingToken] = useState(false);
+    const [widgetReady, setWidgetReady] = useState<boolean>(() => typeof window !== 'undefined' && !!window.customElements.get('phirepass-terminal'));
+    const [widgetError, setWidgetError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (window.customElements.get('phirepass-terminal')) {
+            setWidgetReady(true);
+            setWidgetError(null);
+            return;
+        }
+
+        const existing = document.getElementById(PHIREPASS_WIDGETS_SCRIPT_ID) as HTMLScriptElement | null;
+        if (existing) {
+            const handleLoad = () => {
+                setWidgetReady(true);
+                setWidgetError(null);
+            };
+            const handleError = () => {
+                setWidgetError('Failed to load terminal widget bundle');
+            };
+
+            existing.addEventListener('load', handleLoad);
+            existing.addEventListener('error', handleError);
+
+            return () => {
+                existing.removeEventListener('load', handleLoad);
+                existing.removeEventListener('error', handleError);
+            };
+        }
+
+        const script = document.createElement('script');
+        script.id = PHIREPASS_WIDGETS_SCRIPT_ID;
+        script.type = 'module';
+        script.src = PHIREPASS_WIDGETS_SCRIPT_SRC;
+
+        const handleLoad = () => {
+            setWidgetReady(true);
+            setWidgetError(null);
+        };
+
+        const handleError = () => {
+            setWidgetError('Failed to load terminal widget bundle');
+        };
+
+        script.addEventListener('load', handleLoad);
+        script.addEventListener('error', handleError);
+        document.head.appendChild(script);
+
+        return () => {
+            script.removeEventListener('load', handleLoad);
+            script.removeEventListener('error', handleError);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isOpen || !nodeId) {
+            setToken(null);
+            setTokenError(null);
+            setLoadingToken(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchToken = async () => {
+            setLoadingToken(true);
+            setToken(null);
+            setTokenError(null);
+
+            try {
+                const response = await fetch('/api/auth/websocket-token', {
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch terminal token (${response.status})`);
+                }
+
+                const payload = await response.json() as { token?: string };
+                if (!payload.token) {
+                    throw new Error('Token response is missing token');
+                }
+
+                if (!cancelled) {
+                    setToken(payload.token);
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setToken(null);
+                    setTokenError(error instanceof Error ? error.message : 'Unable to load terminal token');
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoadingToken(false);
+                }
+            }
+        };
+
+        fetchToken();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, nodeId]);
 
     if (!isOpen) return null;
 
@@ -24,7 +135,7 @@ export function CreateTunnelPanel({ isOpen, onClose }: CreateTunnelPanelProps) {
                     <Terminal className="w-5 h-5 text-primary" />
                     <div>
                         <span className="text-sm font-medium">Connect</span>
-                        <p className="text-xs text-muted-foreground">Run the Phirepass CLI to expose your local service</p>
+                        <p className="text-xs text-muted-foreground">Interactive terminal session</p>
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose}>
@@ -33,209 +144,50 @@ export function CreateTunnelPanel({ isOpen, onClose }: CreateTunnelPanelProps) {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-                <Tabs defaultValue="http" className="w-full">
-                    <div className="border-b border-border px-4 pt-4">
-                        <TabsList className="w-full">
-                            <TabsTrigger value="http" className="flex-1">HTTP</TabsTrigger>
-                            <TabsTrigger value="tcp" className="flex-1">TCP/UDP</TabsTrigger>
-                            <TabsTrigger value="ssh" className="flex-1">SSH</TabsTrigger>
-                        </TabsList>
+            <div className="flex-1 overflow-hidden p-4">
+                {!nodeId && (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                        Select a node to start a terminal session.
                     </div>
+                )}
 
-                    <div className="p-4">
-                        <TabsContent value="http" className="space-y-4">
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">1. Install the CLI</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">npm install -g phirepass</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('npm install -g phirepass')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">2. Authenticate</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass auth login</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass auth login')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">3. Start the tunnel</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass http 3000</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass http 3000')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Replace 3000 with your local port number
-                                </p>
-                            </div>
-
-                            <div className="pt-2 border-t border-border">
-                                <h4 className="text-sm font-medium text-foreground mb-2">Additional Options</h4>
-                                <div className="space-y-2 text-xs text-muted-foreground font-mono">
-                                    <p><span className="text-foreground">--name</span> Custom tunnel name</p>
-                                    <p><span className="text-foreground">--region</span> Server region (us-east-1, eu-west-1, ap-southeast-1)</p>
-                                    <p><span className="text-foreground">--subdomain</span> Custom subdomain</p>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="tcp" className="space-y-4">
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">TCP Tunnel (e.g., MySQL)</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass tcp 3306</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass tcp 3306')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">UDP Tunnel (e.g., Game Server)</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass udp 27015</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass udp 27015')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass tcp 5432 --remote-port 45432</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass tcp 5432 --remote-port 45432')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="pt-2 border-t border-border">
-                                <h4 className="text-sm font-medium text-foreground mb-2">Common Use Cases</h4>
-                                <div className="space-y-1 text-xs text-muted-foreground">
-                                    <p><span className="text-foreground font-medium">MySQL:</span> phirepass tcp 3306</p>
-                                    <p><span className="text-foreground font-medium">PostgreSQL:</span> phirepass tcp 5432</p>
-                                    <p><span className="text-foreground font-medium">Redis:</span> phirepass tcp 6379</p>
-                                    <p><span className="text-foreground font-medium">MongoDB:</span> phirepass tcp 27017</p>
-                                </div>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="ssh" className="space-y-4">
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">SSH Tunnel (Reverse SSH)</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass ssh 22</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass ssh 22')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">With Custom Remote Port</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass ssh 22 --remote-port 2222</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass ssh 22 --remote-port 2222')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-medium text-foreground">Named Tunnel</h4>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Terminal className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">phirepass ssh 22 --name "production-server"</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('phirepass ssh 22 --name "production-server"')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="pt-2 border-t border-border">
-                                <h4 className="text-sm font-medium text-foreground mb-2">Connect to Your Server</h4>
-                                <p className="text-xs text-muted-foreground mb-2">
-                                    Once the tunnel is active, connect using:
-                                </p>
-                                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
-                                    <Server className="h-4 w-4 text-muted-foreground shrink-0" />
-                                    <code className="flex-1 text-foreground">ssh -p 2222 user@tunnel.phirepass.io</code>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 shrink-0"
-                                        onClick={() => copyCommand('ssh -p 2222 user@tunnel.phirepass.io')}
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </TabsContent>
+                {nodeId && loadingToken && (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                        Loading terminal token...
                     </div>
-                </Tabs>
+                )}
+
+                {nodeId && !loadingToken && !widgetReady && !widgetError && (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                        Loading terminal widget...
+                    </div>
+                )}
+
+                {nodeId && widgetError && (
+                    <div className="h-full flex items-center justify-center text-sm text-destructive text-center px-6">
+                        {widgetError}
+                    </div>
+                )}
+
+                {nodeId && !loadingToken && tokenError && (
+                    <div className="h-full flex items-center justify-center text-sm text-destructive text-center px-6">
+                        {tokenError}
+                    </div>
+                )}
+
+                {nodeId && token && widgetReady && !loadingToken && !tokenError && !widgetError && (
+                    <div className="h-full w-full border border-border overflow-hidden bg-black/20">
+                        {createElement('phirepass-terminal', {
+                            nodeId,
+                            token,
+                            style: {
+                                display: 'block',
+                                width: '100%',
+                                height: '100%',
+                            },
+                        } as unknown as Record<string, unknown>)}
+                    </div>
+                )}
             </div>
         </div>
     );

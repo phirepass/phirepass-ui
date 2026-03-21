@@ -441,7 +441,7 @@ const Tunnels = () => {
             </Tabs>
 
             {/* Create Tunnel Panel */}
-            <CreateTunnelPanel isOpen={showCreateDialog} onClose={() => setShowCreateDialog(false)} />
+            <CreateTunnelPanel isOpen={showCreateDialog} onClose={() => setShowCreateDialog(false)} nodeId={null} />
 
             {/* Terminal Panel */}
             <TerminalPanel
