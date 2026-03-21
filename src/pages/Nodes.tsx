@@ -79,7 +79,7 @@ export default function Nodes() {
             osInfo.includes(normalizedQuery)
         );
         /* ||
-         node.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))*/
+        node.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))*/
     });
 
     const handleCreateTunnel = (node: TunnelNode) => {
