@@ -187,3 +187,42 @@ export async function GET(req: Request) {
         return json_response({ error: 'Server error' }, 500);
     }
 }
+
+export async function PATCH(req: Request) {
+    try {
+        const user = await verifyToken();
+        const payload = await req.json() as { id?: unknown; name?: unknown };
+
+        const id = typeof payload.id === 'string' ? payload.id.trim() : '';
+        const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+
+        if (!id) {
+            return json_response({ error: 'Node id is required' }, 400);
+        }
+
+        if (!name) {
+            return json_response({ error: 'Node name is required' }, 400);
+        }
+
+        if (name.length > 120) {
+            return json_response({ error: 'Node name must be 120 characters or less' }, 400);
+        }
+
+        const result = await query(
+            `UPDATE nodes
+             SET name = $1
+             WHERE id = $2 AND user_id = $3
+             RETURNING id, name`,
+            [name, id, user.id]
+        );
+
+        if (result.rowCount === 0) {
+            return json_response({ error: 'Node not found' }, 404);
+        }
+
+        return json_response(result.rows[0], 200);
+    } catch (e) {
+        console.warn(`[server][patch][${req.url}]`, e);
+        return json_response({ error: 'Server error' }, 500);
+    }
+}

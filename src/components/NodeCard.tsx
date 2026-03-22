@@ -11,11 +11,19 @@ import {
     Activity,
     Cpu,
     Users,
-    Share2
+    Share2,
+    MoreVertical,
+    Pencil
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface NodeCardProps {
     node: TunnelNode;
@@ -26,6 +34,7 @@ interface NodeCardProps {
     onRefreshStats?: (node: TunnelNode) => void;
     onConfigure?: (node: TunnelNode) => void;
     onShare?: (node: TunnelNode) => void;
+    onRename?: (node: TunnelNode) => void;
     isSelected?: boolean;
     onSelect?: (node: TunnelNode, selected: boolean) => void;
     showSelection?: boolean;
@@ -42,6 +51,7 @@ export function NodeCard({
     onRefreshStats,
     onConfigure,
     onShare,
+    onRename,
     isSelected = false,
     onSelect,
     showSelection = false,
@@ -203,9 +213,24 @@ export function NodeCard({
                                     {node.name}
                                 </h3>
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                    <span className="text-xs text-muted-foreground bg-secondary px-1 py-1 rounded">
-                                        {node.stats.host_os_info}
-                                    </span>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                aria-label={`Open actions for ${node.name}`}
+                                            >
+                                                <MoreVertical className="w-4 h-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => onRename?.(node)}>
+                                                <Pencil className="mr-2 w-4 h-4" />
+                                                Rename node
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
                             {isShared && sharedBy ? (
@@ -218,19 +243,24 @@ export function NodeCard({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-8">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-xs text-muted-foreground font-mono block truncate">
-                                    {node.stats.host_name}
-                                </p>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            MAC {node.stats.host_mac}
-                        </TooltipContent>
-                    </Tooltip>
+                <div className="flex items-center gap-3 mb-8 mt-1">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-muted-foreground font-mono block truncate">
+                                        {node.stats.host_name}
+                                    </p>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                MAC {node.stats.host_mac}
+                            </TooltipContent>
+                        </Tooltip>
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded whitespace-nowrap">
+                            {node.stats.host_os_info}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Primary Stats - Side by Side */}

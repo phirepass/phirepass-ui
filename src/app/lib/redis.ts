@@ -31,9 +31,19 @@ export async function getRedisClient(): Promise<RedisClientType | null> {
         });
     }
 
-    if (!connectPromise || !client.isReady) {
-        connectPromise = client.connect().then(() => client as RedisClientType);
+    if (client.isReady) {
+        return client;
     }
 
-    return connectPromise;
+    if (!connectPromise && !client.isOpen) {
+        connectPromise = client
+            .connect()
+            .then(() => client as RedisClientType)
+            .catch((error) => {
+                connectPromise = null;
+                throw error;
+            });
+    }
+
+    return connectPromise ?? client;
 }
