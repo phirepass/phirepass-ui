@@ -3,9 +3,10 @@
 import { createElement, useEffect, useState } from 'react';
 import { X, Terminal } from 'lucide-react';
 import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
 
 const PHIREPASS_WIDGETS_SCRIPT_ID = 'phirepass-widgets-esm';
-const PHIREPASS_WIDGETS_SCRIPT_SRC = 'https://unpkg.com/phirepass-widgets@0.0.14/dist/phirepass-widgets/phirepass-widgets.esm.js';
+const PHIREPASS_WIDGETS_SCRIPT_SRC = 'https://unpkg.com/phirepass-widgets@0.0.18/dist/phirepass-widgets/phirepass-widgets.esm.js';
 
 interface CreateTunnelPanelProps {
     isOpen: boolean;
@@ -17,6 +18,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
+    const [cachedNodeIds, setCachedNodeIds] = useState<string[]>([]);
     const [widgetReady, setWidgetReady] = useState<boolean>(() => typeof window !== 'undefined' && !!window.customElements.get('phirepass-terminal'));
     const [widgetError, setWidgetError] = useState<string | null>(null);
 
@@ -33,21 +35,26 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
 
         const existing = document.getElementById(PHIREPASS_WIDGETS_SCRIPT_ID) as HTMLScriptElement | null;
         if (existing) {
-            const handleLoad = () => {
-                setWidgetReady(true);
-                setWidgetError(null);
-            };
-            const handleError = () => {
-                setWidgetError('Failed to load terminal widget bundle');
-            };
+            // Replace stale script version so runtime behavior matches current integration.
+            if (existing.src !== PHIREPASS_WIDGETS_SCRIPT_SRC) {
+                existing.remove();
+            } else {
+                const handleLoad = () => {
+                    setWidgetReady(true);
+                    setWidgetError(null);
+                };
+                const handleError = () => {
+                    setWidgetError('Failed to load terminal widget bundle');
+                };
 
-            existing.addEventListener('load', handleLoad);
-            existing.addEventListener('error', handleError);
+                existing.addEventListener('load', handleLoad);
+                existing.addEventListener('error', handleError);
 
-            return () => {
-                existing.removeEventListener('load', handleLoad);
-                existing.removeEventListener('error', handleError);
-            };
+                return () => {
+                    existing.removeEventListener('load', handleLoad);
+                    existing.removeEventListener('error', handleError);
+                };
+            }
         }
 
         const script = document.createElement('script');
@@ -75,18 +82,20 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     }, []);
 
     useEffect(() => {
-        if (!isOpen || !nodeId) {
-            setToken(null);
-            setTokenError(null);
-            setLoadingToken(false);
+        if (!nodeId) {
             return;
         }
 
-        let cancelled = false;
+        setCachedNodeIds((prev) => (prev.includes(nodeId) ? prev : [...prev, nodeId]));
+    }, [nodeId]);
+
+    useEffect(() => {
+        if (!isOpen || !nodeId || token || loadingToken || tokenError) {
+            return;
+        }
 
         const fetchToken = async () => {
             setLoadingToken(true);
-            setToken(null);
             setTokenError(null);
 
             try {
@@ -103,33 +112,29 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                     throw new Error('Token response is missing token');
                 }
 
-                if (!cancelled) {
-                    setToken(payload.token);
-                }
+                setToken(payload.token as string);
             } catch (error) {
-                if (!cancelled) {
-                    setToken(null);
-                    setTokenError(error instanceof Error ? error.message : 'Unable to load terminal token');
-                }
+                setTokenError(error instanceof Error ? error.message : 'Unable to load terminal token');
             } finally {
-                if (!cancelled) {
-                    setLoadingToken(false);
-                }
+                setLoadingToken(false);
             }
         };
 
         fetchToken();
+    }, [isOpen, nodeId, token, loadingToken, tokenError]);
 
-        return () => {
-            cancelled = true;
-        };
-    }, [isOpen, nodeId]);
+    const handleRetryToken = () => {
+        setToken(null);
+        setTokenError(null);
+    };
 
-    if (!isOpen) return null;
+    console.log('CACHED', cachedNodeIds, token, widgetReady, widgetError);
 
     return (
-        <div className="fixed inset-y-0 right-0 w-full md:w-[700px] lg:w-[900px] bg-card border-l border-border shadow-2xl z-50 animate-slide-in-right flex flex-col overflow-hidden">
-            {/* Header */}
+        <div className={cn(
+            'fixed inset-y-0 right-0 w-full md:w-[700px] lg:w-[900px] bg-card border-l border-border shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300',
+            isOpen ? 'translate-x-0 opacity-100 pointer-events-auto' : 'translate-x-full opacity-0 pointer-events-none'
+        )}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50 shrink-0">
                 <div className="flex items-center gap-2">
                     <Terminal className="w-5 h-5 text-primary" />
@@ -170,22 +175,57 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                 )}
 
                 {nodeId && !loadingToken && tokenError && (
-                    <div className="h-full flex items-center justify-center text-sm text-destructive text-center px-6">
-                        {tokenError}
+                    <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-destructive text-center px-6">
+                        <div>{tokenError}</div>
+                        <Button variant="outline" size="sm" onClick={handleRetryToken}>
+                            Retry
+                        </Button>
                     </div>
                 )}
 
-                {nodeId && token && widgetReady && !loadingToken && !tokenError && !widgetError && (
-                    <div className="h-full w-full border border-border overflow-hidden bg-black/20">
-                        {createElement('phirepass-terminal', {
-                            nodeId,
-                            token,
-                            style: {
-                                display: 'block',
-                                width: '100%',
-                                height: '100%',
-                            },
-                        } as unknown as Record<string, unknown>)}
+                {cachedNodeIds.length > 0 && token && widgetReady && !widgetError && (
+                    <div className="relative h-full w-full border border-border overflow-hidden bg-black/20">
+                        {/*
+                        {cachedNodeIds.map((cachedNodeId) => (
+                            <div
+                                key={cachedNodeId}
+                                className={cn(
+                                    'absolute inset-0 h-full w-full transition-opacity duration-200',
+                                    nodeId === cachedNodeId
+                                        ? 'opacity-100 pointer-events-auto'
+                                        : 'opacity-0 pointer-events-none'
+                                )}
+                                aria-hidden={nodeId !== cachedNodeId}
+                            >
+                                {createElement('phirepass-terminal', {
+                                    'node-id': cachedNodeId,
+                                    nodeId: cachedNodeId,
+                                    token,
+                                    style: {
+                                        display: 'block',
+                                        width: '100%',
+                                        height: '100%',
+                                    },
+                                } as unknown as Record<string, unknown>)}
+                            </div>
+                        ))}
+                        */}
+                        {cachedNodeIds.map((cachedNodeId) => {
+                            return <div key={cachedNodeId}
+                                id={`terminal-session-${cachedNodeId}`}
+                                className={cn(
+                                    'TERMINAL-SESSION absolute inset-0 h-full w-full transition-opacity duration-200',
+                                    nodeId === cachedNodeId
+                                        ? 'opacity-100 pointer-events-auto'
+                                        : 'opacity-0 pointer-events-none'
+                                )} aria-hidden={nodeId !== cachedNodeId || undefined}>
+                                <phirepass-terminal
+                                    node-id={cachedNodeId}
+                                    token={token}
+                                    style={{ display: 'block', width: '100%', height: '100%' }}
+                                />
+                            </div>
+                        })}
                     </div>
                 )}
             </div>
