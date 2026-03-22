@@ -128,8 +128,6 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
         setTokenError(null);
     };
 
-    console.log('CACHED', cachedNodeIds, token, widgetReady, widgetError);
-
     return (
         <div className={cn(
             'fixed inset-y-0 right-0 w-full md:w-[700px] lg:w-[900px] bg-card border-l border-border shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300',
