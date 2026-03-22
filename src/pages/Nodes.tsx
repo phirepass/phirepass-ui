@@ -15,6 +15,15 @@ import { NodeStats, TunnelNode } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 export default function Nodes() {
     const [nodes, setNodes] = useState<TunnelNode[]>([]);
@@ -62,6 +71,11 @@ export default function Nodes() {
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
     const [shareManagementOpen, setShareManagementOpen] = useState(false);
     const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+    const [nodeToRename, setNodeToRename] = useState<TunnelNode | null>(null);
+    const [renameValue, setRenameValue] = useState('');
+    const [renameSaving, setRenameSaving] = useState(false);
+    const [renameError, setRenameError] = useState<string | null>(null);
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const filteredNodes = nodes.filter(node => !!node.stats).filter((node) => {
@@ -137,6 +151,76 @@ export default function Nodes() {
     const handleShare = (node: TunnelNode) => {
         setNodeToShare(node);
         setShareDialogOpen(true);
+    };
+
+    const applyNodeNameUpdate = (nodeId: string, nextName: string) => {
+        const updateName = (entry: TunnelNode) => (entry.id === nodeId ? { ...entry, name: nextName } : entry);
+
+        setNodes((prev) => prev.map(updateName));
+        setSelectedNodes((prev) => prev.map(updateName));
+        setSelectedFileNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
+        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
+        setNodeToShare((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
+    };
+
+    const handleRenameNode = (node: TunnelNode) => {
+        setNodeToRename(node);
+        setRenameValue(node.name);
+        setRenameError(null);
+        setRenameDialogOpen(true);
+    };
+
+    const closeRenameDialog = () => {
+        setRenameDialogOpen(false);
+        setRenameSaving(false);
+        setRenameError(null);
+        setNodeToRename(null);
+        setRenameValue('');
+    };
+
+    const submitRenameNode = async () => {
+        if (!nodeToRename) return;
+
+        const nextName = renameValue.trim();
+        if (!nextName) {
+            setRenameError('Node name is required');
+            return;
+        }
+
+        if (nextName === nodeToRename.name) {
+            closeRenameDialog();
+            return;
+        }
+
+        try {
+            setRenameSaving(true);
+            setRenameError(null);
+
+            const response = await fetch('/api/nodes', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: nodeToRename.id,
+                    name: nextName,
+                }),
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({ error: 'Failed to rename node' }));
+                throw new Error(payload.error ?? 'Failed to rename node');
+            }
+
+            const updatedNode = await response.json() as { id: string; name: string };
+            applyNodeNameUpdate(updatedNode.id, updatedNode.name);
+            closeRenameDialog();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to rename node';
+            setRenameError(message);
+        } finally {
+            setRenameSaving(false);
+        }
     };
 
     const handleAddNode = () => {
@@ -289,6 +373,7 @@ export default function Nodes() {
                                 onOpenFiles={handleOpenFiles}
                                 onRefreshStats={handleRefreshStats}
                                 onShare={handleShare}
+                                onRename={handleRenameNode}
                             />
                         ))}
                     </div>
@@ -330,6 +415,49 @@ export default function Nodes() {
                         onOpenChange={setShareManagementOpen}
                         node={null}
                     />
+
+                    <Dialog
+                        open={renameDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeRenameDialog();
+                            } else {
+                                setRenameDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Rename node</DialogTitle>
+                                <DialogDescription>
+                                    Update the node display name saved in the database.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-2">
+                                <Input
+                                    value={renameValue}
+                                    onChange={(event) => setRenameValue(event.target.value)}
+                                    placeholder="Node name"
+                                    disabled={renameSaving}
+                                    maxLength={120}
+                                    autoFocus
+                                />
+                                {renameError ? (
+                                    <p className="text-sm text-destructive">{renameError}</p>
+                                ) : null}
+                            </div>
+
+                            <DialogFooter>
+                                <Button variant="outline" onClick={closeRenameDialog} disabled={renameSaving}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={submitRenameNode} disabled={renameSaving || renameValue.trim().length === 0}>
+                                    {renameSaving ? 'Saving...' : 'Save'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </>
             )}
 
