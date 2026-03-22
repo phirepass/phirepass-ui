@@ -38,7 +38,7 @@ const clientConfig = {
 
 let client: Client = createClient();
 
-let clientReady: Promise<void> | null = null;
+let clientReady: Promise<Client> | null = null;
 let reconnecting: Promise<void> | null = null;
 
 function markDisconnected() {
