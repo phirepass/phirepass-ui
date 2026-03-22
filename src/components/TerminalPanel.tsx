@@ -66,10 +66,13 @@ export function TerminalPanel({
         return commands[cmd] || `Command not found: ${cmd}`;
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-y-0 right-0 w-full md:w-[600px] lg:w-[800px] bg-card border-l border-border shadow-2xl z-50 animate-slide-in-right flex flex-col">
+        <div
+            className={cn(
+                'fixed inset-y-0 right-0 w-full md:w-[600px] lg:w-[800px] bg-card border-l border-border shadow-2xl z-50 flex flex-col',
+                isOpen ? 'animate-slide-in-right' : 'hidden'
+            )}
+        >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50">
                 <div className="flex items-center gap-2">

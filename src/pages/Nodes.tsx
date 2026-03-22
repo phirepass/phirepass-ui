@@ -313,7 +313,6 @@ export default function Nodes() {
                         isOpen={createTunnelPanelOpen}
                         onClose={() => {
                             setCreateTunnelPanelOpen(false);
-                            setSelectedTunnelNode(null);
                         }}
                         nodeId={selectedTunnelNode?.id ?? null}
                     />
