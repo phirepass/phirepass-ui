@@ -36,24 +36,49 @@ export default function Nodes() {
 
     // Fetch nodes from same-origin API
     useEffect(() => {
-        const fetchNodes = async () => {
+        let isDisposed = false;
+
+        const fetchNodes = async (showLoading = false) => {
             try {
-                setLoading(true);
+                if (showLoading) {
+                    setLoading(true);
+                }
+
                 const response = await fetch('/api/nodes');
                 if (!response.ok) {
                     throw new Error(`Failed to fetch nodes: ${response.statusText}`);
                 }
-                const nodes = await response.json();
-                setNodes(nodes);
+
+                const nextNodes = await response.json() as TunnelNode[];
+                if (isDisposed) {
+                    return;
+                }
+
+                setNodes(nextNodes);
                 setError(null);
             } catch (err) {
+                if (isDisposed) {
+                    return;
+                }
+
                 setError(err instanceof Error ? err.message : 'Failed to fetch nodes');
             } finally {
-                setLoading(false);
+                if (!isDisposed && showLoading) {
+                    setLoading(false);
+                }
             }
         };
 
-        fetchNodes();
+        void fetchNodes(true);
+
+        const intervalId = window.setInterval(() => {
+            void fetchNodes(false);
+        }, 15_000);
+
+        return () => {
+            isDisposed = true;
+            window.clearInterval(intervalId);
+        };
     }, []);
 
     // File panel state
