@@ -6,6 +6,8 @@ import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { defineCustomElements } from 'phirepass-widgets/loader';
 
+type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
+
 interface CreateTunnelPanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -17,9 +19,38 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
     const [cachedNodeIds, setCachedNodeIds] = useState<string[]>([]);
+    const [connectionStates, setConnectionStates] = useState<Record<string, TerminalConnectionState>>({});
+    const [connectionErrors, setConnectionErrors] = useState<Record<string, string | null>>({});
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isPanelVisible, setIsPanelVisible] = useState(false);
     const panelTransitionDurationMs = isFullScreen ? 260 : 620;
+
+    const readConnectionErrorMessage = (value: unknown): string | null => {
+        if (!value) {
+            return null;
+        }
+
+        if (typeof value === 'string') {
+            return value;
+        }
+
+        if (value instanceof Error) {
+            return value.message;
+        }
+
+        if (typeof value === 'object' && value !== null && 'message' in value) {
+            const message = (value as { message?: unknown }).message;
+            if (typeof message === 'string') {
+                return message;
+            }
+        }
+
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return 'Terminal connection error';
+        }
+    };
 
     useEffect(() => {
         void defineCustomElements();
@@ -68,6 +99,52 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     }, [isOpen, nodeId, token, loadingToken, tokenError]);
 
     useEffect(() => {
+        if (!token || cachedNodeIds.length === 0) {
+            return;
+        }
+
+        const detachListeners: Array<() => void> = [];
+
+        cachedNodeIds.forEach((cachedNodeId) => {
+            const terminalContainer = document.getElementById(`terminal-session-${cachedNodeId}`);
+            const terminalElement = terminalContainer?.querySelector('phirepass-terminal');
+
+            if (!terminalElement) {
+                return;
+            }
+
+            const handleConnectionStateChanged = (event: Event) => {
+                const customEvent = event as CustomEvent<[TerminalConnectionState, unknown?]>;
+                const [state, error] = customEvent.detail ?? [];
+                if (!state) {
+                    return;
+                }
+
+                setConnectionStates((prev) => ({
+                    ...prev,
+                    [cachedNodeId]: state,
+                }));
+
+                setConnectionErrors((prev) => ({
+                    ...prev,
+                    [cachedNodeId]: state === 'error'
+                        ? readConnectionErrorMessage(error)
+                        : null,
+                }));
+            };
+
+            terminalElement.addEventListener('connectionStateChanged', handleConnectionStateChanged);
+            detachListeners.push(() => {
+                terminalElement.removeEventListener('connectionStateChanged', handleConnectionStateChanged);
+            });
+        });
+
+        return () => {
+            detachListeners.forEach((detach) => detach());
+        };
+    }, [cachedNodeIds, token]);
+
+    useEffect(() => {
         if (!isOpen) {
             setIsFullScreen(false);
         }
@@ -91,6 +168,9 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
         setToken(null);
         setTokenError(null);
     };
+
+    const activeConnectionState = nodeId ? connectionStates[nodeId] : undefined;
+    const activeConnectionError = nodeId ? connectionErrors[nodeId] : null;
 
     return (
         <div className={cn('fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
@@ -120,6 +200,22 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
+                            {nodeId && token && (
+                                <div className="mr-2 flex items-center gap-2 text-xs">
+                                    <span className="text-muted-foreground">Connection:</span>
+                                    <span
+                                        className={cn(
+                                            'font-medium capitalize',
+                                            activeConnectionState === 'connected' && 'text-emerald-500',
+                                            activeConnectionState === 'error' && 'text-destructive',
+                                            (!activeConnectionState || activeConnectionState === 'disconnected') && 'text-amber-500'
+                                        )}
+                                    >
+                                        {activeConnectionState ?? 'connecting'}
+                                    </span>
+                                </div>
+                            )}
+
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -139,6 +235,10 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Select a node to start a terminal session.
                             </div>
+                        )}
+
+                        {activeConnectionError && (
+                            <p className="mb-3 text-xs text-destructive break-words">{activeConnectionError}</p>
                         )}
 
                         {nodeId && loadingToken && (
