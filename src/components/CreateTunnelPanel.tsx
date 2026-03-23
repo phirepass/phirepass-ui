@@ -1,12 +1,10 @@
 "use client";
 
-import { createElement, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Terminal } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
-
-const PHIREPASS_WIDGETS_SCRIPT_ID = 'phirepass-widgets-esm';
-const PHIREPASS_WIDGETS_SCRIPT_SRC = 'https://unpkg.com/phirepass-widgets@0.0.18/dist/phirepass-widgets/phirepass-widgets.esm.js';
+import { defineCustomElements } from 'phirepass-widgets/loader';
 
 interface CreateTunnelPanelProps {
     isOpen: boolean;
@@ -19,66 +17,9 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
     const [cachedNodeIds, setCachedNodeIds] = useState<string[]>([]);
-    const [widgetReady, setWidgetReady] = useState<boolean>(() => typeof window !== 'undefined' && !!window.customElements.get('phirepass-terminal'));
-    const [widgetError, setWidgetError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        if (window.customElements.get('phirepass-terminal')) {
-            setWidgetReady(true);
-            setWidgetError(null);
-            return;
-        }
-
-        const existing = document.getElementById(PHIREPASS_WIDGETS_SCRIPT_ID) as HTMLScriptElement | null;
-        if (existing) {
-            // Replace stale script version so runtime behavior matches current integration.
-            if (existing.src !== PHIREPASS_WIDGETS_SCRIPT_SRC) {
-                existing.remove();
-            } else {
-                const handleLoad = () => {
-                    setWidgetReady(true);
-                    setWidgetError(null);
-                };
-                const handleError = () => {
-                    setWidgetError('Failed to load terminal widget bundle');
-                };
-
-                existing.addEventListener('load', handleLoad);
-                existing.addEventListener('error', handleError);
-
-                return () => {
-                    existing.removeEventListener('load', handleLoad);
-                    existing.removeEventListener('error', handleError);
-                };
-            }
-        }
-
-        const script = document.createElement('script');
-        script.id = PHIREPASS_WIDGETS_SCRIPT_ID;
-        script.type = 'module';
-        script.src = PHIREPASS_WIDGETS_SCRIPT_SRC;
-
-        const handleLoad = () => {
-            setWidgetReady(true);
-            setWidgetError(null);
-        };
-
-        const handleError = () => {
-            setWidgetError('Failed to load terminal widget bundle');
-        };
-
-        script.addEventListener('load', handleLoad);
-        script.addEventListener('error', handleError);
-        document.head.appendChild(script);
-
-        return () => {
-            script.removeEventListener('load', handleLoad);
-            script.removeEventListener('error', handleError);
-        };
+        void defineCustomElements();
     }, []);
 
     useEffect(() => {
@@ -146,7 +87,6 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                 </Button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-hidden p-4">
                 {!nodeId && (
                     <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
@@ -160,18 +100,6 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                     </div>
                 )}
 
-                {nodeId && !loadingToken && !widgetReady && !widgetError && (
-                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                        Loading terminal widget...
-                    </div>
-                )}
-
-                {nodeId && widgetError && (
-                    <div className="h-full flex items-center justify-center text-sm text-destructive text-center px-6">
-                        {widgetError}
-                    </div>
-                )}
-
                 {nodeId && !loadingToken && tokenError && (
                     <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-destructive text-center px-6">
                         <div>{tokenError}</div>
@@ -181,38 +109,13 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                     </div>
                 )}
 
-                {cachedNodeIds.length > 0 && token && widgetReady && !widgetError && (
+                {cachedNodeIds.length > 0 && token && (
                     <div className="relative h-full w-full border border-border overflow-hidden bg-black/20">
-                        {/*
-                        {cachedNodeIds.map((cachedNodeId) => (
-                            <div
-                                key={cachedNodeId}
-                                className={cn(
-                                    'absolute inset-0 h-full w-full transition-opacity duration-200',
-                                    nodeId === cachedNodeId
-                                        ? 'opacity-100 pointer-events-auto'
-                                        : 'opacity-0 pointer-events-none'
-                                )}
-                                aria-hidden={nodeId !== cachedNodeId}
-                            >
-                                {createElement('phirepass-terminal', {
-                                    'node-id': cachedNodeId,
-                                    nodeId: cachedNodeId,
-                                    token,
-                                    style: {
-                                        display: 'block',
-                                        width: '100%',
-                                        height: '100%',
-                                    },
-                                } as unknown as Record<string, unknown>)}
-                            </div>
-                        ))}
-                        */}
                         {cachedNodeIds.map((cachedNodeId) => {
                             return <div key={cachedNodeId}
                                 id={`terminal-session-${cachedNodeId}`}
                                 className={cn(
-                                    'TERMINAL-SESSION absolute inset-0 h-full w-full transition-opacity duration-200',
+                                    'terminal-session absolute inset-0 h-full w-full transition-opacity duration-200',
                                     nodeId === cachedNodeId
                                         ? 'opacity-100 pointer-events-auto'
                                         : 'opacity-0 pointer-events-none'

@@ -7,7 +7,8 @@
         "dev": "next dev -p 8084",
         "build": "next build",
         "start": "next start",
-        "lint": "eslint ."
+        "lint": "eslint .",
+        "postinstall": "node scripts/fix-phirepass-widgets-wasm.mjs"
     },
     "dependencies": {
         "@hookform/resolvers": "^5.2.2",
@@ -55,7 +56,7 @@
         "next-themes": "^0.4.6",
         "pg": "^8.20.0",
         "phirepass-channel": "^0.1.166",
-        "phirepass-widgets": "^0.0.21",
+        "phirepass-widgets": "^0.0.24",
         "react": "^18.3.1",
         "react-day-picker": "^8.10.1",
         "react-dom": "^18.3.1",
