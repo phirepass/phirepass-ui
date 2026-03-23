@@ -18,7 +18,8 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     const [loadingToken, setLoadingToken] = useState(false);
     const [cachedNodeIds, setCachedNodeIds] = useState<string[]>([]);
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const panelTransitionDurationMs = isFullScreen ? 420 : 950;
+    const [isPanelVisible, setIsPanelVisible] = useState(false);
+    const panelTransitionDurationMs = isFullScreen ? 260 : 620;
 
     useEffect(() => {
         void defineCustomElements();
@@ -72,6 +73,20 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) {
+            setIsPanelVisible(false);
+            return;
+        }
+
+        setIsPanelVisible(false);
+        const timeoutId = window.setTimeout(() => {
+            setIsPanelVisible(true);
+        }, 20);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [isOpen]);
+
     const handleRetryToken = () => {
         setToken(null);
         setTokenError(null);
@@ -80,7 +95,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     return (
         <div className={cn('fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
             <div
-                className={cn('absolute inset-0 bg-black/55 backdrop-blur-sm transition-all duration-500', isOpen ? 'opacity-100' : 'opacity-0 backdrop-blur-none')}
+                className={cn('absolute inset-0 bg-black/55 backdrop-blur-sm transition-all duration-500', isPanelVisible ? 'opacity-100' : 'opacity-0 backdrop-blur-none')}
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -90,10 +105,12 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                     'h-full bg-card shadow-2xl flex flex-col overflow-hidden border-border will-change-transform pointer-events-auto transition-[transform,width,border-radius] ease-[cubic-bezier(0.22,1,0.36,1)]',
                     isFullScreen
                         ? 'w-full border-0 rounded-none'
-                        : 'w-full md:w-[700px] lg:w-[900px] border-l rounded-none md:rounded-l-2xl',
-                    isOpen ? 'translate-x-0' : 'translate-x-[110%]'
+                        : 'w-full md:w-[700px] lg:w-[900px] border-l rounded-none md:rounded-l-2xl'
                 )}
-                    style={{ transitionDuration: `${panelTransitionDurationMs}ms` }}>
+                    style={{
+                        transitionDuration: `${panelTransitionDurationMs}ms`,
+                        transform: isPanelVisible ? 'translateX(0)' : 'translateX(110%)',
+                    }}>
                     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50 shrink-0">
                         <div className="flex items-center gap-2">
                             <Terminal className="w-5 h-5 text-primary" />
