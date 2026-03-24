@@ -13,7 +13,8 @@ import {
     Users,
     Share2,
     MoreVertical,
-    Pencil
+    Pencil,
+    Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -87,6 +88,7 @@ export function NodeCard({
     };
 
     const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+    const showConnectedLoader = node.connected_for_secs < 60;
     const memoryPercent = node.stats.host_mem_total_bytes
         ? clampPercent((node.stats.host_mem_used_bytes / node.stats.host_mem_total_bytes) * 100)
         : 0;
@@ -189,6 +191,15 @@ export function NodeCard({
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
+                {showConnectedLoader && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 rounded-full border border-primary/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Connecting...</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Swipe Hint for mobile */}
                 {swipeOffset === 0 && (
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50 md:hidden pointer-events-none">
