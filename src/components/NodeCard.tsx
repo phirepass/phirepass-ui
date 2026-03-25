@@ -88,7 +88,7 @@ export function NodeCard({
     };
 
     const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
-    const showConnectedLoader = node.connected_for_secs < 60;
+    const showConnectedLoader = node.is_online && node.connected_for_secs < 60;
     const memoryPercent = node.stats.host_mem_total_bytes
         ? clampPercent((node.stats.host_mem_used_bytes / node.stats.host_mem_total_bytes) * 100)
         : 0;
@@ -181,7 +181,6 @@ export function NodeCard({
                     'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     isSelected ? 'border-primary bg-primary/5' : 'border-border',
-                    !node.is_online && 'opacity-60',
                     isSwiping ? '' : 'transition-transform duration-300'
                 )}
                 style={{
@@ -191,6 +190,10 @@ export function NodeCard({
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
+                {!node.is_online && (
+                    <div className="absolute inset-0 z-20 rounded-xl bg-background/40 backdrop-blur-[2px] pointer-events-none" />
+                )}
+
                 {showConnectedLoader && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
                         <div className="flex items-center gap-2 rounded-full border border-primary/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
