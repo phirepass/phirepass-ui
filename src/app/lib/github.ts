@@ -1,6 +1,12 @@
 import { UserInfo } from "./types";
 
 export async function fetch_github_token(code: string, state: string | null) {
+    const clientId = process.env.GITHUB_CLIENT_ID || process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+
+    if (!clientId || !process.env.GITHUB_CLIENT_SECRET) {
+        throw new Error("GitHub OAuth environment variables are not configured");
+    }
+
     const tokenResponse = await fetch(
         "https://github.com/login/oauth/access_token",
         {
@@ -10,7 +16,7 @@ export async function fetch_github_token(code: string, state: string | null) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                client_id: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
+                client_id: clientId,
                 client_secret: process.env.GITHUB_CLIENT_SECRET,
                 code,
                 state,

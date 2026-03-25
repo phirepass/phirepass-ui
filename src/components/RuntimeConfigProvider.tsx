@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { toast } from '@/components/ui/sonner';
 import type { PublicRuntimeConfig } from '@/lib/runtime-config';
 
 type RuntimeConfigContextValue = {
@@ -57,6 +58,14 @@ export function RuntimeConfigProvider({ children }: { children: ReactNode }) {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (error) {
+            toast.error('Failed to load runtime app configuration.', {
+                description: error,
+            });
+        }
+    }, [error]);
 
     return (
         <RuntimeConfigContext.Provider value={{ config, isLoading, error }}>
