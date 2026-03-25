@@ -131,6 +131,10 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                         ? readConnectionErrorMessage(error)
                         : null,
                 }));
+
+                if (state === 'disconnected') {
+                    setCachedNodeIds((prev) => prev.filter((id) => id !== cachedNodeId));
+                }
             };
 
             terminalElement.addEventListener('connectionStateChanged', handleConnectionStateChanged);
@@ -167,6 +171,20 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
     const handleRetryToken = () => {
         setToken(null);
         setTokenError(null);
+    };
+
+    const handleReconnect = (targetNodeId: string) => {
+        setConnectionStates((prev) => {
+            const next = { ...prev };
+            delete next[targetNodeId];
+            return next;
+        });
+        setConnectionErrors((prev) => {
+            const next = { ...prev };
+            delete next[targetNodeId];
+            return next;
+        });
+        setCachedNodeIds((prev) => (prev.includes(targetNodeId) ? prev : [...prev, targetNodeId]));
     };
 
     const activeConnectionState = nodeId ? connectionStates[nodeId] : undefined;
@@ -256,17 +274,34 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                             </div>
                         )}
 
-                        {cachedNodeIds.length > 0 && token && (
+                        {token && nodeId && (cachedNodeIds.length > 0 || activeConnectionState === 'disconnected') && (
                             <div className="relative h-full w-full border border-border overflow-hidden bg-black/20">
+                                {activeConnectionState !== 'connected' && (
+                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+                                        {activeConnectionState === 'disconnected' ? (
+                                            <>
+                                                <span className="text-sm text-muted-foreground">Disconnected</span>
+                                                <Button variant="outline" size="sm" onClick={() => handleReconnect(nodeId)}>
+                                                    Reconnect
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">Connecting...</span>
+                                        )}
+                                    </div>
+                                )}
                                 {cachedNodeIds.map((cachedNodeId) => {
+                                    const isActive = nodeId === cachedNodeId;
+                                    const sessionState = connectionStates[cachedNodeId];
+                                    const isConnected = sessionState === 'connected';
                                     return <div key={cachedNodeId}
                                         id={`terminal-session-${cachedNodeId}`}
                                         className={cn(
                                             'terminal-session absolute inset-0 h-full w-full transition-opacity duration-200',
-                                            nodeId === cachedNodeId
+                                            isActive && isConnected
                                                 ? 'opacity-100 pointer-events-auto'
                                                 : 'opacity-0 pointer-events-none'
-                                        )} aria-hidden={nodeId !== cachedNodeId || undefined}>
+                                        )} aria-hidden={!isActive || !isConnected || undefined}>
                                         <phirepass-terminal
                                             node-id={cachedNodeId}
                                             token={token}
