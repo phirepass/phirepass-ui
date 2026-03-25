@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2, Shield, Terminal } from 'lucide-react';
+import type { PublicRuntimeConfig } from '@/lib/runtime-config';
 
 type AuthStatus = 'pending' | 'verifying' | 'success' | 'error' | 'expired';
 
@@ -18,16 +20,16 @@ const FRAME_CODE_AUTH_RESPONSE = 11;
 const FRAME_ENCODING_JSON = 0;
 const UI_WEBSOCKET_VERSION = 'phirepass-ui';
 
-function buildWebsocketEndpoint() {
-    const explicitUrl = process.env.NEXT_PUBLIC_WS_URL?.trim();
+function buildWebsocketEndpoint(config: PublicRuntimeConfig) {
+    const explicitUrl = config.NEXT_PUBLIC_WS_URL?.trim();
     if (explicitUrl) {
         return `${explicitUrl.replace(/\/$/, '')}/api/web/ws`;
     }
 
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const protocol = isHttps ? 'wss:' : 'ws:';
-    const host = process.env.NEXT_PUBLIC_SERVER_HOST || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
-    const port = process.env.NEXT_PUBLIC_SERVER_PORT || (isHttps ? '443' : '8080');
+    const host = config.NEXT_PUBLIC_SERVER_HOST || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+    const port = config.NEXT_PUBLIC_SERVER_PORT || (isHttps ? '443' : '8080');
     return `${protocol}//${host}:${port}/api/web/ws`;
 }
 
@@ -77,7 +79,7 @@ function decodeAuthResponse(data: ArrayBuffer) {
     return payload as WebAuthResponse;
 }
 
-async function authorizeDeviceWithServer() {
+async function authorizeDeviceWithServer(config: PublicRuntimeConfig) {
     const tokenResponse = await fetch('/api/auth/websocket-token', {
         credentials: 'same-origin',
         cache: 'no-store',
@@ -93,7 +95,7 @@ async function authorizeDeviceWithServer() {
     }
 
     await new Promise<void>((resolve, reject) => {
-        const socket = new WebSocket(buildWebsocketEndpoint());
+        const socket = new WebSocket(buildWebsocketEndpoint(config));
         const timeoutId = window.setTimeout(() => {
             socket.close();
             reject(new Error('Timed out while waiting for websocket auth response.'));
@@ -142,6 +144,7 @@ export default function DeviceAuth() {
     const [deviceCode, setDeviceCode] = useState('');
     const [deviceName, setDeviceName] = useState('Unknown Device');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const { config } = useRuntimeConfig();
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -155,7 +158,7 @@ export default function DeviceAuth() {
         try {
             setErrorMessage(null);
             setStatus('verifying');
-            await authorizeDeviceWithServer();
+            await authorizeDeviceWithServer(config);
             setStatus('success');
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : 'Authorization failed.');
