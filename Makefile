@@ -23,6 +23,7 @@ start-prod:
 # Build the Docker image
 docker-build:
 	docker build -t $(IMAGE_NAME) \
+        --progress=plain \
 		--build-arg NEXT_PUBLIC_API_URL="$(NEXT_PUBLIC_API_URL)" \
 		--build-arg NEXT_PUBLIC_API_BASE_URL="$(NEXT_PUBLIC_API_BASE_URL)" \
 		--build-arg NEXT_PUBLIC_WS_URL="$(NEXT_PUBLIC_WS_URL)" \
