@@ -2,7 +2,6 @@
 IMAGE_NAME=phirepass-ui
 CONTAINER_NAME=phirepass-ui
 PORT=8084
-DEV_PORT=8084
 
 # Load environment variables if .env.local exists
 ifneq (,$(wildcard .env.local))
@@ -23,11 +22,7 @@ start-prod:
 # Build the Docker image
 docker-build:
 	docker build -t $(IMAGE_NAME) \
-        --progress=plain \
-		--build-arg NEXT_PUBLIC_API_URL="$(NEXT_PUBLIC_API_URL)" \
-		--build-arg NEXT_PUBLIC_API_BASE_URL="$(NEXT_PUBLIC_API_BASE_URL)" \
-		--build-arg NEXT_PUBLIC_WS_URL="$(NEXT_PUBLIC_WS_URL)" \
-		--build-arg NEXT_PUBLIC_APP_URL="$(NEXT_PUBLIC_APP_URL)" \
+		--progress=plain \
 		.
 
 # Run the container
@@ -65,18 +60,8 @@ shell:
 clean: stop
 	docker rmi $(IMAGE_NAME) || true
 
-# Docker compose commands
-compose-up:
-	docker-compose up -d
-
-compose-down:
-	docker-compose down
-
-compose-logs:
-	docker-compose logs -f
-
 # Code formatting
 format:
 	npx eclint fix 'src/**/*'
 
-.PHONY: dev run start-prod format build docker-run stop up logs shell clean compose-up compose-down compose-logs
+.PHONY: dev run start-prod format build docker-run stop up logs shell clean

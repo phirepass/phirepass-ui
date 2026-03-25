@@ -21,17 +21,20 @@ COPY . .
 RUN bun run build
 
 # Stage 3: Runner (minimal production image)
-FROM oven/bun:1-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-COPY --from=builder --chown=1001:1001 /app/public ./public
-COPY --from=builder --chown=1001:1001 /app/.next/standalone ./
-COPY --from=builder --chown=1001:1001 /app/.next/static ./.next/static
-
-USER 1001
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
 ENV PORT=8084
+ENV HOSTNAME=0.0.0.0
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-CMD ["bun", "server.js"]
+EXPOSE 8084
+
+USER node
+
+CMD ["node", "server.js"]
