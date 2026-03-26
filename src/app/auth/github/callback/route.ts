@@ -42,13 +42,9 @@ async function create_github_user(userInfo: UserInfo) {
 function get_effective_request_url(req: Request): URL {
     const requestUrl = new URL(req.url);
 
-    // Proxies may append multiple values (client, proxy1, proxy2). Use the first.
-    const forwardedHostHeader =
-        req.headers.get("x-forwarded-host") ||
-        req.headers.get("x-forwared-host");
-    const forwardedPortHeader =
-        req.headers.get("x-forwarded-port") ||
-        req.headers.get("x-forwared-port");
+    const forwardedHostHeader = req.headers.get("x-forwarded-host") || requestUrl.host;
+    const forwardedPortHeader = req.headers.get("x-forwarded-port") || requestUrl.port;
+    const forwardedProtHeader = req.headers.get("x-forwarded-proto") || requestUrl.protocol.replace(":", "");
 
     const forwardedHost = forwardedHostHeader
         ?.split(",")[0]
@@ -56,6 +52,11 @@ function get_effective_request_url(req: Request): URL {
     const forwardedPort = forwardedPortHeader
         ?.split(",")[0]
         .trim();
+    const forwardedProt = forwardedProtHeader
+        ?.split(",")[0]
+        .trim()
+        .replace(/:$/, "")
+        .toLowerCase();
 
     if (forwardedHost) {
         requestUrl.host = forwardedHost;
@@ -63,6 +64,10 @@ function get_effective_request_url(req: Request): URL {
 
     if (forwardedPort && !forwardedHost?.includes(":")) {
         requestUrl.port = forwardedPort;
+    }
+
+    if (forwardedProt === "http" || forwardedProt === "https") {
+        requestUrl.protocol = `${forwardedProt}:`;
     }
 
     return requestUrl;
@@ -77,26 +82,13 @@ export async function GET(req: Request) {
         return new Response("Missing authorization code", { status: 400 });
     }
 
-    console.log('================================================'); // Debug separator
-    console.log('Request url:', req.url); // Debug log
-    console.log('Request headers:', JSON.stringify(Object.fromEntries(req.headers.entries()))); // Debug log
-    console.log('Received GitHub callback with code:', code); // Debug log
-    console.log('Received GitHub callback with state:', state); // Debug log
-    console.log('================================================'); // Debug separator
-
     try {
         const accessToken = await fetch_github_token(code, state);
-        console.log('Fetched GitHub access token:', accessToken); // Debug log
         const userInfo = await fetch_github_user(accessToken);
-        console.log('Fetched GitHub user info:', userInfo); // Debug log
         let existingUser = await get_user_by_email(userInfo.email);
-        console.log('Existing user:', existingUser); // Debug log
         if (!existingUser) {
-            console.log('Creating new GitHub user:', userInfo); // Debug log
             await create_github_user(userInfo);
-            console.log('New GitHub user created:', userInfo); // Debug log
             existingUser = await get_user_by_email(userInfo.email);
-            console.log('Fetched newly created user:', existingUser); // Debug log
         }
 
         // Issue session token with minimal info only
