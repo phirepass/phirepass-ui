@@ -22,8 +22,9 @@ RUN bun run build
 
 # Stage 3: Runner (minimal production image)
 FROM node:20-alpine AS runner
-WORKDIR /app
 
+WORKDIR /app
+COPY --from=builder --chown=node:node /app/certs ./certs
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
