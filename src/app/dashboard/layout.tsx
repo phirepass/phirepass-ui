@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     setIsLoading(false);
                     // Clean URL in case callback left params
                     if (typeof window !== 'undefined' && window.location.search) {
-                        window.history.replaceState({}, document.title, '/dashboard');
+                        window.history.replaceState({}, document.title, '/dashboard/nodes');
                     }
                 } else {
                     setIsAuthenticated(false);
