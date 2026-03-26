@@ -103,7 +103,7 @@ export async function GET(req: Request) {
 
         const requestUrl = get_effective_request_url(req);
         console.log('Redirecting to dashboard url:', requestUrl.toString()); // Debug log
-        const dashboardUrl = new URL("/dashboard", requestUrl.origin);
+        const dashboardUrl = new URL("/dashboard/nodes", requestUrl.origin);
         console.log('Redirecting to dashboard at:', dashboardUrl.toString()); // Debug log
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
