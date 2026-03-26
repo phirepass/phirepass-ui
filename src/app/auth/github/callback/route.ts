@@ -39,6 +39,35 @@ async function create_github_user(userInfo: UserInfo) {
     return result.rows[0];
 }
 
+function get_effective_request_url(req: Request): URL {
+    const requestUrl = new URL(req.url);
+
+    // Proxies may append multiple values (client, proxy1, proxy2). Use the first.
+    const forwardedHostHeader =
+        req.headers.get("x-forwarded-host") ||
+        req.headers.get("x-forwared-host");
+    const forwardedPortHeader =
+        req.headers.get("x-forwarded-port") ||
+        req.headers.get("x-forwared-port");
+
+    const forwardedHost = forwardedHostHeader
+        ?.split(",")[0]
+        .trim();
+    const forwardedPort = forwardedPortHeader
+        ?.split(",")[0]
+        .trim();
+
+    if (forwardedHost) {
+        requestUrl.host = forwardedHost;
+    }
+
+    if (forwardedPort && !forwardedHost?.includes(":")) {
+        requestUrl.port = forwardedPort;
+    }
+
+    return requestUrl;
+}
+
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
@@ -80,7 +109,7 @@ export async function GET(req: Request) {
         const maxAge = 7 * 24 * 60 * 60;
         const token = signJWT(payload, maxAge);
 
-        const requestUrl = new URL(req.url);
+        const requestUrl = get_effective_request_url(req);
         console.log('Redirecting to dashboard url:', requestUrl.toString()); // Debug log
         const dashboardUrl = new URL("/dashboard", requestUrl.origin);
         console.log('Redirecting to dashboard at:', dashboardUrl.toString()); // Debug log
