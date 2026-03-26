@@ -48,13 +48,26 @@ export async function GET(req: Request) {
         return new Response("Missing authorization code", { status: 400 });
     }
 
+    console.log('================================================'); // Debug separator
+    console.log('Request url:', req.url); // Debug log
+    console.log('Request headers:', JSON.stringify(Object.fromEntries(req.headers.entries()))); // Debug log
+    console.log('Received GitHub callback with code:', code); // Debug log
+    console.log('Received GitHub callback with state:', state); // Debug log
+    console.log('================================================'); // Debug separator
+
     try {
         const accessToken = await fetch_github_token(code, state);
+        console.log('Fetched GitHub access token:', accessToken); // Debug log
         const userInfo = await fetch_github_user(accessToken);
+        console.log('Fetched GitHub user info:', userInfo); // Debug log
         let existingUser = await get_user_by_email(userInfo.email);
+        console.log('Existing user:', existingUser); // Debug log
         if (!existingUser) {
+            console.log('Creating new GitHub user:', userInfo); // Debug log
             await create_github_user(userInfo);
+            console.log('New GitHub user created:', userInfo); // Debug log
             existingUser = await get_user_by_email(userInfo.email);
+            console.log('Fetched newly created user:', existingUser); // Debug log
         }
 
         // Issue session token with minimal info only
@@ -68,7 +81,9 @@ export async function GET(req: Request) {
         const token = signJWT(payload, maxAge);
 
         const requestUrl = new URL(req.url);
+        console.log('Redirecting to dashboard url:', requestUrl.toString()); // Debug log
         const dashboardUrl = new URL("/dashboard", requestUrl.origin);
+        console.log('Redirecting to dashboard at:', dashboardUrl.toString()); // Debug log
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
         const cookieDomain = process.env.COOKIE_DOMAIN || undefined; // e.g., example.com
