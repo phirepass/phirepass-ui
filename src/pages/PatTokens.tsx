@@ -463,10 +463,6 @@ const PatTokens = () => {
                                                     <span>Scopes: {token.scopes.join(', ')}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <Server className="w-4 h-4" />
-                                                    <span>Used with {token.node_count} {token.node_count === 1 ? 'node' : 'nodes'}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
                                                     <Calendar className="w-4 h-4" />
                                                     <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
                                                 </div>
