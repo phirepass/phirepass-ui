@@ -303,7 +303,7 @@ export default function Nodes() {
                             />
                         </div>
 
-                        <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                             <Button variant="outline" size="sm" className="gap-2">
                                 <Filter className="h-4 w-4" />
                                 Filter
