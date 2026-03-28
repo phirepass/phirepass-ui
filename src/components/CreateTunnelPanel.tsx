@@ -200,7 +200,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
 
             <div className="absolute inset-0 flex justify-end pointer-events-none">
                 <div className={cn(
-                    'h-full bg-card shadow-2xl flex flex-col overflow-hidden border-border will-change-transform pointer-events-auto transition-[transform,width,border-radius] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    'h-full min-h-0 min-w-0 bg-card shadow-2xl flex flex-col overflow-hidden border-border will-change-transform pointer-events-auto transition-[transform,width,border-radius] ease-[cubic-bezier(0.22,1,0.36,1)]',
                     isFullScreen
                         ? 'w-full border-0 rounded-none'
                         : 'w-full md:w-[700px] lg:w-[900px] border-l rounded-none md:rounded-l-2xl'
@@ -248,7 +248,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-hidden p-4">
+                    <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-4">
                         {!nodeId && (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Select a node to start a terminal session.
@@ -275,7 +275,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                         )}
 
                         {token && nodeId && (cachedNodeIds.length > 0 || activeConnectionState === 'disconnected') && (
-                            <div className="relative h-full w-full border border-border overflow-hidden bg-black/20">
+                            <div className="relative h-full w-full min-h-0 min-w-0 border border-border overflow-hidden bg-black/20">
                                 {activeConnectionState !== 'connected' && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
                                         {activeConnectionState === 'disconnected' ? (
@@ -297,7 +297,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                                     return <div key={cachedNodeId}
                                         id={`terminal-session-${cachedNodeId}`}
                                         className={cn(
-                                            'terminal-session absolute inset-0 h-full w-full transition-opacity duration-200',
+                                            'terminal-session absolute inset-0 h-full w-full min-h-0 min-w-0 transition-opacity duration-200',
                                             isActive && isConnected
                                                 ? 'opacity-100 pointer-events-auto'
                                                 : 'opacity-0 pointer-events-none'
