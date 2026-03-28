@@ -434,7 +434,7 @@ const PatTokens = () => {
                     {activeTokens.map((token) => (
                         <Card key={token.id}>
                             <CardContent className="p-6">
-                                <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start justify-between gap-4 overflow-hidden">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-2">
                                             <h3 className="font-medium text-lg">{token.name}</h3>
@@ -503,7 +503,7 @@ const PatTokens = () => {
                         {[...expiredTokens, ...revokedTokens].map((token) => (
                             <Card key={token.id} className="opacity-60">
                                 <CardContent className="p-6">
-                                    <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start justify-between gap-4 overflow-hidden">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <h3 className="font-medium">{token.name}</h3>
