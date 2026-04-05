@@ -11,10 +11,11 @@ type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 interface CreateTunnelPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    nodeId: string | null;
+    nodeId: string;
+    serverId?: string | null;
 }
 
-export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanelProps) {
+export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateTunnelPanelProps) {
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
@@ -304,6 +305,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId }: CreateTunnelPanel
                                         )} aria-hidden={!isActive || !isConnected || undefined}>
                                         <phirepass-terminal
                                             node-id={cachedNodeId}
+                                            server-id={serverId ?? undefined}
                                             token={token}
                                             style={{ display: 'block', width: '100%', height: '100%' }}
                                         />

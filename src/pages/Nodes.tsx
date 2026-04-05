@@ -424,7 +424,8 @@ export default function Nodes() {
                         onClose={() => {
                             setCreateTunnelPanelOpen(false);
                         }}
-                        nodeId={selectedTunnelNode?.id ?? null}
+                        nodeId={selectedTunnelNode!.id}
+                        serverId={selectedTunnelNode!.server_id}
                     />
 
                     {/* Share Node Dialog */}
