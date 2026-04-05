@@ -24,7 +24,7 @@ export interface TunnelNode {
     ip: string;
     is_online: boolean;
     name: string;
-    serde_id: string;
+    server_id: string;
     since_last_heartbeat_secs: number;
     stats: NodeStats;
 }

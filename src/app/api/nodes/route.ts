@@ -26,7 +26,7 @@ type NodeStats = {
 type NodeStatsPayload = {
     id?: string;
     name?: string;
-    serde_id?: string;
+    server_id?: string;
     ip?: string;
     connected_for_secs?: number;
     since_last_heartbeat_secs?: number;
@@ -81,7 +81,7 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
     return {
         id: payload.id,
         name: payload.name,
-        serde_id: payload.serde_id,
+        server_id: payload.server_id,
         ip: payload.ip,
         connected_for_secs: toNumber(payload.connected_for_secs),
         since_last_heartbeat_secs: toNumber(payload.since_last_heartbeat_secs),
@@ -169,7 +169,7 @@ export async function GET(req: Request) {
                 id: node.id,
                 name: node.name ?? payload?.name ?? '',
                 ip,
-                serde_id: payload?.serde_id ?? node.id,
+                server_id: payload?.server_id ?? node.id,
                 connected_for_secs: payload?.connected_for_secs ?? 0,
                 since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0,
                 is_online: isOnline,
