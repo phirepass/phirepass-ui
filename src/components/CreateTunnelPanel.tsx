@@ -8,6 +8,11 @@ import { defineCustomElements } from 'phirepass-widgets/loader';
 
 type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 
+interface CachedTerminalSession {
+    nodeId: string;
+    serverId?: string | null;
+}
+
 interface CreateTunnelPanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -19,7 +24,8 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
-    const [cachedNodeIds, setCachedNodeIds] = useState<string[]>([]);
+    const [cachedSessions, setCachedSessions] = useState<CachedTerminalSession[]>([]);
+    const [sessionRenderVersions, setSessionRenderVersions] = useState<Record<string, number>>({});
     const [connectionStates, setConnectionStates] = useState<Record<string, TerminalConnectionState>>({});
     const [connectionErrors, setConnectionErrors] = useState<Record<string, string | null>>({});
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -62,8 +68,22 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
             return;
         }
 
-        setCachedNodeIds((prev) => (prev.includes(nodeId) ? prev : [...prev, nodeId]));
-    }, [nodeId]);
+        setCachedSessions((prev) => {
+            const existingSession = prev.find((session) => session.nodeId === nodeId);
+            if (existingSession) {
+                return prev.map((session) =>
+                    session.nodeId === nodeId
+                        ? {
+                            ...session,
+                            serverId: session.serverId ?? serverId ?? null,
+                        }
+                        : session
+                );
+            }
+
+            return [...prev, { nodeId, serverId: serverId ?? null }];
+        });
+    }, [nodeId, serverId]);
 
     useEffect(() => {
         if (!isOpen || !nodeId || token || loadingToken || tokenError) {
@@ -100,13 +120,13 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
     }, [isOpen, nodeId, token, loadingToken, tokenError]);
 
     useEffect(() => {
-        if (!token || cachedNodeIds.length === 0) {
+        if (!token || cachedSessions.length === 0) {
             return;
         }
 
         const detachListeners: Array<() => void> = [];
 
-        cachedNodeIds.forEach((cachedNodeId) => {
+        cachedSessions.forEach(({ nodeId: cachedNodeId }) => {
             const terminalContainer = document.getElementById(`terminal-session-${cachedNodeId}`);
             const terminalElement = terminalContainer?.querySelector('phirepass-terminal');
 
@@ -133,9 +153,6 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                         : null,
                 }));
 
-                if (state === 'disconnected') {
-                    setCachedNodeIds((prev) => prev.filter((id) => id !== cachedNodeId));
-                }
             };
 
             terminalElement.addEventListener('connectionStateChanged', handleConnectionStateChanged);
@@ -147,7 +164,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
         return () => {
             detachListeners.forEach((detach) => detach());
         };
-    }, [cachedNodeIds, token]);
+    }, [cachedSessions, sessionRenderVersions, token]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -185,7 +202,15 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
             delete next[targetNodeId];
             return next;
         });
-        setCachedNodeIds((prev) => (prev.includes(targetNodeId) ? prev : [...prev, targetNodeId]));
+        setCachedSessions((prev) => (
+            prev.some((session) => session.nodeId === targetNodeId)
+                ? prev
+                : [...prev, { nodeId: targetNodeId, serverId: null }]
+        ));
+        setSessionRenderVersions((prev) => ({
+            ...prev,
+            [targetNodeId]: (prev[targetNodeId] ?? 0) + 1,
+        }));
     };
 
     const activeConnectionState = nodeId ? connectionStates[nodeId] : undefined;
@@ -275,7 +300,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                             </div>
                         )}
 
-                        {token && nodeId && (cachedNodeIds.length > 0 || activeConnectionState === 'disconnected') && (
+                        {token && nodeId && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
                             <div className="relative h-full w-full min-h-0 min-w-0 border border-border overflow-hidden bg-black/20">
                                 {activeConnectionState !== 'connected' && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
@@ -291,11 +316,13 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                                         )}
                                     </div>
                                 )}
-                                {cachedNodeIds.map((cachedNodeId) => {
+                                {cachedSessions.map((session) => {
+                                    const { nodeId: cachedNodeId, serverId: cachedServerId } = session;
+                                    const renderVersion = sessionRenderVersions[cachedNodeId] ?? 0;
                                     const isActive = nodeId === cachedNodeId;
                                     const sessionState = connectionStates[cachedNodeId];
                                     const isConnected = sessionState === 'connected';
-                                    return <div key={cachedNodeId}
+                                    return <div key={`${cachedNodeId}-${renderVersion}`}
                                         id={`terminal-session-${cachedNodeId}`}
                                         className={cn(
                                             'terminal-session absolute inset-0 h-full w-full min-h-0 min-w-0 transition-opacity duration-200',
@@ -305,7 +332,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                                         )} aria-hidden={!isActive || !isConnected || undefined}>
                                         <phirepass-terminal
                                             node-id={cachedNodeId}
-                                            server-id={serverId ?? undefined}
+                                            server-id={cachedServerId ?? undefined}
                                             token={token}
                                             style={{ display: 'block', width: '100%', height: '100%' }}
                                         />
