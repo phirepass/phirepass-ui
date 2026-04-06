@@ -11,7 +11,7 @@ type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 interface CreateTunnelPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    nodeId: string;
+    nodeId?: string | null;
     serverId?: string | null;
 }
 
