@@ -95,11 +95,6 @@ export function NodeCard({
     const cpuPercent = clampPercent(node.stats.host_cpu);
     const loadAverageLabel = node.stats.host_load_average.map((value) => value.toFixed(2)).join(' / ');
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
-    const heartbeatVariant = node.since_last_heartbeat_secs > 180
-        ? 'text-destructive'
-        : node.since_last_heartbeat_secs > 60
-            ? 'text-warning'
-            : 'text-primary';
     const nodeVersion = node.stats.version?.trim();
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -321,15 +316,15 @@ export function NodeCard({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                                <Wifi className={cn('w-5 h-5', heartbeatVariant)} />
+                                <Globe className="w-5 h-5 text-primary" />
                                 <div>
-                                    <span className="text-muted-foreground">Ping</span>
-                                    <p className="font-mono text-foreground">{formatDuration(0)}</p>
+                                    <span className="text-muted-foreground">IP</span>
+                                    <p className="font-mono text-foreground">{node.stats.host_ip || 'unknown'}</p>
                                 </div>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            Ping 0s
+                            {node.stats.host_ip || 'Host IP unavailable'}
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -347,10 +342,10 @@ export function NodeCard({
                         </TooltipContent>
                     </Tooltip>
                     <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                        <Users className="w-5 h-5 text-accent" />
+                        <Cpu className="w-5 h-5 text-accent" />
                         <div>
-                            <span className="text-muted-foreground">Active Sessions</span>
-                            <p className="font-mono text-foreground">0</p>
+                            <span className="text-muted-foreground">Processes</span>
+                            <p className="font-mono text-foreground">{node.stats.host_processes}</p>
                         </div>
                     </div>
                 </div>
