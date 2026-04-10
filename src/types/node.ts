@@ -16,6 +16,7 @@ export interface NodeStats {
     proc_mem_bytes: number;
     proc_threads: number;
     proc_uptime_secs: number;
+    version?: string;
 }
 
 export interface TunnelNode {

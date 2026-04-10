@@ -21,6 +21,7 @@ type NodeStats = {
     proc_mem_bytes: number;
     proc_threads: number;
     proc_uptime_secs: number;
+    version: string;
 };
 
 type NodeStatsPayload = {
@@ -41,6 +42,10 @@ type UserNodeRow = {
 
 function toNumber(value: unknown, fallback: number = 0) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function toString(value: unknown, fallback: string = '') {
+    return typeof value === 'string' ? value : fallback;
 }
 
 function normalizeLoadAverage(value: unknown): [number, number, number] {
@@ -69,6 +74,7 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
         proc_mem_bytes: 0,
         proc_threads: 0,
         proc_uptime_secs: 0,
+        version: '',
         ...overrides,
     };
 }
@@ -88,23 +94,24 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
         stats: buildDefaultStats({
             host_connections: toNumber(statsSource.host_connections),
             host_cpu: toNumber(statsSource.host_cpu),
-            host_ip: typeof statsSource.host_ip === 'string' ? statsSource.host_ip : '',
+            host_ip: toString(statsSource.host_ip),
             host_load_average: normalizeLoadAverage(statsSource.host_load_average),
-            host_mac: typeof statsSource.host_mac === 'string' ? statsSource.host_mac : '',
+            host_mac: toString(statsSource.host_mac),
             host_mem_total_bytes: toNumber(statsSource.host_mem_total_bytes),
             host_mem_used_bytes: toNumber(statsSource.host_mem_used_bytes),
             host_name: typeof statsSource.host_name === 'string' && statsSource.host_name
                 ? statsSource.host_name
                 : fallbackName,
-            host_os_info: typeof statsSource.host_os_info === 'string' ? statsSource.host_os_info : '',
+            host_os_info: toString(statsSource.host_os_info),
             host_processes: toNumber(statsSource.host_processes),
             host_uptime_secs: toNumber(statsSource.host_uptime_secs),
             last_refreshed_secs: toNumber(statsSource.last_refreshed_secs),
             proc_cpu: toNumber(statsSource.proc_cpu),
-            proc_id: typeof statsSource.proc_id === 'string' ? statsSource.proc_id : '',
+            proc_id: toString(statsSource.proc_id),
             proc_mem_bytes: toNumber(statsSource.proc_mem_bytes),
             proc_threads: toNumber(statsSource.proc_threads),
             proc_uptime_secs: toNumber(statsSource.proc_uptime_secs),
+            version: toString(statsSource.version),
         }),
     };
 }
