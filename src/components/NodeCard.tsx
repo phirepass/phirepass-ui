@@ -100,6 +100,7 @@ export function NodeCard({
         : node.since_last_heartbeat_secs > 60
             ? 'text-warning'
             : 'text-primary';
+    const nodeVersion = node.stats.version?.trim();
 
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartX.current = e.touches[0].clientX;
@@ -365,6 +366,7 @@ export function NodeCard({
                             Connected for {node.connected_for_secs}s
                         </TooltipContent>
                     </Tooltip>
+                    <span className="text-muted-foreground/70">Version: {nodeVersion || 'unknown'}</span>
                 </div>
 
                 {/* Tags */}
