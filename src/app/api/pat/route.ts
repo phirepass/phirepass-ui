@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         const token = await create_pat({
             name: body.name || `PAT #${nanoid()}`,
             user_id: user.id,
-            scopes: body.scopes || ['read', 'write'],
+            scopes: ['server:register'],
             expires_at: body.expires_at || null,
         });
 

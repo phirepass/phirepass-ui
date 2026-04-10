@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import {
     KeyRound,
     Plus,
-    Copy,
     Trash2,
     Eye,
     EyeOff,
@@ -47,7 +46,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-type PatTokenScope = 'read' | 'write' | 'admin';
+type PatTokenScope = 'server:register';
 
 interface PatToken {
     id: string;
@@ -61,9 +60,11 @@ interface PatToken {
 }
 
 const AVAILABLE_SCOPES: { value: PatTokenScope; label: string; description: string }[] = [
-    { value: 'read', label: 'Read', description: 'Read-only access to resources' },
-    { value: 'write', label: 'Write', description: 'Create and modify resources' },
-    { value: 'admin', label: 'Admin', description: 'Full administrative access' },
+    {
+        value: 'server:register',
+        label: 'Login to a server',
+        description: 'Allow an agent to login to a server',
+    },
 ];
 
 const EXPIRY_OPTIONS = [
@@ -79,7 +80,7 @@ const PatTokens = () => {
     const [loading, setLoading] = useState(false);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [newTokenName, setNewTokenName] = useState('');
-    const [newTokenScopes, setNewTokenScopes] = useState<PatTokenScope[]>(['read', 'write']);
+    const [newTokenScopes, setNewTokenScopes] = useState<PatTokenScope[]>(['server:register']);
     const [newTokenExpiry, setNewTokenExpiry] = useState<string>('never');
     const [createdToken, setCreatedToken] = useState<string | null>(null);
     const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
@@ -120,21 +121,11 @@ const PatTokens = () => {
         });
     };
 
-    const copyToken = (token: string) => {
-        navigator.clipboard.writeText(token);
-        toast.success('Token copied to clipboard');
-    };
-
     const handleCreateToken = async () => {
         if (!newTokenName.trim()) {
             toast.error('Please enter a name for the token');
             return;
         }
-        if (newTokenScopes.length === 0) {
-            toast.error('Please select at least one scope');
-            return;
-        }
-
         setLoading(true);
         try {
             const expiresAt = newTokenExpiry === 'never'
@@ -195,7 +186,7 @@ const PatTokens = () => {
     const resetCreateDialog = () => {
         setShowCreateDialog(false);
         setNewTokenName('');
-        setNewTokenScopes(['read', 'write']);
+        setNewTokenScopes(['server:register']);
         setNewTokenExpiry('never');
         setCreatedToken(null);
     };
@@ -260,17 +251,7 @@ const PatTokens = () => {
                                     </div>
                                 </div>
                                 <div className="bg-background rounded-md p-3 mt-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <code className="text-sm font-mono break-all flex-1">{createdToken}</code>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => copyToken(createdToken)}
-                                            className="shrink-0"
-                                        >
-                                            <Copy className="w-4 h-4" />
-                                        </Button>
-                                    </div>
+                                    <code className="text-sm font-mono break-all">{createdToken}</code>
                                 </div>
                             </div>
                             <DialogFooter>
@@ -321,13 +302,7 @@ const PatTokens = () => {
                                                 <Checkbox
                                                     id={`scope-${scope.value}`}
                                                     checked={newTokenScopes.includes(scope.value)}
-                                                    onCheckedChange={(checked) => {
-                                                        if (checked) {
-                                                            setNewTokenScopes([...newTokenScopes, scope.value]);
-                                                        } else {
-                                                            setNewTokenScopes(newTokenScopes.filter(s => s !== scope.value));
-                                                        }
-                                                    }}
+                                                    disabled
                                                 />
                                                 <div className="flex-1">
                                                     <label
@@ -447,14 +422,6 @@ const PatTokens = () => {
                                             <div className="flex items-center gap-2 text-sm">
                                                 <span className="text-muted-foreground">Token:</span>
                                                 {renderTokenValue(token)}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => copyToken(`pat_${token.token_id}`)}
-                                                >
-                                                    <Copy className="w-3.5 h-3.5" />
-                                                </Button>
                                             </div>
 
                                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
