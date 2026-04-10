@@ -261,7 +261,7 @@ export default function Nodes() {
                     <p className="text-muted-foreground">Manage your connected servers and infrastructure</p>
                 </div>
 
-                <Button size="sm" onClick={handleAddNode} className="gap-2">
+                <Button size="sm" onClick={handleAddNode} className="gap-2" disabled>
                     <Plus className="h-4 w-4" />
                     Add Node
                 </Button>
