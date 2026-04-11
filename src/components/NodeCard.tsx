@@ -96,6 +96,7 @@ export function NodeCard({
     const loadAverageLabel = node.stats.host_load_average.map((value) => value.toFixed(2)).join(' / ');
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
     const nodeVersion = node.stats.version?.trim();
+    const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
 
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartX.current = e.touches[0].clientX;
@@ -319,12 +320,12 @@ export function NodeCard({
                                 <Globe className="w-5 h-5 text-primary" />
                                 <div>
                                     <span className="text-muted-foreground">IP</span>
-                                    <p className="font-mono text-foreground">{node.stats.host_ip || 'unknown'}</p>
+                                    <p className="font-mono text-foreground">{displayIp || 'unknown'}</p>
                                 </div>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            {node.stats.host_ip || 'Host IP unavailable'}
+                            {displayIp || 'IP unavailable'}
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>
