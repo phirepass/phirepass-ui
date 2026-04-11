@@ -1,4 +1,5 @@
 export interface NodeStats {
+    ip: string;
     host_connections: number;
     host_cpu: number;
     host_ip: string;

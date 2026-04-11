@@ -4,6 +4,7 @@ import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
 
 type NodeStats = {
+    ip: string;
     host_connections: number;
     host_cpu: number;
     host_ip: string;
@@ -57,6 +58,7 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
 
 function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
     return {
+        ip: '',
         host_connections: 0,
         host_cpu: 0,
         host_ip: '',
@@ -92,6 +94,7 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
         connected_for_secs: toNumber(payload.connected_for_secs),
         since_last_heartbeat_secs: toNumber(payload.since_last_heartbeat_secs),
         stats: buildDefaultStats({
+            ip: toString(statsSource.ip ?? payload.ip ?? statsSource.host_ip),
             host_connections: toNumber(statsSource.host_connections),
             host_cpu: toNumber(statsSource.host_cpu),
             host_ip: toString(statsSource.host_ip),
@@ -168,6 +171,7 @@ export async function GET(req: Request) {
             const payload = normalizeStatsPayload(rawPayload, node.name ?? '');
             const stats = payload?.stats ?? buildDefaultStats({ host_name: node.name ?? '' });
             const ip = payload?.ip
+                ?? payload?.stats?.ip
                 ?? payload?.stats?.host_ip
                 ?? '';
             const isOnline = !!rawPayload;
