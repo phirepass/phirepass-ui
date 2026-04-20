@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Plus, Circle } from 'lucide-react';
+import { X, Plus, Circle, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { TerminalTab, TunnelNode } from '@/types/node';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ export function TerminalPanel({
 }: TerminalPanelProps) {
     const [input, setInput] = useState('');
     const [outputs, setOutputs] = useState<Record<string, string[]>>({});
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const terminalRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +45,12 @@ export function TerminalPanel({
             terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
         }
     }, [outputs, activeTabId]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setIsFullScreen(false);
+        }
+    }, [isOpen]);
 
     const handleCommand = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && input.trim() && activeTab) {
@@ -69,23 +76,39 @@ export function TerminalPanel({
     return (
         <div
             className={cn(
-                'fixed inset-y-0 right-0 w-full md:w-[600px] lg:w-[800px] bg-card border-l border-border shadow-2xl z-50 flex flex-col',
+                'fixed inset-y-0 right-0 bg-card shadow-2xl z-50 flex flex-col overflow-hidden transition-[width] duration-300',
+                isFullScreen
+                    ? 'w-full border-0 rounded-none'
+                    : 'w-full md:w-[600px] lg:w-[800px] border-l border-border rounded-none md:rounded-l-2xl',
                 isOpen ? 'animate-slide-in-right' : 'hidden'
             )}
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50">
+            <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-border bg-secondary/50">
                 <div className="flex items-center gap-2">
                     <div className="flex gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-destructive" />
                         <div className="w-3 h-3 rounded-full bg-warning" />
                         <div className="w-3 h-3 rounded-full bg-success" />
                     </div>
-                    <span className="text-sm font-medium ml-2">Terminal</span>
+                    <div className="ml-2">
+                        <span className="text-sm font-medium leading-tight">Terminal</span>
+                        <p className="text-xs leading-tight text-muted-foreground">Interactive SSH session</p>
+                    </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onClose}>
-                    <X className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setIsFullScreen((prev) => !prev)}
+                        aria-label={isFullScreen ? 'Restore panel size' : 'Expand panel'}
+                    >
+                        {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={onClose}>
+                        <X className="w-4 h-4" />
+                    </Button>
+                </div>
             </div>
 
             {/* Tabs */}
@@ -94,7 +117,7 @@ export function TerminalPanel({
                     <div
                         key={tab.id}
                         className={cn(
-                            'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors group',
+                            'flex shrink-0 items-center gap-2 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors group',
                             activeTabId === tab.id
                                 ? 'bg-secondary text-foreground'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
@@ -120,7 +143,7 @@ export function TerminalPanel({
                     </div>
                 ))}
                 {onlineNodes.length > 0 && (
-                    <div className="relative group">
+                    <div className="relative group shrink-0">
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                             <Plus className="w-4 h-4" />
                         </Button>

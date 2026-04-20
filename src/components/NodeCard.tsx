@@ -394,7 +394,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1"
                         onClick={() => onOpenFiles(node)}
-                        disabled
+                        disabled={!node.is_online}
                     >
                         <FolderOpen className="w-4 h-4" />
                         Files

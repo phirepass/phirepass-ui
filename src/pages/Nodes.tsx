@@ -11,7 +11,7 @@ import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
-import { NodeStats, TunnelNode } from '@/types/node';
+import { FilePanelTab, NodeStats, TunnelNode } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -83,7 +83,8 @@ export default function Nodes() {
 
     // File panel state
     const [filePanelOpen, setFilePanelOpen] = useState(false);
-    const [selectedFileNode, setSelectedFileNode] = useState<TunnelNode | null>(null);
+    const [filePanelTabs, setFilePanelTabs] = useState<FilePanelTab[]>([]);
+    const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
 
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
@@ -146,15 +147,61 @@ export default function Nodes() {
             const refreshedNode = refreshedNodes[0];
             setNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
             setSelectedNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
-            setSelectedFileNode((prev) => (prev?.id === refreshedNode.id ? refreshedNode : prev));
+            setFilePanelTabs((prev) => prev.map((entry) => (
+                entry.nodeId === refreshedNode.id
+                    ? {
+                        ...entry,
+                        nodeName: refreshedNode.name,
+                        serverId: refreshedNode.server_id,
+                    }
+                    : entry
+            )));
         } catch (err) {
             console.warn('[client][refresh-stats] failed', err);
         }
     };
 
     const handleOpenFiles = (node: TunnelNode) => {
-        setSelectedFileNode(node);
+        setFilePanelTabs((prev) => {
+            const existingTab = prev.find((tab) => tab.nodeId === node.id);
+            if (existingTab) {
+                setActiveFileTabId(existingTab.id);
+                return prev;
+            }
+
+            const newTab: FilePanelTab = {
+                id: `file-${node.id}`,
+                nodeId: node.id,
+                nodeName: node.name,
+                serverId: node.server_id,
+            };
+
+            setActiveFileTabId(newTab.id);
+            return [...prev, newTab];
+        });
         setFilePanelOpen(true);
+    };
+
+    const handleCloseFileTab = (tabId: string) => {
+        setFilePanelTabs((prev) => {
+            const remainingTabs = prev.filter((tab) => tab.id !== tabId);
+
+            setActiveFileTabId((currentActiveTabId) => {
+                if (currentActiveTabId !== tabId) {
+                    return currentActiveTabId;
+                }
+
+                const closedTabIndex = prev.findIndex((tab) => tab.id === tabId);
+                const fallbackTab = remainingTabs[Math.max(0, closedTabIndex - 1)] ?? remainingTabs[0] ?? null;
+                return fallbackTab?.id ?? null;
+            });
+
+            if (remainingTabs.length === 0) {
+                setFilePanelOpen(false);
+            }
+
+            return remainingTabs;
+        });
     };
 
     const handleSelectNode = (node: TunnelNode) => {
@@ -183,7 +230,7 @@ export default function Nodes() {
 
         setNodes((prev) => prev.map(updateName));
         setSelectedNodes((prev) => prev.map(updateName));
-        setSelectedFileNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
+        setFilePanelTabs((prev) => prev.map((entry) => (entry.nodeId === nodeId ? { ...entry, nodeName: nextName } : entry)));
         setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
         setNodeToShare((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
     };
@@ -414,8 +461,10 @@ export default function Nodes() {
                         isOpen={filePanelOpen}
                         onClose={() => setFilePanelOpen(false)}
                         nodes={nodes}
-                        selectedNode={selectedFileNode}
-                        onSelectNode={setSelectedFileNode}
+                        tabs={filePanelTabs}
+                        activeTabId={activeFileTabId}
+                        onSelectTab={setActiveFileTabId}
+                        onCloseTab={handleCloseFileTab}
                     />
 
                     {/* Create Tunnel Panel */}
@@ -426,6 +475,7 @@ export default function Nodes() {
                         }}
                         nodeId={selectedTunnelNode?.id}
                         serverId={selectedTunnelNode?.server_id}
+                        nodeName={selectedTunnelNode?.name}
                     />
 
                     {/* Share Node Dialog */}

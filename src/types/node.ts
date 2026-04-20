@@ -39,6 +39,13 @@ export interface TerminalTab {
     history: string[];
 }
 
+export interface FilePanelTab {
+    id: string;
+    nodeId: string;
+    nodeName: string;
+    serverId?: string;
+}
+
 export interface FileItem {
     name: string;
     type: "file" | "directory";
