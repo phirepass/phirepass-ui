@@ -123,7 +123,7 @@ export default function Nodes() {
     });
 
     const handleCreateTunnel = (node: TunnelNode) => {
-        setSelectedTunnelNode(node);
+        setSelectedTunnelNode({ ...node });
         setCreateTunnelPanelOpen(true);
     };
 
