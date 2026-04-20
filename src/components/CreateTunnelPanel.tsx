@@ -11,6 +11,7 @@ type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 interface CachedTerminalSession {
     nodeId: string;
     serverId?: string | null;
+    nodeName?: string | null;
 }
 
 interface CreateTunnelPanelProps {
@@ -18,9 +19,10 @@ interface CreateTunnelPanelProps {
     onClose: () => void;
     nodeId?: string | null;
     serverId?: string | null;
+    nodeName?: string | null;
 }
 
-export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateTunnelPanelProps) {
+export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName }: CreateTunnelPanelProps) {
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
@@ -30,6 +32,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
     const [connectionErrors, setConnectionErrors] = useState<Record<string, string | null>>({});
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isPanelVisible, setIsPanelVisible] = useState(false);
+    const [activeSessionNodeId, setActiveSessionNodeId] = useState<string | null>(null);
     const panelTransitionDurationMs = isFullScreen ? 260 : 620;
 
     const readConnectionErrorMessage = (value: unknown): string | null => {
@@ -68,6 +71,8 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
             return;
         }
 
+        setActiveSessionNodeId(nodeId);
+
         setCachedSessions((prev) => {
             const existingSession = prev.find((session) => session.nodeId === nodeId);
             if (existingSession) {
@@ -76,17 +81,29 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                         ? {
                             ...session,
                             serverId: session.serverId ?? serverId ?? null,
+                            nodeName: nodeName ?? session.nodeName ?? nodeId,
                         }
                         : session
                 );
             }
 
-            return [...prev, { nodeId, serverId: serverId ?? null }];
+            return [...prev, { nodeId, serverId: serverId ?? null, nodeName: nodeName ?? nodeId }];
         });
-    }, [nodeId, serverId]);
+    }, [nodeId, serverId, nodeName]);
 
     useEffect(() => {
-        if (!isOpen || !nodeId || token || loadingToken || tokenError) {
+        if (cachedSessions.length === 0) {
+            setActiveSessionNodeId(null);
+            return;
+        }
+
+        if (!activeSessionNodeId || !cachedSessions.some((session) => session.nodeId === activeSessionNodeId)) {
+            setActiveSessionNodeId(cachedSessions[cachedSessions.length - 1].nodeId);
+        }
+    }, [activeSessionNodeId, cachedSessions]);
+
+    useEffect(() => {
+        if (!isOpen || cachedSessions.length === 0 || token || loadingToken || tokenError) {
             return;
         }
 
@@ -117,7 +134,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
         };
 
         fetchToken();
-    }, [isOpen, nodeId, token, loadingToken, tokenError]);
+    }, [cachedSessions.length, isOpen, token, loadingToken, tokenError]);
 
     useEffect(() => {
         if (!token || cachedSessions.length === 0) {
@@ -205,16 +222,57 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
         setCachedSessions((prev) => (
             prev.some((session) => session.nodeId === targetNodeId)
                 ? prev
-                : [...prev, { nodeId: targetNodeId, serverId: null }]
+                : [...prev, { nodeId: targetNodeId, serverId: null, nodeName: targetNodeId }]
         ));
+        setActiveSessionNodeId(targetNodeId);
         setSessionRenderVersions((prev) => ({
             ...prev,
             [targetNodeId]: (prev[targetNodeId] ?? 0) + 1,
         }));
     };
 
-    const activeConnectionState = nodeId ? connectionStates[nodeId] : undefined;
-    const activeConnectionError = nodeId ? connectionErrors[nodeId] : null;
+    const handleCloseSession = (targetNodeId: string) => {
+        setCachedSessions((prev) => {
+            const closeIndex = prev.findIndex((session) => session.nodeId === targetNodeId);
+            const remainingSessions = prev.filter((session) => session.nodeId !== targetNodeId);
+
+            setActiveSessionNodeId((currentActiveNodeId) => {
+                if (currentActiveNodeId !== targetNodeId) {
+                    return currentActiveNodeId;
+                }
+
+                if (remainingSessions.length === 0) {
+                    return null;
+                }
+
+                const fallbackSession = remainingSessions[Math.max(0, closeIndex - 1)] ?? remainingSessions[0];
+                return fallbackSession.nodeId;
+            });
+
+            return remainingSessions;
+        });
+
+        setConnectionStates((prev) => {
+            const next = { ...prev };
+            delete next[targetNodeId];
+            return next;
+        });
+
+        setConnectionErrors((prev) => {
+            const next = { ...prev };
+            delete next[targetNodeId];
+            return next;
+        });
+
+        setSessionRenderVersions((prev) => {
+            const next = { ...prev };
+            delete next[targetNodeId];
+            return next;
+        });
+    };
+
+    const activeConnectionState = activeSessionNodeId ? connectionStates[activeSessionNodeId] : undefined;
+    const activeConnectionError = activeSessionNodeId ? connectionErrors[activeSessionNodeId] : null;
 
     return (
         <div className={cn('fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
@@ -244,7 +302,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            {nodeId && token && (
+                            {activeSessionNodeId && token && (
                                 <div className="mr-2 flex items-center gap-2 text-xs">
                                     <span className="text-muted-foreground">Connection:</span>
                                     <span
@@ -274,8 +332,37 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                         </div>
                     </div>
 
+                    {cachedSessions.length > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto shrink-0">
+                            {cachedSessions.map((session) => (
+                                <div
+                                    key={session.nodeId}
+                                    className={cn(
+                                        'flex shrink-0 items-center gap-2 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors group',
+                                        activeSessionNodeId === session.nodeId
+                                            ? 'bg-secondary text-foreground'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                                    )}
+                                    onClick={() => setActiveSessionNodeId(session.nodeId)}
+                                >
+                                    <span className="font-mono text-xs whitespace-nowrap">{session.nodeName ?? session.nodeId}</span>
+                                    <button
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleCloseSession(session.nodeId);
+                                        }}
+                                        aria-label={`Close terminal session for ${session.nodeName ?? session.nodeId}`}
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-4">
-                        {!nodeId && (
+                        {!activeSessionNodeId && (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Select a node to start a terminal session.
                             </div>
@@ -285,13 +372,13 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                             <p className="mb-3 text-xs text-destructive break-words">{activeConnectionError}</p>
                         )}
 
-                        {nodeId && loadingToken && (
+                        {activeSessionNodeId && loadingToken && (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Loading terminal token...
                             </div>
                         )}
 
-                        {nodeId && !loadingToken && tokenError && (
+                        {activeSessionNodeId && !loadingToken && tokenError && (
                             <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-destructive text-center px-6">
                                 <div>{tokenError}</div>
                                 <Button variant="outline" size="sm" onClick={handleRetryToken}>
@@ -300,14 +387,14 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                             </div>
                         )}
 
-                        {token && nodeId && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
+                        {token && activeSessionNodeId && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
                             <div className="relative h-full w-full min-h-0 min-w-0 border border-border overflow-hidden bg-black/20">
                                 {activeConnectionState !== 'connected' && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
                                         {activeConnectionState === 'disconnected' ? (
                                             <>
                                                 <span className="text-sm text-muted-foreground">Disconnected</span>
-                                                <Button variant="outline" size="sm" onClick={() => handleReconnect(nodeId)}>
+                                                <Button variant="outline" size="sm" onClick={() => handleReconnect(activeSessionNodeId)}>
                                                     Reconnect
                                                 </Button>
                                             </>
@@ -319,7 +406,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId }: CreateT
                                 {cachedSessions.map((session) => {
                                     const { nodeId: cachedNodeId, serverId: cachedServerId } = session;
                                     const renderVersion = sessionRenderVersions[cachedNodeId] ?? 0;
-                                    const isActive = nodeId === cachedNodeId;
+                                    const isActive = activeSessionNodeId === cachedNodeId;
                                     const sessionState = connectionStates[cachedNodeId];
                                     const isConnected = sessionState === 'connected';
                                     return <div key={`${cachedNodeId}-${renderVersion}`}

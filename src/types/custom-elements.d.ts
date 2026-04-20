@@ -10,6 +10,14 @@ declare global {
                 class?: string;
                 'aria-hidden'?: boolean | 'true' | 'false';
             };
+            'phirepass-sftp-client': {
+                'node-id'?: string;
+                'server-id'?: string;
+                token?: string;
+                style?: CSSProperties;
+                class?: string;
+                'aria-hidden'?: boolean | 'true' | 'false';
+            };
         }
     }
 }
