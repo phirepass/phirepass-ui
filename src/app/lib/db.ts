@@ -102,20 +102,15 @@ async function reconnect() {
 }
 
 export async function query(text: string, params?: unknown[]): Promise<QueryResult> {
-    const execute = async () => {
-        await ensureConnected();
-        return client.query(text, params);
-    };
-
+    const client = new Client(clientConfig);
     try {
-        return await execute();
+        await client.connect();
+        const result = await client.query(text, params);
+        await client.end();
+        return result;
     } catch (error) {
-        if (!isRetryableConnectionError(error)) {
-            throw error;
-        }
-
-        await reconnect();
-        return execute();
+        await client.end();
+        throw error;
     }
 }
 
