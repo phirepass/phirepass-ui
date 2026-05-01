@@ -76,7 +76,7 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
     }, [isOpen]);
 
     return (
-        <div className={cn('fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
+        <div className={cn('mb-0 fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
             <div
                 className={cn(
                     'absolute inset-0 bg-black/55 backdrop-blur-sm transition-all duration-500',

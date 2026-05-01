@@ -275,9 +275,12 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
     const activeConnectionError = activeSessionNodeId ? connectionErrors[activeSessionNodeId] : null;
 
     return (
-        <div className={cn('fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
+        <div className={cn('mb-0 fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
             <div
-                className={cn('absolute inset-0 bg-black/55 backdrop-blur-sm transition-all duration-500', isPanelVisible ? 'opacity-100' : 'opacity-0 backdrop-blur-none')}
+                className={cn(
+                    'absolute inset-0 bg-black/55 backdrop-blur-sm transition-all duration-500',
+                    isPanelVisible ? 'opacity-100' : 'opacity-0 backdrop-blur-none'
+                )}
                 onClick={onClose}
                 aria-hidden="true"
             />
