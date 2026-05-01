@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { TunnelNode } from '@/types/node';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
@@ -59,14 +59,7 @@ export function NodeCard({
     isShared = false,
     sharedBy,
 }: NodeCardProps) {
-    const [swipeOffset, setSwipeOffset] = useState(0);
-    const [isSwiping, setIsSwiping] = useState(false);
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
     const cardRef = useRef<HTMLDivElement>(null);
-
-    const SWIPE_THRESHOLD = 80;
-    const MAX_SWIPE = 160;
 
     const formatDuration = (totalSeconds: number) => {
         const seconds = Math.max(0, Math.floor(totalSeconds));
@@ -98,79 +91,10 @@ export function NodeCard({
     const nodeVersion = node.stats.version?.trim();
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartX.current = e.touches[0].clientX;
-        touchStartY.current = e.touches[0].clientY;
-        setIsSwiping(true);
-    };
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (touchStartX.current === null || touchStartY.current === null) return;
-
-        const deltaX = e.touches[0].clientX - touchStartX.current;
-        const deltaY = e.touches[0].clientY - touchStartY.current;
-
-        // If vertical scroll is dominant, don't swipe
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
-            return;
-        }
-
-        // Clamp the swipe offset
-        const newOffset = Math.max(-MAX_SWIPE, Math.min(MAX_SWIPE, deltaX));
-        setSwipeOffset(newOffset);
-    };
-
-    const handleTouchEnd = () => {
-        setIsSwiping(false);
-
-        // Trigger action if swiped past threshold
-        if (swipeOffset > SWIPE_THRESHOLD/* && node.isOnline*/) {
-            // Swipe right - Create tunnel
-            onCreateTunnel(node);
-        } else if (swipeOffset < -SWIPE_THRESHOLD && !isShared) {
-            // Swipe left - Share
-            onShare?.(node);
-        }
-
-        // Reset position
-        setSwipeOffset(0);
-        touchStartX.current = null;
-        touchStartY.current = null;
-    };
-
-    const leftActionOpacity = Math.min(1, Math.abs(swipeOffset) / SWIPE_THRESHOLD);
-    const rightActionOpacity = Math.min(1, Math.abs(swipeOffset) / SWIPE_THRESHOLD);
 
     return (
         <div className="relative overflow-hidden rounded-xl md:overflow-visible">
-            {/* Left Action (Swipe Right to Create Tunnel) */}
-            <div
-                className={cn(
-                    "absolute inset-y-0 left-0 w-40 flex items-center justify-center rounded-l-xl bg-primary md:hidden",
-                    "transition-opacity duration-200"
-                )}
-                style={{ opacity: swipeOffset > 0 ? leftActionOpacity : 0 }}
-            >
-                <div className="flex flex-col items-center justify-center gap-2 text-primary-foreground">
-                    <Globe className="w-10 h-10" />
-                    <span className="text-sm font-semibold">Tunnel</span>
-                </div>
-            </div>
-
-            {/* Right Action (Swipe Left to Share) */}
-            <div
-                className={cn(
-                    "absolute inset-y-0 right-0 w-40 flex items-center justify-center rounded-r-xl bg-accent md:hidden",
-                    "transition-opacity duration-200"
-                )}
-                style={{ opacity: swipeOffset < 0 ? rightActionOpacity : 0 }}
-            >
-                <div className="flex flex-col items-center justify-center gap-2 text-accent-foreground">
-                    <Share2 className="w-10 h-10" />
-                    <span className="text-sm font-semibold">Share</span>
-                </div>
-            </div>
-
             {/* Main Card */}
             <div
                 ref={cardRef}
@@ -178,19 +102,12 @@ export function NodeCard({
                     'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     isSelected ? 'border-primary bg-primary/5' : 'border-border',
-                    isSwiping ? '' : 'transition-transform duration-300'
+                    'transition-transform duration-300'
                 )}
-                style={{
-                    transform: `translateX(${swipeOffset}px)`,
-                }}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
             >
                 {!node.is_online && (
                     <div className="absolute inset-0 z-20 rounded-xl bg-background/40 backdrop-blur-[2px] pointer-events-none" />
                 )}
-
                 {showConnectedLoader && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
                         <div className="flex items-center gap-2 rounded-full border border-primary/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
@@ -199,14 +116,6 @@ export function NodeCard({
                         </div>
                     </div>
                 )}
-
-                {/* Swipe Hint for mobile */}
-                {swipeOffset === 0 && (
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50 md:hidden pointer-events-none">
-                        ← swipe →
-                    </div>
-                )}
-
                 {/* Header */}
                 <div className="flex items-start">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
