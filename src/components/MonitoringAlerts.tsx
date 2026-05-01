@@ -29,7 +29,7 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
                 title: "Critical CPU Usage",
                 message: `CPU usage at ${node.stats.host_cpu.toFixed(2)}%`,
                 nodeId: node.id,
-                nodeName: node.stats.host_name,
+                nodeName: `${node.name} (${node.stats.host_name})`,
                 timestamp: new Date(),
             });
         } else if (node.stats.host_cpu > 75) {
