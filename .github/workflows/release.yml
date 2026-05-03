@@ -15,7 +15,9 @@ env:
 
 jobs:
   Release:
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
+
     permissions:
       contents: write
       packages: write
