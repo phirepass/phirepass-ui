@@ -3,6 +3,7 @@ export interface NodeStats {
     host_connections: number;
     host_cpu: number;
     host_ip: string;
+    host_local_ip: string;
     host_load_average: [number, number, number];
     host_mac: string;
     host_mem_total_bytes: number;

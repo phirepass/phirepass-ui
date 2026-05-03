@@ -8,6 +8,7 @@ type NodeStats = {
     host_connections: number;
     host_cpu: number;
     host_ip: string;
+    host_local_ip: string;
     host_load_average: [number, number, number];
     host_mac: string;
     host_mem_total_bytes: number;
@@ -94,6 +95,7 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
         host_connections: 0,
         host_cpu: 0,
         host_ip: '',
+        host_local_ip: '',
         host_load_average: [0, 0, 0],
         host_mac: '',
         host_mem_total_bytes: 0,
@@ -132,6 +134,7 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
             host_connections: toNumber(statsSource.host_connections),
             host_cpu: toNumber(statsSource.host_cpu),
             host_ip: toString(statsSource.host_ip),
+            host_local_ip: toString(statsSource.host_local_ip),
             host_load_average: normalizeLoadAverage(statsSource.host_load_average),
             host_mac: toString(statsSource.host_mac),
             host_mem_total_bytes: toNumber(statsSource.host_mem_total_bytes),

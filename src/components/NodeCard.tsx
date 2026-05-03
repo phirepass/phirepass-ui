@@ -90,6 +90,7 @@ export function NodeCard({
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
     const nodeVersion = node.stats.version?.trim();
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
+    const displayLocalIp = (node.stats.host_local_ip || '').trim();
     const nodeServices = (node.services ?? []).filter((service) => service.trim().length > 0);
     const hasSsh = nodeServices.indexOf('SSH') !== -1;
     const hasSftp = nodeServices.indexOf('SFTP') !== -1;
@@ -228,14 +229,21 @@ export function NodeCard({
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
                                 <Globe className="w-5 h-5 text-primary" />
-                                <div>
-                                    <span className="text-muted-foreground">IP</span>
-                                    <p className="font-mono text-foreground">{displayIp || 'unknown'}</p>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-muted-foreground">IP</span>
+                                        <div className="min-w-0 text-right">
+                                            <p className="font-mono text-foreground truncate">{displayIp || 'unknown'}</p>
+                                            <p className="font-mono text-muted-foreground truncate">{displayLocalIp || 'unknown'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            {displayIp || 'IP unavailable'}
+                            Public: {displayIp || 'IP unavailable'}
+                            <br />
+                            Local: {displayLocalIp || 'IP unavailable'}
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>
