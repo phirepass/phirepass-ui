@@ -90,8 +90,9 @@ export function NodeCard({
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
     const nodeVersion = node.stats.version?.trim();
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
-
-
+    const nodeServices = (node.services ?? []).filter((service) => service.trim().length > 0);
+    const hasSsh = nodeServices.indexOf('SSH') !== -1;
+    const hasSftp = nodeServices.indexOf('SFTP') !== -1;
 
     return (
         <div className="relative overflow-hidden rounded-xl md:overflow-visible">
@@ -291,9 +292,9 @@ export function NodeCard({
                     <Button
                         variant="default"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 disabled:opacity-15"
                         onClick={() => onCreateTunnel(node)}
-                        disabled={!node.is_online}
+                        disabled={!node.is_online || !hasSsh}
                     >
                         <Globe className="w-4 h-4" />
                         Connect
@@ -301,9 +302,9 @@ export function NodeCard({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 disabled:opacity-15"
                         onClick={() => onOpenFiles(node)}
-                        disabled={!node.is_online}
+                        disabled={!node.is_online || !hasSftp}
                     >
                         <FolderOpen className="w-4 h-4" />
                         Files

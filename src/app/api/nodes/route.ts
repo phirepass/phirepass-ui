@@ -32,6 +32,7 @@ type NodeStatsPayload = {
     ip?: string;
     connected_for_secs?: number;
     since_last_heartbeat_secs?: number;
+    services?: unknown;
     stats?: Partial<NodeStats>;
 } & Partial<NodeStats>;
 
@@ -54,6 +55,37 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
         return [toNumber(value[0]), toNumber(value[1]), toNumber(value[2])];
     }
     return [0, 0, 0];
+}
+
+function normalizeServices(value: unknown): string[] {
+    const normalized = new Set<string>();
+
+    const addKind = (entry: unknown) => {
+        if (!entry || typeof entry !== 'object') {
+            return;
+        }
+
+        const kind = (entry as { kind?: unknown }).kind;
+        if (typeof kind !== 'string') {
+            return;
+        }
+
+        const service = kind.trim();
+        if (service) {
+            normalized.add(service);
+        }
+    };
+
+    if (Array.isArray(value)) {
+        value.forEach(addKind);
+        return Array.from(normalized);
+    }
+
+    if (value && typeof value === 'object') {
+        Object.values(value as Record<string, unknown>).forEach(addKind);
+    }
+
+    return Array.from(normalized);
 }
 
 function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
@@ -82,7 +114,9 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
 }
 
 function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackName: string): NodeStatsPayload | null {
-    if (!payload) return null;
+    if (!payload) {
+        return null;
+    }
 
     const statsSource = payload.stats ? payload.stats : payload;
 
@@ -120,7 +154,9 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
 }
 
 async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>>, userId: string) {
-    if (!redis) return new Map<string, NodeStatsPayload>();
+    if (!redis){
+        return new Map();
+    }
 
     const statsKeyPattern = `phirepass:users:${userId}:nodes:*`;
     const keys: string[] = [];
@@ -129,19 +165,23 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
         keys.push(key as string);
     }
 
-    const entries = new Map<string, NodeStatsPayload>();
+    const entries = new Map<string, { stats: NodeStatsPayload; settings: Record<string, unknown> }>();
 
     for (const key of keys) {
-        const stats = await redis.hGet(key, "stats");
-        if (!stats) continue;
-
-        const parsed = JSON.parse(stats) as NodeStatsPayload;
-        const derivedId = typeof parsed?.id === 'string'
-            ? parsed.id
+        const node = await redis.hGetAll(key);
+        if (!node) continue;
+        const parsedStats = JSON.parse(node.stats) as NodeStatsPayload;
+        const derivedId = typeof parsedStats?.id === 'string'
+            ? parsedStats.id
             : key.split(':').pop();
 
+        const parsedSettings = typeof node.settings === 'string' ? JSON.parse(node.settings) : {};
+
         if (derivedId) {
-            entries.set(derivedId, parsed);
+            entries.set(derivedId, {
+                stats: parsedStats,
+                settings: parsedSettings,
+            });
         }
     }
 
@@ -168,13 +208,16 @@ export async function GET(req: Request) {
 
         const mergedNodes = nodesFromDb.map((node) => {
             const rawPayload = statsById.get(node.id);
-            const payload = normalizeStatsPayload(rawPayload, node.name ?? '');
+            const statsPayload = rawPayload?.stats;
+            const payload = normalizeStatsPayload(statsPayload, node.name ?? '');
             const stats = payload?.stats ?? buildDefaultStats({ host_name: node.name ?? '' });
             const ip = payload?.ip
                 ?? payload?.stats?.ip
                 ?? payload?.stats?.host_ip
                 ?? '';
-            const isOnline = !!rawPayload;
+            const isOnline = !!statsPayload;
+            const settings = rawPayload?.settings ?? {};
+            const services = normalizeServices(settings.services ?? payload?.services);
 
             return {
                 id: node.id,
@@ -185,6 +228,7 @@ export async function GET(req: Request) {
                 since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0,
                 is_online: isOnline,
                 stats,
+                services,
             };
         });
 
