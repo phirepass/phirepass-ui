@@ -266,6 +266,20 @@ export async function PATCH(req: Request) {
             return json_response({ error: 'Node name must be 120 characters or less' }, 400);
         }
 
+        const duplicateNameResult = await query(
+            `SELECT 1
+             FROM nodes
+             WHERE user_id = $1
+               AND id <> $2
+               AND LOWER(TRIM(name)) = LOWER($3)
+             LIMIT 1`,
+            [user.id, id, name]
+        );
+
+        if ((duplicateNameResult.rowCount ?? 0) > 0) {
+            return json_response({ error: 'You already have a node with that name' }, 409);
+        }
+
         const result = await query(
             `UPDATE nodes
              SET name = $1
@@ -281,6 +295,47 @@ export async function PATCH(req: Request) {
         return json_response(result.rows[0], 200);
     } catch (e) {
         console.warn(`[server][patch][${req.url}]`, e);
+        return json_response({ error: 'Server error' }, 500);
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const user = await verifyToken();
+        const redis = await getRedisClient();
+        const url = new URL(req.url);
+        const requestId = url.searchParams.get('id');
+
+        let bodyId = '';
+        if (!requestId) {
+            const payload = await req.json().catch(() => ({})) as { id?: unknown };
+            bodyId = typeof payload.id === 'string' ? payload.id.trim() : '';
+        }
+
+        const id = (requestId ?? bodyId).trim();
+        if (!id) {
+            return json_response({ error: 'Node id is required' }, 400);
+        }
+
+        const result = await query(
+            `DELETE FROM nodes
+             WHERE id = $1 AND user_id = $2
+             RETURNING id`,
+            [id, user.id]
+        );
+
+        if (result.rowCount === 0) {
+            return json_response({ error: 'Node not found' }, 404);
+        }
+
+        if (redis) {
+            const redisKey = `phirepass:users:${user.id}:nodes:${id}`;
+            await redis.del(redisKey);
+        }
+
+        return json_response({ id }, 200);
+    } catch (e) {
+        console.warn(`[server][delete][${req.url}]`, e);
         return json_response({ error: 'Server error' }, 500);
     }
 }

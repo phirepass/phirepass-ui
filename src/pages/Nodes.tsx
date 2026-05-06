@@ -102,6 +102,10 @@ export default function Nodes() {
     const [renameValue, setRenameValue] = useState('');
     const [renameSaving, setRenameSaving] = useState(false);
     const [renameError, setRenameError] = useState<string | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [nodeToDelete, setNodeToDelete] = useState<TunnelNode | null>(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const filteredNodes = nodes.filter(node => !!node.stats).filter((node) => {
@@ -299,6 +303,75 @@ export default function Nodes() {
         setAddNodeOpen(true);
     };
 
+    const removeNodeFromState = (nodeId: string) => {
+        setNodes((prev) => prev.filter((entry) => entry.id !== nodeId));
+        setSelectedNodes((prev) => prev.filter((entry) => entry.id !== nodeId));
+        setFilePanelTabs((prev) => {
+            const remainingTabs = prev.filter((entry) => entry.nodeId !== nodeId);
+
+            setActiveFileTabId((currentTabId) => {
+                if (!currentTabId) {
+                    return currentTabId;
+                }
+
+                const activeTabStillExists = remainingTabs.some((entry) => entry.id === currentTabId);
+                return activeTabStillExists ? currentTabId : remainingTabs[0]?.id ?? null;
+            });
+
+            setFilePanelOpen(remainingTabs.length > 0);
+            return remainingTabs;
+        });
+        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? null : prev));
+        setNodeToShare((prev) => (prev && prev.id === nodeId ? null : prev));
+    };
+
+    const handleDeleteNode = (node: TunnelNode) => {
+        setNodeToDelete(node);
+        setDeleteError(null);
+        setDeleteDialogOpen(true);
+    };
+
+    const closeDeleteDialog = () => {
+        setDeleteDialogOpen(false);
+        setDeleteSaving(false);
+        setDeleteError(null);
+        setNodeToDelete(null);
+    };
+
+    const submitDeleteNode = async () => {
+        if (!nodeToDelete) {
+            return;
+        }
+
+        try {
+            setDeleteSaving(true);
+            setDeleteError(null);
+
+            const response = await fetch('/api/nodes', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: nodeToDelete.id,
+                }),
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({ error: 'Failed to delete node' }));
+                throw new Error(payload.error ?? 'Failed to delete node');
+            }
+
+            removeNodeFromState(nodeToDelete.id);
+            closeDeleteDialog();
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to delete node';
+            setDeleteError(message);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
     return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             {/* Page Header */}
@@ -446,6 +519,7 @@ export default function Nodes() {
                                 onRefreshStats={handleRefreshStats}
                                 onShare={handleShare}
                                 onRename={handleRenameNode}
+                                onDelete={handleDeleteNode}
                             />
                         ))}
                     </div>
@@ -530,6 +604,43 @@ export default function Nodes() {
                                 </Button>
                                 <Button onClick={submitRenameNode} disabled={renameSaving || renameValue.trim().length === 0}>
                                     {renameSaving ? 'Saving...' : 'Save'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={deleteDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeDeleteDialog();
+                            } else {
+                                setDeleteDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Delete node</DialogTitle>
+                                <DialogDescription>
+                                    This will permanently remove
+                                    {' '}
+                                    <span className="font-medium text-foreground">{nodeToDelete?.name ?? 'this node'}</span>
+                                    {' '}
+                                    from your account.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {deleteError ? (
+                                <p className="text-sm text-destructive">{deleteError}</p>
+                            ) : null}
+
+                            <DialogFooter>
+                                <Button variant="outline" onClick={closeDeleteDialog} disabled={deleteSaving}>
+                                    Cancel
+                                </Button>
+                                <Button variant="destructive" onClick={submitDeleteNode} disabled={deleteSaving || !nodeToDelete}>
+                                    {deleteSaving ? 'Deleting...' : 'Delete'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

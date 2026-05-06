@@ -14,6 +14,7 @@ import {
     Share2,
     MoreVertical,
     Pencil,
+    Trash2,
     Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ interface NodeCardProps {
     onConfigure?: (node: TunnelNode) => void;
     onShare?: (node: TunnelNode) => void;
     onRename?: (node: TunnelNode) => void;
+    onDelete?: (node: TunnelNode) => void;
     isSelected?: boolean;
     onSelect?: (node: TunnelNode, selected: boolean) => void;
     showSelection?: boolean;
@@ -53,6 +55,7 @@ export function NodeCard({
     onConfigure,
     onShare,
     onRename,
+    onDelete,
     isSelected = false,
     onSelect,
     showSelection = false,
@@ -134,7 +137,7 @@ export function NodeCard({
                                 <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                                     {node.name}
                                 </h3>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="relative z-30 flex items-center gap-2 flex-shrink-0">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -150,6 +153,13 @@ export function NodeCard({
                                             <DropdownMenuItem onClick={() => onRename?.(node)}>
                                                 <Pencil className="mr-2 w-4 h-4" />
                                                 Rename node
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => onDelete?.(node)}
+                                                className="text-destructive focus:text-destructive"
+                                            >
+                                                <Trash2 className="mr-2 w-4 h-4" />
+                                                Delete node
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
