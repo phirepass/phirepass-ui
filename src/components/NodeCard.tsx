@@ -99,7 +99,7 @@ export function NodeCard({
     const hasSftp = nodeServices.indexOf('SFTP') !== -1;
 
     return (
-        <div className="relative overflow-hidden rounded-xl md:overflow-visible">
+        <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
             {/* Main Card */}
             <div
                 ref={cardRef}
@@ -107,11 +107,14 @@ export function NodeCard({
                     'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     isSelected ? 'border-primary bg-primary/5' : 'border-border',
-                    'transition-transform duration-300'
+                    'transition-transform duration-300',
+                    !node.is_online && 'select-none'
                 )}
             >
                 {!node.is_online && (
-                    <div className="absolute inset-0 z-20 rounded-xl bg-background/40 backdrop-blur-[2px] pointer-events-none" />
+                    <div className="absolute inset-0 z-20 rounded-xl bg-background/40 backdrop-blur-[2px] flex items-center justify-center">
+                        <span className="text-warning font-bold text-3xl tracking-widest select-none">Offline</span>
+                    </div>
                 )}
                 {showConnectedLoader && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
@@ -190,7 +193,7 @@ export function NodeCard({
                             </TooltipContent>
                         </Tooltip>
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded whitespace-nowrap">
-                            {node.stats.host_os_info}
+                            {node.is_online ? node.stats.host_os_info : 'Unknown'}
                         </span>
                     </div>
                 </div>
@@ -220,7 +223,7 @@ export function NodeCard({
                 </div>
 
                 {/* Extended Stats Grid */}
-                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-2 mb-4 text-xs">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
@@ -237,12 +240,12 @@ export function NodeCard({
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                                <Globe className="w-5 h-5 text-primary" />
+                            <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-2 py-2">
+                                <Globe className="w-4 h-4 text-primary shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-muted-foreground">IP</span>
-                                        <div className="min-w-0 text-right">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-muted-foreground shrink-0">IP</span>
+                                        <div className="min-w-0">
                                             <p className="font-mono text-foreground truncate">{displayIp || 'unknown'}</p>
                                             <p className="font-mono text-muted-foreground truncate">{displayLocalIp || 'unknown'}</p>
                                         </div>
