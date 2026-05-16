@@ -38,9 +38,6 @@ interface NodeCardProps {
     onShare?: (node: TunnelNode) => void;
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
-    isSelected?: boolean;
-    onSelect?: (node: TunnelNode, selected: boolean) => void;
-    showSelection?: boolean;
     isShared?: boolean;
     sharedBy?: string;
 }
@@ -56,9 +53,6 @@ export function NodeCard({
     onShare,
     onRename,
     onDelete,
-    isSelected = false,
-    onSelect,
-    showSelection = false,
     isShared = false,
     sharedBy,
 }: NodeCardProps) {
@@ -106,14 +100,16 @@ export function NodeCard({
                 className={cn(
                     'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
-                    isSelected ? 'border-primary bg-primary/5' : 'border-border',
+                    'border-border',
                     'transition-transform duration-300',
                     !node.is_online && 'select-none'
                 )}
             >
                 {!node.is_online && (
-                    <div className="absolute inset-0 z-20 rounded-xl bg-background/40 backdrop-blur-[2px] flex items-center justify-center">
-                        <span className="text-warning font-bold text-3xl tracking-widest select-none">Offline</span>
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 rounded-full border border-orange-400/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-orange-500 shadow-sm select-none">
+                            <span>Offline</span>
+                        </div>
                     </div>
                 )}
                 {showConnectedLoader && (
@@ -127,13 +123,7 @@ export function NodeCard({
                 {/* Header */}
                 <div className="flex items-start">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {showSelection && (
-                            <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => onSelect?.(node, checked as boolean)}
-                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary flex-shrink-0"
-                            />
-                        )}
+                        {/* Selection checkbox removed */}
                         <StatusIndicator isOnline={node.is_online} size="md" />
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2 min-w-0">

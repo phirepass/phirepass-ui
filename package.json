@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@hookform/resolvers": "^5.2.2",
+        "@next/swc-linux-x64-gnu": "^16.2.6",
         "@radix-ui/react-accordion": "^1.2.12",
         "@radix-ui/react-alert-dialog": "^1.1.15",
         "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -55,8 +56,8 @@
         "next": "^16.2.5",
         "next-themes": "^0.4.6",
         "pg": "^8.20.0",
-        "phirepass-channel": "^0.1.225",
-        "phirepass-widgets": "^0.0.56",
+        "phirepass-channel": "^0.1.239",
+        "phirepass-widgets": "^0.0.57",
         "react": "^18.3.1",
         "react-day-picker": "^8.10.1",
         "react-dom": "^18.3.1",

@@ -31,8 +31,7 @@ export default function Nodes() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [selectionMode, setSelectionMode] = useState(false);
-    const [selectedNodes, setSelectedNodes] = useState<TunnelNode[]>([]);
+    // Removed selection mode and selected nodes state
 
     // Fetch nodes from same-origin API
     useEffect(() => {
@@ -108,23 +107,28 @@ export default function Nodes() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filteredNodes = nodes.filter(node => !!node.stats).filter((node) => {
-        if (!normalizedQuery) return true;
+    const filteredNodes = nodes
+        .filter(node => !!node.stats)
+        .filter((node) => {
+            if (!normalizedQuery) return true;
 
-        const name = (node.name ?? '').toLowerCase();
-        const hostName = (node.stats.host_name ?? '').toLowerCase();
-        const ip = (node.ip ?? '').toLowerCase();
-        const osInfo = (node.stats.host_os_info ?? '').toLowerCase();
+            const name = (node.name ?? '').toLowerCase();
+            const hostName = (node.stats.host_name ?? '').toLowerCase();
+            const ip = (node.ip ?? '').toLowerCase();
+            const osInfo = (node.stats.host_os_info ?? '').toLowerCase();
 
-        return (
-            name.includes(normalizedQuery) ||
-            hostName.includes(normalizedQuery) ||
-            ip.includes(normalizedQuery) ||
-            osInfo.includes(normalizedQuery)
-        );
-        /* ||
-        node.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery))*/
-    });
+            return (
+                name.includes(normalizedQuery) ||
+                hostName.includes(normalizedQuery) ||
+                ip.includes(normalizedQuery) ||
+                osInfo.includes(normalizedQuery)
+            );
+        })
+        .sort((a, b) => {
+            // Sort online nodes first
+            if (a.is_online === b.is_online) return 0;
+            return a.is_online ? -1 : 1;
+        });
 
     const handleCreateTunnel = (node: TunnelNode) => {
         setSelectedTunnelNode({ ...node });
@@ -423,75 +427,11 @@ export default function Nodes() {
                             />
                         </div>
 
-                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                            <Button variant="outline" size="sm" className="gap-2">
-                                <Filter className="h-4 w-4" />
-                                Filter
-                            </Button>
-
-                            <div className="flex rounded-lg border border-border bg-background/50 backdrop-blur-sm p-1">
-                                <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={cn(
-                                        'p-2 rounded transition-colors',
-                                        viewMode === 'grid'
-                                            ? 'bg-primary/10 text-primary'
-                                            : 'hover:bg-secondary/50 text-muted-foreground'
-                                    )}
-                                >
-                                    <Grid className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('list')}
-                                    className={cn(
-                                        'p-2 rounded transition-colors',
-                                        viewMode === 'list'
-                                            ? 'bg-primary/10 text-primary'
-                                            : 'hover:bg-secondary/50 text-muted-foreground'
-                                    )}
-                                >
-                                    <List className="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            <Button
-                                variant={selectionMode ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => {
-                                    setSelectionMode(!selectionMode);
-                                    if (selectionMode) setSelectedNodes([]);
-                                }}
-                                className="gap-2"
-                            >
-                                <CheckSquare className="h-4 w-4" />
-                                Select
-                            </Button>
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShareManagementOpen(true)}
-                                className="gap-2"
-                            >
-                                <Users className="h-4 w-4" />
-                                Shared ({mockSharedNodes.length})
-                            </Button>
-                        </div>
+                        {/* Layout toggle button removed */}
                     </div>
 
                     {/* Bulk Actions */}
-                    {selectionMode && selectedNodes.length > 0 && (
-                        <BulkActionsBar
-                            selectedNodes={selectedNodes}
-                            onClearSelection={() => setSelectedNodes([])}
-                            onBulkTerminal={() => { }}
-                            onBulkFileTransfer={() => { }}
-                            onBulkReboot={() => { }}
-                            onBulkShutdown={() => { }}
-                            onBulkRefresh={() => { }}
-                            onBulkExport={() => { }}
-                        />
-                    )}
+                    {/* BulkActionsBar removed */}
 
                     {/* Nodes Grid/List */}
                     <div
@@ -505,15 +445,6 @@ export default function Nodes() {
                             <NodeCard
                                 key={node.id}
                                 node={node}
-                                showSelection={selectionMode}
-                                isSelected={selectedNodes.some((n) => n.id === node.id)}
-                                onSelect={(n, selected) => {
-                                    if (selected) {
-                                        handleSelectNode(n);
-                                    } else {
-                                        setSelectedNodes(selectedNodes.filter(sn => sn.id !== n.id));
-                                    }
-                                }}
                                 onCreateTunnel={handleCreateTunnel}
                                 onOpenFiles={handleOpenFiles}
                                 onRefreshStats={handleRefreshStats}
