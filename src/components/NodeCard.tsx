@@ -3,6 +3,8 @@ import { TunnelNode } from '@/types/node';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Input } from './ui/input';
 import {
     Globe,
     FolderOpen,
@@ -38,9 +40,12 @@ interface NodeCardProps {
     onShare?: (node: TunnelNode) => void;
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
+    onEnableSsh?: () => void;
     isShared?: boolean;
     sharedBy?: string;
 }
+
+import { useState } from 'react';
 
 export function NodeCard({
     node,
@@ -53,6 +58,7 @@ export function NodeCard({
     onShare,
     onRename,
     onDelete,
+    onEnableSsh,
     isShared = false,
     sharedBy,
 }: NodeCardProps) {
@@ -91,6 +97,13 @@ export function NodeCard({
     const nodeServices = (node.services ?? []).filter((service) => service.trim().length > 0);
     const hasSsh = nodeServices.indexOf('SSH') !== -1;
     const hasSftp = nodeServices.indexOf('SFTP') !== -1;
+
+    // SSH Modal State
+    const [sshDialogOpen, setSshDialogOpen] = useState(false);
+    const [sshHost, setSshHost] = useState('0.0.0.0');
+    const [sshPort, setSshPort] = useState('22');
+    const [sshUsername, setSshUsername] = useState('');
+    const [sshPassword, setSshPassword] = useState('');
 
     return (
         <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
@@ -147,6 +160,10 @@ export function NodeCard({
                                                 <Pencil className="mr-2 w-4 h-4" />
                                                 Rename node
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={onEnableSsh}>
+                                                <Wifi className="mr-2 w-4 h-4" />
+                                                Enable SSH
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 onClick={() => onDelete?.(node)}
                                                 className="text-destructive focus:text-destructive"
@@ -154,6 +171,7 @@ export function NodeCard({
                                                 <Trash2 className="mr-2 w-4 h-4" />
                                                 Delete node
                                             </DropdownMenuItem>
+                                            {/* SSH Modal handled by parent */}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>

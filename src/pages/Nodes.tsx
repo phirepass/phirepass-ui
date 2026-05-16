@@ -1,6 +1,9 @@
-"use client";
 
-import { useState, useEffect } from 'react';
+
+"use client";
+import React, { useState, useEffect } from 'react';
+
+// ...existing code...
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
@@ -31,7 +34,6 @@ export default function Nodes() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    // Removed selection mode and selected nodes state
 
     // Fetch nodes from same-origin API
     useEffect(() => {
@@ -105,6 +107,12 @@ export default function Nodes() {
     const [nodeToDelete, setNodeToDelete] = useState<TunnelNode | null>(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [sshDialogOpen, setSshDialogOpen] = useState(false);
+    const [nodeToSsh, setNodeToSsh] = useState<TunnelNode | null>(null);
+    const [sshHost, setSshHost] = useState('0.0.0.0');
+    const [sshPort, setSshPort] = useState('22');
+    const [sshUsername, setSshUsername] = useState('');
+    const [sshPassword, setSshPassword] = useState('');
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const filteredNodes = nodes
@@ -154,7 +162,6 @@ export default function Nodes() {
 
             const refreshedNode = refreshedNodes[0];
             setNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
-            setSelectedNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
             setFilePanelTabs((prev) => prev.map((entry) => (
                 entry.nodeId === refreshedNode.id
                     ? {
@@ -212,21 +219,6 @@ export default function Nodes() {
         });
     };
 
-    const handleSelectNode = (node: TunnelNode) => {
-        setSelectedNodes((prev) =>
-            prev.some((n) => n.id === node.id)
-                ? prev.filter((n) => n.id !== node.id)
-                : [...prev, node]
-        );
-    };
-
-    const handleSelectAll = () => {
-        if (selectedNodes.length === filteredNodes.length) {
-            setSelectedNodes([]);
-        } else {
-            setSelectedNodes(filteredNodes);
-        }
-    };
 
     const handleShare = (node: TunnelNode) => {
         setNodeToShare(node);
@@ -237,7 +229,6 @@ export default function Nodes() {
         const updateName = (entry: TunnelNode) => (entry.id === nodeId ? { ...entry, name: nextName } : entry);
 
         setNodes((prev) => prev.map(updateName));
-        setSelectedNodes((prev) => prev.map(updateName));
         setFilePanelTabs((prev) => prev.map((entry) => (entry.nodeId === nodeId ? { ...entry, nodeName: nextName } : entry)));
         setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
         setNodeToShare((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
@@ -309,7 +300,6 @@ export default function Nodes() {
 
     const removeNodeFromState = (nodeId: string) => {
         setNodes((prev) => prev.filter((entry) => entry.id !== nodeId));
-        setSelectedNodes((prev) => prev.filter((entry) => entry.id !== nodeId));
         setFilePanelTabs((prev) => {
             const remainingTabs = prev.filter((entry) => entry.nodeId !== nodeId);
 
@@ -333,6 +323,20 @@ export default function Nodes() {
         setNodeToDelete(node);
         setDeleteError(null);
         setDeleteDialogOpen(true);
+    };
+
+    const openSshDialog = (node: TunnelNode) => {
+        setNodeToSsh(node);
+        setSshHost('0.0.0.0');
+        setSshPort('22');
+        setSshUsername('');
+        setSshPassword('');
+        setSshDialogOpen(true);
+    };
+
+    const closeSshDialog = () => {
+        setSshDialogOpen(false);
+        setNodeToSsh(null);
     };
 
     const closeDeleteDialog = () => {
@@ -451,9 +455,81 @@ export default function Nodes() {
                                 onShare={handleShare}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
+                                onEnableSsh={() => openSshDialog(node)}
                             />
                         ))}
                     </div>
+
+                    <Dialog
+                        open={sshDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeSshDialog();
+                            } else {
+                                setSshDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Enable SSH</DialogTitle>
+                                <DialogDescription>
+                                    Configure SSH access for {nodeToSsh?.name ?? 'this node'}.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    closeSshDialog();
+                                }}
+                                className="space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Host</label>
+                                    <Input
+                                        value={sshHost}
+                                        onChange={(event) => setSshHost(event.target.value)}
+                                        placeholder="0.0.0.0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Port</label>
+                                    <Input
+                                        value={sshPort}
+                                        onChange={(event) => setSshPort(event.target.value)}
+                                        placeholder="22"
+                                        type="number"
+                                        min="1"
+                                        max="65535"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Username</label>
+                                    <Input
+                                        value={sshUsername}
+                                        onChange={(event) => setSshUsername(event.target.value)}
+                                        placeholder="Username"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Password</label>
+                                    <Input
+                                        value={sshPassword}
+                                        onChange={(event) => setSshPassword(event.target.value)}
+                                        placeholder="Password"
+                                        type="password"
+                                    />
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={closeSshDialog}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit">Enable SSH</Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
 
                     {filteredNodes.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
