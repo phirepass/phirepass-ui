@@ -323,7 +323,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1 disabled:opacity-15"
                         onClick={() => onCreateTunnel(node)}
-                        disabled={!node.is_online || !hasSsh}
+                        disabled={!node.is_online}
                     >
                         <Globe className="w-4 h-4" />
                         Connect

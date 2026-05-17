@@ -1,5 +1,3 @@
-
-
 "use client";
 import React, { useState, useEffect } from 'react';
 
@@ -27,6 +25,8 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
+import initChannel, { Channel } from 'phirepass-channel';
 
 export default function Nodes() {
     const [nodes, setNodes] = useState<TunnelNode[]>([]);
@@ -113,6 +113,10 @@ export default function Nodes() {
     const [sshPort, setSshPort] = useState('22');
     const [sshUsername, setSshUsername] = useState('');
     const [sshPassword, setSshPassword] = useState('');
+    const [sshSubmitting, setSshSubmitting] = useState(false);
+    const [sshError, setSshError] = useState<string | null>(null);
+
+    const { config } = useRuntimeConfig();
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const filteredNodes = nodes
@@ -331,12 +335,111 @@ export default function Nodes() {
         setSshPort('22');
         setSshUsername('');
         setSshPassword('');
+        setSshError(null);
         setSshDialogOpen(true);
     };
 
     const closeSshDialog = () => {
         setSshDialogOpen(false);
         setNodeToSsh(null);
+    };
+
+    const buildWsEndpoint = (): string => {
+        const explicitUrl = config.NEXT_PUBLIC_WS_URL?.trim();
+        if (explicitUrl) {
+            return `${explicitUrl.replace(/\/$/, '')}/api/web/ws`;
+        }
+        const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+        const protocol = isHttps ? 'wss:' : 'ws:';
+        const host = config.NEXT_PUBLIC_SERVER_HOST || (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+        const port = config.NEXT_PUBLIC_SERVER_PORT || (isHttps ? '443' : '8080');
+        return `${protocol}//${host}:${port}/api/web/ws`;
+    };
+
+    const submitEnableSsh = async () => {
+        if (!nodeToSsh) return;
+
+        setSshSubmitting(true);
+        setSshError(null);
+
+        try {
+            const tokenRes = await fetch('/api/auth/websocket-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!tokenRes.ok) {
+                throw new Error(tokenRes.status === 401 ? 'Not authenticated.' : 'Failed to load auth token.');
+            }
+            const tokenPayload = await tokenRes.json() as { token?: string };
+            if (!tokenPayload.token) {
+                throw new Error('Auth token response was empty.');
+            }
+
+            await initChannel();
+
+            const endpoint = buildWsEndpoint();
+            const channel = new Channel(endpoint, nodeToSsh.id, nodeToSsh.server_id ?? null);
+            const nodeId = nodeToSsh.id;
+            const token = tokenPayload.token;
+            const host = sshHost;
+            const portNum = parseInt(sshPort, 10) || 22;
+            const username = sshUsername || null;
+            const password = sshPassword || null;
+
+            await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    channel.disconnect();
+                    reject(new Error('Connection timed out.'));
+                }, 15_000);
+
+                channel.on_connection_error((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    reject(new Error('WebSocket connection error.'));
+                });
+
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
+                });
+
+                channel.on_connection_error((error: unknown) => {
+                    console.warn('Connection error occurred', error);
+                });
+
+                channel.on_protocol_message_type('AuthSuccess', () => {
+                    channel.enable_service(nodeId, 'ssh', host, portNum, username, password, null);
+                });
+
+                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    if (data.enabled) {
+                        resolve();
+                    } else {
+                        reject(new Error(data.error ??'Server refused to enable SSH service.'));
+                    }
+                });
+
+                channel.on_protocol_message_type('Error', (data: { message?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    const errFrame = data as { message?: string };
+                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
+                });
+
+                channel.on_protocol_message((frame: any) => {
+                    console.debug('Received protocol message:', frame.data);
+                });
+
+                channel.connect();
+            });
+
+            closeSshDialog();
+        } catch (err) {
+            setSshError(err instanceof Error ? err.message : 'Failed to enable SSH.');
+        } finally {
+            setSshSubmitting(false);
+        }
     };
 
     const closeDeleteDialog = () => {
@@ -481,7 +584,7 @@ export default function Nodes() {
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
-                                    closeSshDialog();
+                                    void submitEnableSsh();
                                 }}
                                 className="space-y-4"
                             >
@@ -491,6 +594,7 @@ export default function Nodes() {
                                         value={sshHost}
                                         onChange={(event) => setSshHost(event.target.value)}
                                         placeholder="0.0.0.0"
+                                        disabled={sshSubmitting}
                                     />
                                 </div>
                                 <div>
@@ -502,6 +606,7 @@ export default function Nodes() {
                                         type="number"
                                         min="1"
                                         max="65535"
+                                        disabled={sshSubmitting}
                                     />
                                 </div>
                                 <div>
@@ -510,6 +615,7 @@ export default function Nodes() {
                                         value={sshUsername}
                                         onChange={(event) => setSshUsername(event.target.value)}
                                         placeholder="Username"
+                                        disabled={sshSubmitting}
                                     />
                                 </div>
                                 <div>
@@ -519,13 +625,19 @@ export default function Nodes() {
                                         onChange={(event) => setSshPassword(event.target.value)}
                                         placeholder="Password"
                                         type="password"
+                                        disabled={sshSubmitting}
                                     />
                                 </div>
+                                {sshError && (
+                                    <p className="text-sm text-destructive">{sshError}</p>
+                                )}
                                 <DialogFooter>
-                                    <Button type="button" variant="outline" onClick={closeSshDialog}>
+                                    <Button type="button" variant="outline" onClick={closeSshDialog} disabled={sshSubmitting}>
                                         Cancel
                                     </Button>
-                                    <Button type="submit">Enable SSH</Button>
+                                    <Button type="submit" disabled={sshSubmitting}>
+                                        {sshSubmitting ? 'Enabling...' : 'Enable SSH'}
+                                    </Button>
                                 </DialogFooter>
                             </form>
                         </DialogContent>

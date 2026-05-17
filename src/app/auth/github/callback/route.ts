@@ -107,7 +107,10 @@ export async function GET(req: Request) {
         console.log('Redirecting to dashboard at:', dashboardUrl.toString()); // Debug log
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
-        const cookieDomain = process.env.COOKIE_DOMAIN || undefined; // e.g., example.com
+        const cookieDomain =
+            process.env.NODE_ENV === "production"
+                ? process.env.COOKIE_DOMAIN || undefined
+                : undefined;
         const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
         const ghCookie = buildCookie(
             "phirepass_token",

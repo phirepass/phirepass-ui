@@ -11,6 +11,18 @@ export async function GET(req: Request) {
         return json_response(user, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const message = e instanceof Error ? e.message : 'Unauthorized';
+        const status =
+            message === 'Token not found' ||
+            message === 'Invalid token' ||
+            message === 'Invalid token payload' ||
+            message === 'User not found'
+                ? 401
+                : 500;
+
+        return json_response(
+            { error: status === 401 ? 'Unauthorized' : 'Server error' },
+            status,
+        );
     }
 }
