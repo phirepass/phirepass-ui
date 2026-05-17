@@ -25,6 +25,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -155,33 +157,60 @@ export function NodeCard({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8"
+                                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
                                                 aria-label={`Open actions for ${node.name}`}
                                             >
                                                 <MoreVertical className="w-4 h-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                                        >
+                                            <DropdownMenuLabel className="px-2 py-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Node actions</span>
+                                                    <span className={cn(
+                                                        'text-[11px] font-medium',
+                                                        node.is_online ? 'text-emerald-500' : 'text-orange-500'
+                                                    )}>
+                                                        {node.is_online ? 'Online' : 'Offline'}
+                                                    </span>
+                                                </div>
+                                            </DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem onClick={() => onRename?.(node)}>
                                                 <Pencil className="mr-2 w-4 h-4" />
                                                 Rename node
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={onEnableSsh}>
-                                                <Wifi className="mr-2 w-4 h-4" />
-                                                Enable SSH
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={onDisableSsh} className="text-destructive focus:text-destructive">
-                                                <Wifi className="mr-2 w-4 h-4" />
-                                                Disable SSH
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={onEnableSftp}>
-                                                <FolderOpen className="mr-2 w-4 h-4" />
-                                                Enable SFTP
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={onDisableSftp} className="text-destructive focus:text-destructive">
-                                                <FolderOpen className="mr-2 w-4 h-4" />
-                                                Disable SFTP
-                                            </DropdownMenuItem>
+                                            {node.is_online ? (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    {hasSsh ? (
+                                                        <DropdownMenuItem onClick={onDisableSsh} className="text-orange-500 focus:text-orange-500">
+                                                            <Wifi className="mr-2 w-4 h-4" />
+                                                            Disable SSH
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem onClick={onEnableSsh}>
+                                                            <Wifi className="mr-2 w-4 h-4" />
+                                                            Enable SSH
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {hasSftp ? (
+                                                        <DropdownMenuItem onClick={onDisableSftp} className="text-orange-500 focus:text-orange-500">
+                                                            <FolderOpen className="mr-2 w-4 h-4" />
+                                                            Disable SFTP
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem onClick={onEnableSftp}>
+                                                            <FolderOpen className="mr-2 w-4 h-4" />
+                                                            Enable SFTP
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </>
+                                            ) : null}
+                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 onClick={() => onDelete?.(node)}
                                                 className="text-destructive focus:text-destructive"
