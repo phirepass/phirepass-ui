@@ -41,6 +41,7 @@ interface NodeCardProps {
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
     onEnableSsh?: () => void;
+    onDisableSsh?: () => void;
     isShared?: boolean;
     sharedBy?: string;
 }
@@ -59,6 +60,7 @@ export function NodeCard({
     onRename,
     onDelete,
     onEnableSsh,
+    onDisableSsh,
     isShared = false,
     sharedBy,
 }: NodeCardProps) {
@@ -163,6 +165,10 @@ export function NodeCard({
                                             <DropdownMenuItem onClick={onEnableSsh}>
                                                 <Wifi className="mr-2 w-4 h-4" />
                                                 Enable SSH
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={onDisableSsh} className="text-destructive focus:text-destructive">
+                                                <Wifi className="mr-2 w-4 h-4" />
+                                                Disable SSH
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 onClick={() => onDelete?.(node)}
