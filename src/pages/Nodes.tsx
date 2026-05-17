@@ -119,6 +119,18 @@ export default function Nodes() {
     const [nodeToDisableSsh, setNodeToDisableSsh] = useState<TunnelNode | null>(null);
     const [disableSshSubmitting, setDisableSshSubmitting] = useState(false);
     const [disableSshError, setDisableSshError] = useState<string | null>(null);
+    const [enableSftpDialogOpen, setEnableSftpDialogOpen] = useState(false);
+    const [nodeToEnableSftp, setNodeToEnableSftp] = useState<TunnelNode | null>(null);
+    const [enableSftpHost, setEnableSftpHost] = useState('0.0.0.0');
+    const [enableSftpPort, setEnableSftpPort] = useState('22');
+    const [enableSftpUsername, setEnableSftpUsername] = useState('');
+    const [enableSftpPassword, setEnableSftpPassword] = useState('');
+    const [enableSftpSubmitting, setEnableSftpSubmitting] = useState(false);
+    const [enableSftpError, setEnableSftpError] = useState<string | null>(null);
+    const [disableSftpDialogOpen, setDisableSftpDialogOpen] = useState(false);
+    const [nodeToDisableSftp, setNodeToDisableSftp] = useState<TunnelNode | null>(null);
+    const [disableSftpSubmitting, setDisableSftpSubmitting] = useState(false);
+    const [disableSftpError, setDisableSftpError] = useState<string | null>(null);
 
     const { config } = useRuntimeConfig();
 
@@ -359,6 +371,32 @@ export default function Nodes() {
         setNodeToDisableSsh(null);
     };
 
+    const openEnableSftpDialog = (node: TunnelNode) => {
+        setNodeToEnableSftp(node);
+        setEnableSftpHost('0.0.0.0');
+        setEnableSftpPort('22');
+        setEnableSftpUsername('');
+        setEnableSftpPassword('');
+        setEnableSftpError(null);
+        setEnableSftpDialogOpen(true);
+    };
+
+    const openDisableSftpDialog = (node: TunnelNode) => {
+        setNodeToDisableSftp(node);
+        setDisableSftpError(null);
+        setDisableSftpDialogOpen(true);
+    };
+
+    const closeEnableSftpDialog = () => {
+        setEnableSftpDialogOpen(false);
+        setNodeToEnableSftp(null);
+    };
+
+    const closeDisableSftpDialog = () => {
+        setDisableSftpDialogOpen(false);
+        setNodeToDisableSftp(null);
+    };
+
     const buildWsEndpoint = (): string => {
         const explicitUrl = config.NEXT_PUBLIC_WS_URL?.trim();
         if (explicitUrl) {
@@ -385,6 +423,28 @@ export default function Nodes() {
         const updateNodeServices = (entry: TunnelNode) => (
             entry.id === nodeId
                 ? { ...entry, services: upsertSshService(entry.services ?? []) }
+                : entry
+        );
+
+        setNodes((prev) => prev.map(updateNodeServices));
+        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
+        setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
+    };
+
+    const updateSftpServiceInNode = (nodeId: string, isEnabled: boolean) => {
+        const upsertSftpService = (services: string[]) => {
+            const hasSftp = services.some((service) => service.toUpperCase() === 'SFTP');
+
+            if (isEnabled) {
+                return hasSftp ? services : [...services, 'SFTP'];
+            }
+
+            return services.filter((service) => service.toUpperCase() !== 'SFTP');
+        };
+
+        const updateNodeServices = (entry: TunnelNode) => (
+            entry.id === nodeId
+                ? { ...entry, services: upsertSftpService(entry.services ?? []) }
                 : entry
         );
 
@@ -569,6 +629,182 @@ export default function Nodes() {
         }
     };
 
+    const submitEnableSftp = async () => {
+        if (!nodeToEnableSftp) return;
+
+        setEnableSftpSubmitting(true);
+        setEnableSftpError(null);
+
+        try {
+            const tokenRes = await fetch('/api/auth/websocket-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!tokenRes.ok) {
+                throw new Error(tokenRes.status === 401 ? 'Not authenticated.' : 'Failed to load auth token.');
+            }
+            const tokenPayload = await tokenRes.json() as { token?: string };
+            if (!tokenPayload.token) {
+                throw new Error('Auth token response was empty.');
+            }
+
+            await initChannel();
+
+            const endpoint = buildWsEndpoint();
+            const channel = new Channel(endpoint, nodeToEnableSftp.id, nodeToEnableSftp.server_id ?? null);
+            const nodeId = nodeToEnableSftp.id;
+            const token = tokenPayload.token;
+            const host = enableSftpHost;
+            const portNum = parseInt(enableSftpPort, 10) || 22;
+            const username = enableSftpUsername || null;
+            const password = enableSftpPassword || null;
+
+            await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    channel.disconnect();
+                    reject(new Error('Connection timed out.'));
+                }, 15_000);
+
+                channel.on_connection_error((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    reject(new Error('WebSocket connection error.'));
+                });
+
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
+                });
+
+                channel.on_connection_error((error: unknown) => {
+                    console.warn('Connection error occurred', error);
+                });
+
+                channel.on_protocol_message_type('AuthSuccess', () => {
+                    channel.enable_service(nodeId, 'sftp', host, portNum, username, password, null);
+                });
+
+                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+
+                    if (data.enabled) {
+                        resolve();
+                    } else {
+                        reject(new Error(data.error ?? 'Server refused to enable SFTP service.'));
+                    }
+                });
+
+                channel.on_protocol_message_type('Error', (data: { message?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    const errFrame = data as { message?: string };
+                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
+                });
+
+                channel.on_protocol_message((frame: any) => {
+                    console.debug('Received protocol message:', frame.data);
+                });
+
+                channel.connect();
+            });
+
+            updateSftpServiceInNode(nodeId, true);
+            closeEnableSftpDialog();
+        } catch (err) {
+            setEnableSftpError(err instanceof Error ? err.message : 'Failed to enable SFTP.');
+        } finally {
+            setEnableSftpSubmitting(false);
+        }
+    };
+
+    const submitDisableSftp = async () => {
+        if (!nodeToDisableSftp) return;
+
+        setDisableSftpSubmitting(true);
+        setDisableSftpError(null);
+
+        try {
+            const tokenRes = await fetch('/api/auth/websocket-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!tokenRes.ok) {
+                throw new Error(tokenRes.status === 401 ? 'Not authenticated.' : 'Failed to load auth token.');
+            }
+            const tokenPayload = await tokenRes.json() as { token?: string };
+            if (!tokenPayload.token) {
+                throw new Error('Auth token response was empty.');
+            }
+
+            await initChannel();
+
+            const endpoint = buildWsEndpoint();
+            const channel = new Channel(endpoint, nodeToDisableSftp.id, nodeToDisableSftp.server_id ?? null);
+            const nodeId = nodeToDisableSftp.id;
+            const token = tokenPayload.token;
+            const host = '0.0.0.0';
+            const portNum = 22;
+            const username = null;
+            const password = null;
+
+            await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    channel.disconnect();
+                    reject(new Error('Connection timed out.'));
+                }, 15_000);
+
+                channel.on_connection_error((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    reject(new Error('WebSocket connection error.'));
+                });
+
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
+                });
+
+                channel.on_connection_error((error: unknown) => {
+                    console.warn('Connection error occurred', error);
+                });
+
+                channel.on_protocol_message_type('AuthSuccess', () => {
+                    channel.disable_service(nodeId, 'sftp', host, portNum, username, password, null);
+                });
+
+                channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+
+                    if (data.disabled === true || data.enabled === false) {
+                        resolve();
+                    } else {
+                        reject(new Error(data.error ?? 'Server refused to disable SFTP service.'));
+                    }
+                });
+
+                channel.on_protocol_message_type('Error', (data: { message?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    const errFrame = data as { message?: string };
+                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
+                });
+
+                channel.on_protocol_message((frame: any) => {
+                    console.debug('Received protocol message:', frame.data);
+                });
+
+                channel.connect();
+            });
+
+            updateSftpServiceInNode(nodeId, false);
+            closeDisableSftpDialog();
+        } catch (err) {
+            setDisableSftpError(err instanceof Error ? err.message : 'Failed to disable SFTP.');
+        } finally {
+            setDisableSftpSubmitting(false);
+        }
+    };
+
     const closeDeleteDialog = () => {
         setDeleteDialogOpen(false);
         setDeleteSaving(false);
@@ -687,6 +923,8 @@ export default function Nodes() {
                                 onDelete={handleDeleteNode}
                                 onEnableSsh={() => openEnableSshDialog(node)}
                                 onDisableSsh={() => openDisableSshDialog(node)}
+                                onEnableSftp={() => openEnableSftpDialog(node)}
+                                onDisableSftp={() => openDisableSftpDialog(node)}
                             />
                         ))}
                     </div>
@@ -806,6 +1044,126 @@ export default function Nodes() {
                                     disabled={disableSshSubmitting}
                                 >
                                     {disableSshSubmitting ? 'Disabling...' : 'Disable SSH'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={enableSftpDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeEnableSftpDialog();
+                            } else {
+                                setEnableSftpDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Enable SFTP</DialogTitle>
+                                <DialogDescription>
+                                    Configure SFTP settings for {nodeToEnableSftp?.name ?? 'this node'}.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void submitEnableSftp();
+                                }}
+                                className="space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Host</label>
+                                    <Input
+                                        value={enableSftpHost}
+                                        onChange={(event) => setEnableSftpHost(event.target.value)}
+                                        placeholder="0.0.0.0"
+                                        disabled={enableSftpSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Port</label>
+                                    <Input
+                                        value={enableSftpPort}
+                                        onChange={(event) => setEnableSftpPort(event.target.value)}
+                                        placeholder="22"
+                                        type="number"
+                                        min="1"
+                                        max="65535"
+                                        disabled={enableSftpSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Username</label>
+                                    <Input
+                                        value={enableSftpUsername}
+                                        onChange={(event) => setEnableSftpUsername(event.target.value)}
+                                        placeholder="Username"
+                                        disabled={enableSftpSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Password</label>
+                                    <Input
+                                        value={enableSftpPassword}
+                                        onChange={(event) => setEnableSftpPassword(event.target.value)}
+                                        placeholder="Password"
+                                        type="password"
+                                        disabled={enableSftpSubmitting}
+                                    />
+                                </div>
+                                {enableSftpError && (
+                                    <p className="text-sm text-destructive">{enableSftpError}</p>
+                                )}
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={closeEnableSftpDialog} disabled={enableSftpSubmitting}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={enableSftpSubmitting}>
+                                        {enableSftpSubmitting ? 'Enabling...' : 'Enable SFTP'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={disableSftpDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeDisableSftpDialog();
+                            } else {
+                                setDisableSftpDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Disable SFTP</DialogTitle>
+                                <DialogDescription>
+                                    Disable SFTP service for {nodeToDisableSftp?.name ?? 'this node'}?
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {disableSftpError ? (
+                                <p className="text-sm text-destructive">{disableSftpError}</p>
+                            ) : null}
+
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={closeDisableSftpDialog} disabled={disableSftpSubmitting}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => {
+                                        void submitDisableSftp();
+                                    }}
+                                    disabled={disableSftpSubmitting}
+                                >
+                                    {disableSftpSubmitting ? 'Disabling...' : 'Disable SFTP'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
