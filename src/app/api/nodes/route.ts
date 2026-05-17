@@ -41,7 +41,10 @@ type UserNodeRow = {
     id: string;
     name: string | null;
     created_at: string;
+    settings: unknown;
 };
+
+type NodeSettings = Record<string, unknown>;
 
 function toNumber(value: unknown, fallback: number = 0) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -87,6 +90,26 @@ function normalizeServices(value: unknown): string[] {
     }
 
     return Array.from(normalized);
+}
+
+function normalizeSettings(value: unknown): NodeSettings {
+    if (!value) {
+        return {};
+    }
+
+    if (typeof value === 'string') {
+        try {
+            return normalizeSettings(JSON.parse(value));
+        } catch {
+            return {};
+        }
+    }
+
+    if (typeof value === 'object' && !Array.isArray(value)) {
+        return value as NodeSettings;
+    }
+
+    return {};
 }
 
 function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
@@ -168,7 +191,7 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
         keys.push(key as string);
     }
 
-    const entries = new Map<string, { stats: NodeStatsPayload; settings: Record<string, unknown> }>();
+    const entries = new Map<string, { stats: NodeStatsPayload }>();
 
     for (const key of keys) {
         const node = await redis.hGetAll(key);
@@ -178,12 +201,9 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
             ? parsedStats.id
             : key.split(':').pop();
 
-        const parsedSettings = typeof node.settings === 'string' ? JSON.parse(node.settings) : {};
-
         if (derivedId) {
             entries.set(derivedId, {
                 stats: parsedStats,
-                settings: parsedSettings,
             });
         }
     }
@@ -199,7 +219,7 @@ export async function GET(req: Request) {
         const requestedId = url.searchParams.get('id');
 
         const result = await query(
-            `SELECT id, name, created_at
+            `SELECT id, name, created_at, settings
             FROM nodes
             WHERE user_id = $1
             ORDER BY created_at DESC`,
@@ -219,7 +239,7 @@ export async function GET(req: Request) {
                 ?? payload?.stats?.host_ip
                 ?? '';
             const isOnline = !!statsPayload;
-            const settings = rawPayload?.settings ?? {};
+            const settings = normalizeSettings(node.settings);
             const services = normalizeServices(settings.services ?? payload?.services);
 
             return {
