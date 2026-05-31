@@ -40,12 +40,15 @@ interface NodeCardProps {
     onRefreshStats?: (node: TunnelNode) => void;
     onConfigure?: (node: TunnelNode) => void;
     onShare?: (node: TunnelNode) => void;
+    onViewNodeId?: (node: TunnelNode) => void;
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
     onEnableSsh?: () => void;
     onDisableSsh?: () => void;
     onEnableSftp?: () => void;
     onDisableSftp?: () => void;
+    onEnableHttpProxy?: () => void;
+    onDisableHttpProxy?: () => void;
     isShared?: boolean;
     sharedBy?: string;
 }
@@ -61,12 +64,15 @@ export function NodeCard({
     onRefreshStats,
     onConfigure,
     onShare,
+    onViewNodeId,
     onRename,
     onDelete,
     onEnableSsh,
     onDisableSsh,
     onEnableSftp,
     onDisableSftp,
+    onEnableHttpProxy,
+    onDisableHttpProxy,
     isShared = false,
     sharedBy,
 }: NodeCardProps) {
@@ -103,8 +109,10 @@ export function NodeCard({
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
     const displayLocalIp = (node.stats.host_local_ip || '').trim();
     const nodeServices = (node.services ?? []).filter((service) => service.trim().length > 0);
-    const hasSsh = nodeServices.indexOf('SSH') !== -1;
-    const hasSftp = nodeServices.indexOf('SFTP') !== -1;
+    const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
+    const hasSsh = nodeServices.some((service) => normalizeServiceName(service) === 'SSH');
+    const hasSftp = nodeServices.some((service) => normalizeServiceName(service) === 'SFTP');
+    const hasHttpProxy = nodeServices.some((service) => normalizeServiceName(service) === 'HTTP');
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
@@ -179,9 +187,13 @@ export function NodeCard({
                                                 </div>
                                             </DropdownMenuLabel>
                                             <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => onViewNodeId?.(node)}>
+                                                <Globe className="mr-2 w-4 h-4" />
+                                                View Node ID
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem onClick={() => onRename?.(node)}>
                                                 <Pencil className="mr-2 w-4 h-4" />
-                                                Rename node
+                                                Rename Node
                                             </DropdownMenuItem>
                                             {node.is_online ? (
                                                 <>
@@ -208,6 +220,17 @@ export function NodeCard({
                                                             Enable SFTP
                                                         </DropdownMenuItem>
                                                     )}
+                                                    {hasHttpProxy ? (
+                                                        <DropdownMenuItem onClick={onDisableHttpProxy} className="text-orange-500 focus:text-orange-500">
+                                                            <Globe className="mr-2 w-4 h-4" />
+                                                            Disable HTTP
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <DropdownMenuItem onClick={onEnableHttpProxy}>
+                                                            <Globe className="mr-2 w-4 h-4" />
+                                                            Enable HTTP
+                                                        </DropdownMenuItem>
+                                                    )}
                                                 </>
                                             ) : null}
                                             <DropdownMenuSeparator />
@@ -216,7 +239,7 @@ export function NodeCard({
                                                 className="text-destructive focus:text-destructive"
                                             >
                                                 <Trash2 className="mr-2 w-4 h-4" />
-                                                Delete node
+                                                Delete Node
                                             </DropdownMenuItem>
                                             {/* SSH Modal handled by parent */}
                                         </DropdownMenuContent>

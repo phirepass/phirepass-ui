@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import {
     KeyRound,
     Plus,
+    Copy,
+    Check,
     Trash2,
     Eye,
     EyeOff,
@@ -83,6 +85,7 @@ const PatTokens = () => {
     const [newTokenScopes, setNewTokenScopes] = useState<PatTokenScope[]>(['server:register']);
     const [newTokenExpiry, setNewTokenExpiry] = useState<string>('never');
     const [createdToken, setCreatedToken] = useState<string | null>(null);
+    const [tokenCopied, setTokenCopied] = useState(false);
     const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
     const [tokenToRevoke, setTokenToRevoke] = useState<PatToken | null>(null);
 
@@ -189,6 +192,20 @@ const PatTokens = () => {
         setNewTokenScopes(['server:register']);
         setNewTokenExpiry('never');
         setCreatedToken(null);
+        setTokenCopied(false);
+    };
+
+    const copyCreatedTokenToClipboard = async () => {
+        if (!createdToken) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(createdToken);
+            setTokenCopied(true);
+        } catch (_err) {
+            setTokenCopied(false);
+        }
     };
 
     const activeTokens = tokens.filter(t => t.status === 'active');
@@ -250,9 +267,26 @@ const PatTokens = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="bg-background rounded-md p-3 mt-3">
-                                    <code className="text-sm font-mono break-all">{createdToken}</code>
+                                <div className="relative mt-3">
+                                    <Input
+                                        value={createdToken}
+                                        readOnly
+                                        className="pr-10 font-mono text-sm"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        aria-label="Copy token to clipboard"
+                                        onClick={() => {
+                                            void copyCreatedTokenToClipboard();
+                                        }}
+                                    >
+                                        {tokenCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    </Button>
                                 </div>
+                                {tokenCopied ? <p className="text-sm text-green-500 mt-2">Copied to clipboard.</p> : null}
                             </div>
                             <DialogFooter>
                                 <Button onClick={resetCreateDialog}>Done</Button>

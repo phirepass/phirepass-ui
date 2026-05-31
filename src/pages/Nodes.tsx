@@ -13,7 +13,7 @@ import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
 import { FilePanelTab, NodeStats, TunnelNode } from '@/types/node';
-import { Search, Filter, Grid, List, CheckSquare, Plus, Users } from 'lucide-react';
+import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -98,6 +98,9 @@ export default function Nodes() {
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
     const [shareManagementOpen, setShareManagementOpen] = useState(false);
     const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
+    const [viewNodeIdDialogOpen, setViewNodeIdDialogOpen] = useState(false);
+    const [nodeToViewId, setNodeToViewId] = useState<TunnelNode | null>(null);
+    const [nodeIdCopied, setNodeIdCopied] = useState(false);
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
     const [nodeToRename, setNodeToRename] = useState<TunnelNode | null>(null);
     const [renameValue, setRenameValue] = useState('');
@@ -131,6 +134,18 @@ export default function Nodes() {
     const [nodeToDisableSftp, setNodeToDisableSftp] = useState<TunnelNode | null>(null);
     const [disableSftpSubmitting, setDisableSftpSubmitting] = useState(false);
     const [disableSftpError, setDisableSftpError] = useState<string | null>(null);
+    const [enableHttpProxyDialogOpen, setEnableHttpProxyDialogOpen] = useState(false);
+    const [nodeToEnableHttpProxy, setNodeToEnableHttpProxy] = useState<TunnelNode | null>(null);
+    const [enableHttpProxyHost, setEnableHttpProxyHost] = useState('0.0.0.0');
+    const [enableHttpProxyPort, setEnableHttpProxyPort] = useState('8080');
+    const [enableHttpProxyUsername, setEnableHttpProxyUsername] = useState('');
+    const [enableHttpProxyPassword, setEnableHttpProxyPassword] = useState('');
+    const [enableHttpProxySubmitting, setEnableHttpProxySubmitting] = useState(false);
+    const [enableHttpProxyError, setEnableHttpProxyError] = useState<string | null>(null);
+    const [disableHttpProxyDialogOpen, setDisableHttpProxyDialogOpen] = useState(false);
+    const [nodeToDisableHttpProxy, setNodeToDisableHttpProxy] = useState<TunnelNode | null>(null);
+    const [disableHttpProxySubmitting, setDisableHttpProxySubmitting] = useState(false);
+    const [disableHttpProxyError, setDisableHttpProxyError] = useState<string | null>(null);
 
     const { config } = useRuntimeConfig();
 
@@ -243,6 +258,31 @@ export default function Nodes() {
     const handleShare = (node: TunnelNode) => {
         setNodeToShare(node);
         setShareDialogOpen(true);
+    };
+
+    const handleViewNodeId = (node: TunnelNode) => {
+        setNodeToViewId(node);
+        setNodeIdCopied(false);
+        setViewNodeIdDialogOpen(true);
+    };
+
+    const closeViewNodeIdDialog = () => {
+        setViewNodeIdDialogOpen(false);
+        setNodeToViewId(null);
+        setNodeIdCopied(false);
+    };
+
+    const copyNodeIdToClipboard = async () => {
+        if (!nodeToViewId) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(nodeToViewId.id);
+            setNodeIdCopied(true);
+        } catch (_err) {
+            setNodeIdCopied(false);
+        }
     };
 
     const applyNodeNameUpdate = (nodeId: string, nextName: string) => {
@@ -397,6 +437,32 @@ export default function Nodes() {
         setNodeToDisableSftp(null);
     };
 
+    const openEnableHttpProxyDialog = (node: TunnelNode) => {
+        setNodeToEnableHttpProxy(node);
+        setEnableHttpProxyHost('0.0.0.0');
+        setEnableHttpProxyPort('8080');
+        setEnableHttpProxyUsername('');
+        setEnableHttpProxyPassword('');
+        setEnableHttpProxyError(null);
+        setEnableHttpProxyDialogOpen(true);
+    };
+
+    const openDisableHttpProxyDialog = (node: TunnelNode) => {
+        setNodeToDisableHttpProxy(node);
+        setDisableHttpProxyError(null);
+        setDisableHttpProxyDialogOpen(true);
+    };
+
+    const closeEnableHttpProxyDialog = () => {
+        setEnableHttpProxyDialogOpen(false);
+        setNodeToEnableHttpProxy(null);
+    };
+
+    const closeDisableHttpProxyDialog = () => {
+        setDisableHttpProxyDialogOpen(false);
+        setNodeToDisableHttpProxy(null);
+    };
+
     const buildWsEndpoint = (): string => {
         const explicitUrl = config.NEXT_PUBLIC_WS_URL?.trim();
         if (explicitUrl) {
@@ -445,6 +511,28 @@ export default function Nodes() {
         const updateNodeServices = (entry: TunnelNode) => (
             entry.id === nodeId
                 ? { ...entry, services: upsertSftpService(entry.services ?? []) }
+                : entry
+        );
+
+        setNodes((prev) => prev.map(updateNodeServices));
+        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
+        setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
+    };
+
+    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean) => {
+        const upsertHttpProxyService = (services: string[]) => {
+            const hasHttpProxy = services.some((service) => service.trim().toUpperCase().replace(/[\s_-]+/g, '') === 'HTTP');
+
+            if (isEnabled) {
+                return hasHttpProxy ? services : [...services, 'HTTP'];
+            }
+
+            return services.filter((service) => service.trim().toUpperCase().replace(/[\s_-]+/g, '') !== 'HTTP');
+        };
+
+        const updateNodeServices = (entry: TunnelNode) => (
+            entry.id === nodeId
+                ? { ...entry, services: upsertHttpProxyService(entry.services ?? []) }
                 : entry
         );
 
@@ -805,6 +893,182 @@ export default function Nodes() {
         }
     };
 
+    const submitEnableHttpProxy = async () => {
+        if (!nodeToEnableHttpProxy) return;
+
+        setEnableHttpProxySubmitting(true);
+        setEnableHttpProxyError(null);
+
+        try {
+            const tokenRes = await fetch('/api/auth/websocket-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!tokenRes.ok) {
+                throw new Error(tokenRes.status === 401 ? 'Not authenticated.' : 'Failed to load auth token.');
+            }
+            const tokenPayload = await tokenRes.json() as { token?: string };
+            if (!tokenPayload.token) {
+                throw new Error('Auth token response was empty.');
+            }
+
+            await initChannel();
+
+            const endpoint = buildWsEndpoint();
+            const channel = new Channel(endpoint, nodeToEnableHttpProxy.id, nodeToEnableHttpProxy.server_id ?? null);
+            const nodeId = nodeToEnableHttpProxy.id;
+            const token = tokenPayload.token;
+            const host = enableHttpProxyHost;
+            const portNum = parseInt(enableHttpProxyPort, 10) || 8080;
+            const username = enableHttpProxyUsername || null;
+            const password = enableHttpProxyPassword || null;
+
+            await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    channel.disconnect();
+                    reject(new Error('Connection timed out.'));
+                }, 15_000);
+
+                channel.on_connection_error((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    reject(new Error('WebSocket connection error.'));
+                });
+
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
+                });
+
+                channel.on_connection_error((error: unknown) => {
+                    console.warn('Connection error occurred', error);
+                });
+
+                channel.on_protocol_message_type('AuthSuccess', () => {
+                    channel.enable_service(nodeId, 'http', host, portNum, username, password, null);
+                });
+
+                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+
+                    if (data.enabled) {
+                        resolve();
+                    } else {
+                        reject(new Error(data.error ?? 'Server refused to enable HTTP service.'));
+                    }
+                });
+
+                channel.on_protocol_message_type('Error', (data: { message?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    const errFrame = data as { message?: string };
+                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
+                });
+
+                channel.on_protocol_message((frame: any) => {
+                    console.debug('Received protocol message:', frame.data);
+                });
+
+                channel.connect();
+            });
+
+            updateHttpProxyServiceInNode(nodeId, true);
+            closeEnableHttpProxyDialog();
+        } catch (err) {
+            setEnableHttpProxyError(err instanceof Error ? err.message : 'Failed to enable HTTP.');
+        } finally {
+            setEnableHttpProxySubmitting(false);
+        }
+    };
+
+    const submitDisableHttpProxy = async () => {
+        if (!nodeToDisableHttpProxy) return;
+
+        setDisableHttpProxySubmitting(true);
+        setDisableHttpProxyError(null);
+
+        try {
+            const tokenRes = await fetch('/api/auth/websocket-token', {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!tokenRes.ok) {
+                throw new Error(tokenRes.status === 401 ? 'Not authenticated.' : 'Failed to load auth token.');
+            }
+            const tokenPayload = await tokenRes.json() as { token?: string };
+            if (!tokenPayload.token) {
+                throw new Error('Auth token response was empty.');
+            }
+
+            await initChannel();
+
+            const endpoint = buildWsEndpoint();
+            const channel = new Channel(endpoint, nodeToDisableHttpProxy.id, nodeToDisableHttpProxy.server_id ?? null);
+            const nodeId = nodeToDisableHttpProxy.id;
+            const token = tokenPayload.token;
+            const host = '0.0.0.0';
+            const portNum = 8080;
+            const username = null;
+            const password = null;
+
+            await new Promise<void>((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    channel.disconnect();
+                    reject(new Error('Connection timed out.'));
+                }, 15_000);
+
+                channel.on_connection_error((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    reject(new Error('WebSocket connection error.'));
+                });
+
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
+                });
+
+                channel.on_connection_error((error: unknown) => {
+                    console.warn('Connection error occurred', error);
+                });
+
+                channel.on_protocol_message_type('AuthSuccess', () => {
+                    channel.disable_service(nodeId, 'http', host, portNum, username, password, null);
+                });
+
+                channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+
+                    if (data.disabled === true || data.enabled === false) {
+                        resolve();
+                    } else {
+                        reject(new Error(data.error ?? 'Server refused to disable HTTP service.'));
+                    }
+                });
+
+                channel.on_protocol_message_type('Error', (data: { message?: string }) => {
+                    clearTimeout(timeoutId);
+                    channel.disconnect();
+                    const errFrame = data as { message?: string };
+                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
+                });
+
+                channel.on_protocol_message((frame: any) => {
+                    console.debug('Received protocol message:', frame.data);
+                });
+
+                channel.connect();
+            });
+
+            updateHttpProxyServiceInNode(nodeId, false);
+            closeDisableHttpProxyDialog();
+        } catch (err) {
+            setDisableHttpProxyError(err instanceof Error ? err.message : 'Failed to disable HTTP.');
+        } finally {
+            setDisableHttpProxySubmitting(false);
+        }
+    };
+
     const closeDeleteDialog = () => {
         setDeleteDialogOpen(false);
         setDeleteSaving(false);
@@ -919,12 +1183,15 @@ export default function Nodes() {
                                 onOpenFiles={handleOpenFiles}
                                 onRefreshStats={handleRefreshStats}
                                 onShare={handleShare}
+                                onViewNodeId={handleViewNodeId}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
                                 onEnableSsh={() => openEnableSshDialog(node)}
                                 onDisableSsh={() => openDisableSshDialog(node)}
                                 onEnableSftp={() => openEnableSftpDialog(node)}
                                 onDisableSftp={() => openDisableSftpDialog(node)}
+                                onEnableHttpProxy={() => openEnableHttpProxyDialog(node)}
+                                onDisableHttpProxy={() => openDisableHttpProxyDialog(node)}
                             />
                         ))}
                     </div>
@@ -1169,6 +1436,126 @@ export default function Nodes() {
                         </DialogContent>
                     </Dialog>
 
+                    <Dialog
+                        open={enableHttpProxyDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeEnableHttpProxyDialog();
+                            } else {
+                                setEnableHttpProxyDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Enable HTTP</DialogTitle>
+                                <DialogDescription>
+                                    Configure HTTP settings for {nodeToEnableHttpProxy?.name ?? 'this node'}.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void submitEnableHttpProxy();
+                                }}
+                                className="space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Host</label>
+                                    <Input
+                                        value={enableHttpProxyHost}
+                                        onChange={(event) => setEnableHttpProxyHost(event.target.value)}
+                                        placeholder="0.0.0.0"
+                                        disabled={enableHttpProxySubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Port</label>
+                                    <Input
+                                        value={enableHttpProxyPort}
+                                        onChange={(event) => setEnableHttpProxyPort(event.target.value)}
+                                        placeholder="8080"
+                                        type="number"
+                                        min="1"
+                                        max="65535"
+                                        disabled={enableHttpProxySubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Username</label>
+                                    <Input
+                                        value={enableHttpProxyUsername}
+                                        onChange={(event) => setEnableHttpProxyUsername(event.target.value)}
+                                        placeholder="Username"
+                                        disabled={enableHttpProxySubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Password</label>
+                                    <Input
+                                        value={enableHttpProxyPassword}
+                                        onChange={(event) => setEnableHttpProxyPassword(event.target.value)}
+                                        placeholder="Password"
+                                        type="password"
+                                        disabled={enableHttpProxySubmitting}
+                                    />
+                                </div>
+                                {enableHttpProxyError && (
+                                    <p className="text-sm text-destructive">{enableHttpProxyError}</p>
+                                )}
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={closeEnableHttpProxyDialog} disabled={enableHttpProxySubmitting}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={enableHttpProxySubmitting}>
+                                        {enableHttpProxySubmitting ? 'Enabling...' : 'Enable HTTP'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={disableHttpProxyDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeDisableHttpProxyDialog();
+                            } else {
+                                setDisableHttpProxyDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Disable HTTP</DialogTitle>
+                                <DialogDescription>
+                                    Disable HTTP service for {nodeToDisableHttpProxy?.name ?? 'this node'}?
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {disableHttpProxyError ? (
+                                <p className="text-sm text-destructive">{disableHttpProxyError}</p>
+                            ) : null}
+
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={closeDisableHttpProxyDialog} disabled={disableHttpProxySubmitting}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => {
+                                        void submitDisableHttpProxy();
+                                    }}
+                                    disabled={disableHttpProxySubmitting}
+                                >
+                                    {disableHttpProxySubmitting ? 'Disabling...' : 'Disable HTTP'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
                     {filteredNodes.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
                             <p>No nodes found matching your search.</p>
@@ -1210,6 +1597,62 @@ export default function Nodes() {
                         onOpenChange={setShareManagementOpen}
                         node={null}
                     />
+
+                    <Dialog
+                        open={viewNodeIdDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeViewNodeIdDialog();
+                            } else {
+                                setViewNodeIdDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Node ID</DialogTitle>
+                                <DialogDescription>
+                                    View and copy the node identifier for {nodeToViewId?.name ?? 'this node'}.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-medium text-green-500">Node ID Ready</h4>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Copy your node ID now for use in setup or integrations.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="relative mt-3">
+                                    <Input
+                                        value={nodeToViewId?.id ?? ''}
+                                        readOnly
+                                        className="pr-10 font-mono text-sm"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        aria-label="Copy node id to clipboard"
+                                        onClick={() => void copyNodeIdToClipboard()}
+                                    >
+                                        {nodeIdCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                                {nodeIdCopied ? <p className="text-sm text-green-500 mt-2">Copied to clipboard.</p> : null}
+                            </div>
+
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={closeViewNodeIdDialog}>
+                                    Close
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     <Dialog
                         open={renameDialogOpen}
