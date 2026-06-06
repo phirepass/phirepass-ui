@@ -140,6 +140,8 @@ export default function Nodes() {
     const [enableHttpProxyPort, setEnableHttpProxyPort] = useState('8080');
     const [enableHttpProxyUsername, setEnableHttpProxyUsername] = useState('');
     const [enableHttpProxyPassword, setEnableHttpProxyPassword] = useState('');
+    const [enableHttpProxyVisibility, setEnableHttpProxyVisibility] = useState<'private' | 'public'>('private');
+    const [enableHttpProxyScheme, setEnableHttpProxyScheme] = useState<'http' | 'https'>('http');
     const [enableHttpProxySubmitting, setEnableHttpProxySubmitting] = useState(false);
     const [enableHttpProxyError, setEnableHttpProxyError] = useState<string | null>(null);
     const [disableHttpProxyDialogOpen, setDisableHttpProxyDialogOpen] = useState(false);
@@ -443,6 +445,8 @@ export default function Nodes() {
         setEnableHttpProxyPort('8080');
         setEnableHttpProxyUsername('');
         setEnableHttpProxyPassword('');
+        setEnableHttpProxyVisibility('private');
+        setEnableHttpProxyScheme('http');
         setEnableHttpProxyError(null);
         setEnableHttpProxyDialogOpen(true);
     };
@@ -583,12 +587,13 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
-                channel.on_connection_open(() => {
-                    channel.authenticate(token, nodeId);
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
@@ -671,12 +676,13 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
-                channel.on_connection_open(() => {
-                    channel.authenticate(token, nodeId);
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
@@ -759,12 +765,13 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
-                channel.on_connection_open(() => {
-                    channel.authenticate(token, nodeId);
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
@@ -847,12 +854,13 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
-                channel.on_connection_open(() => {
-                    channel.authenticate(token, nodeId);
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
@@ -935,16 +943,17 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                });
+
                 channel.on_connection_open(() => {
                     channel.authenticate(token, nodeId);
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
-                });
-
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.enable_service(nodeId, 'http', host, portNum, username, password, null);
+                    channel.enable_service(nodeId, 'http', host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
                 });
 
                 channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
@@ -1023,12 +1032,13 @@ export default function Nodes() {
                     reject(new Error('WebSocket connection error.'));
                 });
 
-                channel.on_connection_open(() => {
-                    channel.authenticate(token, nodeId);
+                channel.on_connection_close((_event: unknown) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('WebSocket connection closed unexpectedly.'));
                 });
 
-                channel.on_connection_error((error: unknown) => {
-                    console.warn('Connection error occurred', error);
+                channel.on_connection_open(() => {
+                    channel.authenticate(token, nodeId);
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
@@ -1501,6 +1511,55 @@ export default function Nodes() {
                                         disabled={enableHttpProxySubmitting}
                                     />
                                 </div>
+                                <div className="flex flex-col gap-2">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Visibility</label>
+                                        <div className="inline-flex rounded-md border border-input overflow-hidden">
+                                            {(['private', 'public'] as const).map((v) => (
+                                                <button
+                                                    key={v}
+                                                    type="button"
+                                                    disabled={enableHttpProxySubmitting}
+                                                    onClick={() => setEnableHttpProxyVisibility(v)}
+                                                    className={cn(
+                                                        'px-2 py-1 text-xs capitalize transition-colors',
+                                                        enableHttpProxyVisibility === v
+                                                            ? 'bg-primary text-primary-foreground'
+                                                            : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                                    )}
+                                                >
+                                                    {v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Scheme</label>
+                                        <div className="inline-flex rounded-md border border-input overflow-hidden">
+                                            {(['http', 'https'] as const).map((v) => (
+                                                <button
+                                                    key={v}
+                                                    type="button"
+                                                    disabled={enableHttpProxySubmitting}
+                                                    onClick={() => setEnableHttpProxyScheme(v)}
+                                                    className={cn(
+                                                        'px-2 py-1 text-xs uppercase transition-colors',
+                                                        enableHttpProxyScheme === v
+                                                            ? 'bg-primary text-primary-foreground'
+                                                            : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                                    )}
+                                                >
+                                                    {v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                {enableHttpProxyVisibility === 'public' && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Public services are accessible without authentication.
+                                    </p>
+                                )}
                                 {enableHttpProxyError && (
                                     <p className="text-sm text-destructive">{enableHttpProxyError}</p>
                                 )}
