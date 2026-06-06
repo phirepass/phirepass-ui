@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import {
     Globe,
+    Terminal,
     FolderOpen,
     Clock,
     Wifi,
@@ -395,7 +396,7 @@ export function NodeCard({
                         onClick={() => onCreateTunnel(node)}
                         disabled={!node.is_online || !hasSsh}
                     >
-                        <Globe className="w-4 h-4" />
+                        <Terminal className="w-4 h-4" />
                         Connect
                     </Button>
                     <Button
@@ -407,6 +408,16 @@ export function NodeCard({
                     >
                         <FolderOpen className="w-4 h-4" />
                         Files
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 disabled:opacity-15"
+                        onClick={() => window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank')}
+                        disabled={!node.is_online || !hasHttpProxy}
+                    >
+                        <Globe className="w-4 h-4" />
+                        HTTP
                     </Button>
                 </div>
             </div>

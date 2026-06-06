@@ -92,7 +92,7 @@ export function buildAuthCookie(
 ) {
     const isProd = process.env.NODE_ENV === "production";
     const parts = [
-        `auth_token=${token}`,
+        `phirepass_auth_token=${token}`,
         `Path=/`,
         `HttpOnly`,
         `SameSite=Lax`,
@@ -106,7 +106,7 @@ export function buildAuthCookie(
 export function clearAuthCookie(domain?: string) {
     const isProd = process.env.NODE_ENV === "production";
     const parts = [
-        `auth_token=`,
+        `phirepass_auth_token=`,
         `Path=/`,
         `HttpOnly`,
         `SameSite=Lax`,
@@ -152,7 +152,7 @@ export function clearCookie(name: string, domain?: string) {
 
 export async function getVerifiedAuthToken(): Promise<string> {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get("phirepass_auth_token")?.value;
     if (!token) throw new Error("Token not found");
 
     const payload = verifyJWT(token);
