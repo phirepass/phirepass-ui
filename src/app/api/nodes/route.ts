@@ -197,17 +197,21 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
         const node = await redis.hGetAll(key);
         if (!node) continue;
         if (Object.keys(node).length === 0) continue;
-        // console.log(`[getUserNodeStats] Retrieved stats for key ${key}:`, node);
-        const parsedStats = JSON.parse(node.stats) as NodeStatsPayload;
-        const derivedId = typeof parsedStats?.id === 'string'
-            ? parsedStats.id
-            : key.split(':').pop();
 
-        if (derivedId) {
-            entries.set(derivedId, {
-                stats: parsedStats,
-            });
-        }
+        try {
+            const parsedStats = JSON.parse(node.stats) as NodeStatsPayload;
+            const derivedId = typeof parsedStats?.id === 'string'
+                ? parsedStats.id
+                : key.split(':').pop();
+
+            if (derivedId) {
+                entries.set(derivedId, {
+                    stats: parsedStats,
+                });
+            }
+        } catch (e) {
+            console.warn(`[getUserNodeStats] Failed to parse stats for key ${key}:`, e);
+        }        
     }
 
     return entries;

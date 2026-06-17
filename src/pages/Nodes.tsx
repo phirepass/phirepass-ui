@@ -576,20 +576,25 @@ export default function Nodes() {
             const password = enableSshPassword || null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -602,20 +607,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.enabled) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to enable SSH service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to enable SSH service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
@@ -665,20 +668,25 @@ export default function Nodes() {
             const password = null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -691,20 +699,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.disabled === true || data.enabled === false) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to disable SSH service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to disable SSH service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
@@ -754,20 +760,25 @@ export default function Nodes() {
             const password = enableSftpPassword || null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -780,20 +791,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.enabled) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to enable SFTP service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to enable SFTP service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
@@ -843,20 +852,25 @@ export default function Nodes() {
             const password = null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -869,20 +883,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.disabled === true || data.enabled === false) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to disable SFTP service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to disable SFTP service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
@@ -932,20 +944,25 @@ export default function Nodes() {
             const password = enableHttpProxyPassword || null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -958,20 +975,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.enabled) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to enable HTTP service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to enable HTTP service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
@@ -1021,20 +1036,25 @@ export default function Nodes() {
             const password = null;
 
             await new Promise<void>((resolve, reject) => {
+                let settled = false;
+                const settle = (fn: () => void) => {
+                    if (!settled) { settled = true; fn(); }
+                };
+
                 const timeoutId = setTimeout(() => {
                     channel.disconnect();
-                    reject(new Error('Connection timed out.'));
-                }, 15_000);
+                    settle(() => reject(new Error('Connection timed out.')));
+                }, 35_000);
 
                 channel.on_connection_error((_event: unknown) => {
                     clearTimeout(timeoutId);
                     channel.disconnect();
-                    reject(new Error('WebSocket connection error.'));
+                    settle(() => reject(new Error('WebSocket connection error.')));
                 });
 
                 channel.on_connection_close((_event: unknown) => {
                     clearTimeout(timeoutId);
-                    reject(new Error('WebSocket connection closed unexpectedly.'));
+                    settle(() => reject(new Error('WebSocket connection closed unexpectedly.')));
                 });
 
                 channel.on_connection_open(() => {
@@ -1047,20 +1067,18 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    channel.disconnect();
-
                     if (data.disabled === true || data.enabled === false) {
-                        resolve();
+                        settle(resolve);
                     } else {
-                        reject(new Error(data.error ?? 'Server refused to disable HTTP service.'));
+                        settle(() => reject(new Error(data.error ?? 'Server refused to disable HTTP service.')));
                     }
+                    channel.disconnect();
                 });
 
                 channel.on_protocol_message_type('Error', (data: { message?: string }) => {
                     clearTimeout(timeoutId);
+                    settle(() => reject(new Error(data.message ?? 'Server returned an error.')));
                     channel.disconnect();
-                    const errFrame = data as { message?: string };
-                    reject(new Error(errFrame.message ?? 'Server returned an error.'));
                 });
 
                 channel.on_protocol_message((frame: any) => {
