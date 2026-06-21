@@ -21,7 +21,8 @@ import {
     Server
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 import {
     Dialog,
     DialogContent,
@@ -47,6 +48,32 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
+
+const TOKENS_PER_PAGE = 5;
+
+const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsis')[] => {
+    const range: (number | 'ellipsis')[] = [];
+    const window = new Set([1, pageCount, page - 1, page, page + 1]);
+
+    for (let i = 1; i <= pageCount; i++) {
+        if (window.has(i)) {
+            range.push(i);
+        } else if (range[range.length - 1] !== 'ellipsis') {
+            range.push('ellipsis');
+        }
+    }
+
+    return range;
+};
 
 type PatTokenScope = 'server:register';
 
@@ -88,6 +115,8 @@ const PatTokens = () => {
     const [tokenCopied, setTokenCopied] = useState(false);
     const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
     const [tokenToRevoke, setTokenToRevoke] = useState<PatToken | null>(null);
+    const [activePage, setActivePage] = useState(1);
+    const [inactivePage, setInactivePage] = useState(1);
 
     // Fetch existing tokens
     useEffect(() => {
@@ -208,9 +237,18 @@ const PatTokens = () => {
         }
     };
 
-    const activeTokens = tokens.filter(t => t.status === 'active');
+    const byCreatedAtDesc = (a: PatToken, b: PatToken) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const activeTokens = tokens.filter(t => t.status === 'active').sort(byCreatedAtDesc);
     const revokedTokens = tokens.filter(t => t.status === 'revoked');
     const expiredTokens = tokens.filter(t => t.status === 'expired');
+    const inactiveTokens = [...expiredTokens, ...revokedTokens].sort(byCreatedAtDesc);
+
+    const activePageCount = Math.max(1, Math.ceil(activeTokens.length / TOKENS_PER_PAGE));
+    const inactivePageCount = Math.max(1, Math.ceil(inactiveTokens.length / TOKENS_PER_PAGE));
+    const clampedActivePage = Math.min(activePage, activePageCount);
+    const clampedInactivePage = Math.min(inactivePage, inactivePageCount);
+    const pagedActiveTokens = activeTokens.slice((clampedActivePage - 1) * TOKENS_PER_PAGE, clampedActivePage * TOKENS_PER_PAGE);
+    const pagedInactiveTokens = inactiveTokens.slice((clampedInactivePage - 1) * TOKENS_PER_PAGE, clampedInactivePage * TOKENS_PER_PAGE);
 
     const renderTokenValue = (token: PatToken, fullToken?: string) => {
         const isVisible = visibleTokens.has(token.id);
@@ -228,6 +266,61 @@ const PatTokens = () => {
             <span className="font-mono text-sm">
                 pat_{token.token_id}.{'•'.repeat(40)}
             </span>
+        );
+    };
+
+    const renderPager = (page: number, pageCount: number, onPageChange: (page: number) => void) => {
+        if (pageCount <= 1) {
+            return null;
+        }
+
+        return (
+            <Pagination className="justify-end">
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            aria-disabled={page === 1}
+                            className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (page > 1) onPageChange(page - 1);
+                            }}
+                        />
+                    </PaginationItem>
+                    {getPaginationRange(page, pageCount).map((entry, index) => (
+                        entry === 'ellipsis' ? (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        ) : (
+                            <PaginationItem key={entry}>
+                                <PaginationLink
+                                    href="#"
+                                    isActive={entry === page}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onPageChange(entry);
+                                    }}
+                                >
+                                    {entry}
+                                </PaginationLink>
+                            </PaginationItem>
+                        )
+                    ))}
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            aria-disabled={page === pageCount}
+                            className={page === pageCount ? 'pointer-events-none opacity-50' : undefined}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (page < pageCount) onPageChange(page + 1);
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
         );
     };
 
@@ -439,40 +532,39 @@ const PatTokens = () => {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
-                    {activeTokens.map((token) => (
+                <div className="space-y-2">
+                    {pagedActiveTokens.map((token) => (
                         <Card key={token.id}>
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between gap-4 overflow-hidden">
+                            <CardContent className="p-3">
+                                <div className="flex items-center justify-between gap-3 overflow-hidden">
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <h3 className="font-medium text-lg">{token.name}</h3>
-                                            <Badge variant="outline" className="text-green-500 border-green-500/30">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-medium text-sm truncate">{token.name}</h3>
+                                            <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs px-1.5 py-0">
                                                 Active
                                             </Badge>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <span className="text-muted-foreground">Token:</span>
-                                                {renderTokenValue(token)}
-                                            </div>
+                                        <div className="text-xs mb-1">
+                                            {renderTokenValue(token)}
+                                        </div>
 
-                                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-1.5">
-                                                    <Shield className="w-4 h-4" />
-                                                    <span>Scopes: {token.scopes.join(', ')}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Calendar className="w-4 h-4" />
-                                                    <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
-                                                </div>
-                                                {token.expires_at && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span>Expires {format(new Date(token.expires_at), 'MMM d, yyyy')}</span>
-                                                    </div>
-                                                )}
+                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-1">
+                                                <Shield className="w-3 h-3" />
+                                                <span>{token.scopes.join(', ')}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" />
+                                                <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                <span>
+                                                    Expires {token.expires_at
+                                                        ? formatDistanceToNow(new Date(token.expires_at), { addSuffix: true })
+                                                        : 'Never'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -481,7 +573,7 @@ const PatTokens = () => {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => setTokenToRevoke(token)}
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
@@ -489,36 +581,47 @@ const PatTokens = () => {
                             </CardContent>
                         </Card>
                     ))}
+                    {renderPager(clampedActivePage, activePageCount, setActivePage)}
                 </div>
             )}
 
             {/* Expired/Revoked Tokens */}
-            {(expiredTokens.length > 0 || revokedTokens.length > 0) && (
+            {inactiveTokens.length > 0 && (
                 <div>
-                    <h2 className="text-lg font-semibold mb-4\">Inactive Tokens</h2>
-                    <div className="space-y-3">
-                        {[...expiredTokens, ...revokedTokens].map((token) => (
+                    <h2 className="text-lg font-semibold mb-4">Inactive Tokens</h2>
+                    <div className="space-y-2">
+                        {pagedInactiveTokens.map((token) => (
                             <Card key={token.id} className="opacity-60">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between gap-4 overflow-hidden">
+                                <CardContent className="p-3">
+                                    <div className="flex items-center justify-between gap-3 overflow-hidden">
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <h3 className="font-medium">{token.name}</h3>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-medium text-sm truncate">{token.name}</h3>
                                                 <Badge
                                                     variant="outline"
-                                                    className={token.status === 'expired'
-                                                        ? 'text-orange-500 border-orange-500/30'
-                                                        : 'text-red-500 border-red-500/30'
-                                                    }
+                                                    className={cn(
+                                                        'text-xs px-1.5 py-0',
+                                                        token.status === 'expired'
+                                                            ? 'text-orange-500 border-orange-500/30'
+                                                            : 'text-red-500 border-red-500/30'
+                                                    )}
                                                 >
                                                     {token.status === 'expired' ? 'Expired' : 'Revoked'}
                                                 </Badge>
                                             </div>
 
-                                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-1.5">
-                                                    <Calendar className="w-4 h-4" />
+                                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" />
                                                     <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>
+                                                        Expires {token.expires_at
+                                                            ? formatDistanceToNow(new Date(token.expires_at), { addSuffix: true })
+                                                            : 'Never'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -526,6 +629,7 @@ const PatTokens = () => {
                                 </CardContent>
                             </Card>
                         ))}
+                        {renderPager(clampedInactivePage, inactivePageCount, setInactivePage)}
                     </div>
                 </div>
             )}

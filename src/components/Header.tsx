@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { Menu, X, LogOut, User, Settings, Shield, ChevronDown, Webhook, Key, KeyRound, Gauge, Activity } from 'lucide-react';
@@ -25,6 +25,8 @@ export function Header({ user, onLogout }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const touchStartY = useRef<number | null>(null);
     const router = useRouter();
+    const pathname = usePathname();
+    const isActivePath = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
 
     // Generate initials from name or email
     const getInitials = () => {
@@ -89,10 +91,22 @@ export function Header({ user, onLogout }: HeaderProps) {
 
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center gap-4">
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/nodes')}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push('/dashboard/nodes')}
+                            className={cn(isActivePath('/dashboard/nodes') && 'bg-secondary text-foreground')}
+                            aria-current={isActivePath('/dashboard/nodes') ? 'page' : undefined}
+                        >
                             Nodes
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/pat-tokens')}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push('/dashboard/pat-tokens')}
+                            className={cn(isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground')}
+                            aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
+                        >
                             Tokens
                         </Button>
                         <div className="w-px h-6 bg-border" />
@@ -173,16 +187,40 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <X className="w-5 h-5" />
                         </Button>
                     </div>
-                    <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/nodes'); setMenuOpen(false); }}>
+                    <Button
+                        variant="ghost"
+                        className={cn(
+                            'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                            isActivePath('/dashboard/nodes') && 'bg-secondary text-foreground'
+                        )}
+                        aria-current={isActivePath('/dashboard/nodes') ? 'page' : undefined}
+                        onClick={() => { router.push('/dashboard/nodes'); setMenuOpen(false); }}
+                    >
                         <Shield className="w-5 h-5 mr-3" />
                         Nodes
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}>
+                    <Button
+                        variant="ghost"
+                        className={cn(
+                            'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                            isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground'
+                        )}
+                        aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
+                        onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}
+                    >
                         <KeyRound className="w-5 h-5 mr-3" />
                         Tokens
                     </Button>
                     <div className="border-t border-border my-2 pt-2">
-                        <Button variant="ghost" className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]" onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}>
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                isActivePath('/dashboard/profile') && 'bg-secondary text-foreground'
+                            )}
+                            aria-current={isActivePath('/dashboard/profile') ? 'page' : undefined}
+                            onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}
+                        >
                             <User className="w-5 h-5 mr-3" />
                             Profile
                         </Button>
