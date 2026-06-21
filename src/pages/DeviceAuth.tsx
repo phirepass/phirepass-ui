@@ -195,7 +195,7 @@ export default function DeviceAuth() {
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-16 h-16 rounded-2xl gradient-accent flex items-center justify-center mb-4 glow-primary">
-                        <Shield className="w-8 h-8 text-primary-foreground" />
+                        <Shield className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold">
                         <span className="text-gradient">Phire</span>

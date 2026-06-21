@@ -81,7 +81,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-primary-foreground" />
+                            <Shield className="w-4 h-4 text-white" />
                         </div>
                         <Link href="/" className="text-xl font-semibold">
                             <span className="text-gradient">Phire</span>
