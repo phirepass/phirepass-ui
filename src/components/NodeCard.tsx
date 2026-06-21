@@ -411,11 +411,11 @@ export function NodeCard({
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-auto">
+                <div className="flex gap-2 mt-auto overflow-x-auto scrollbar-hide -mx-1 px-1 snap-x snap-mandatory">
                     <Button
                         variant="default"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('SSH')}
                     >
                         <Terminal className="w-4 h-4" />
@@ -424,7 +424,7 @@ export function NodeCard({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('SFTP')}
                     >
                         <FolderOpen className="w-4 h-4" />
@@ -433,7 +433,7 @@ export function NodeCard({
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('HTTP')}
                     >
                         <HttpProxyIcon className="w-4 h-4" />
