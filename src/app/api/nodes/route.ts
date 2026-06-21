@@ -5,7 +5,7 @@ import { query } from '@/app/lib/db';
 
 type NodeStats = {
     ip: string;
-    host_connections: number;
+    // host_connections: number; // unused by frontend
     host_cpu: number;
     host_ip: string;
     host_local_ip: string;
@@ -17,12 +17,12 @@ type NodeStats = {
     host_os_info: string;
     host_processes: number;
     host_uptime_secs: number;
-    last_refreshed_secs: number;
-    proc_cpu: number;
-    proc_id: string;
-    proc_mem_bytes: number;
-    proc_threads: number;
-    proc_uptime_secs: number;
+    // last_refreshed_secs: number; // unused by frontend
+    // proc_cpu: number; // unused by frontend
+    // proc_id: string; // unused by frontend
+    // proc_mem_bytes: number; // unused by frontend
+    // proc_threads: number; // unused by frontend
+    // proc_uptime_secs: number; // unused by frontend
     version: string;
 };
 
@@ -32,7 +32,7 @@ type NodeStatsPayload = {
     server_id?: string;
     ip?: string;
     connected_for_secs?: number;
-    since_last_heartbeat_secs?: number;
+    // since_last_heartbeat_secs?: number; // unused by frontend
     services?: unknown;
     stats?: Partial<NodeStats>;
 } & Partial<NodeStats>;
@@ -133,7 +133,7 @@ function normalizeSettings(value: unknown): NodeSettings {
 function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
     return {
         ip: '',
-        host_connections: 0,
+        // host_connections: 0, // unused by frontend
         host_cpu: 0,
         host_ip: '',
         host_local_ip: '',
@@ -145,12 +145,12 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
         host_os_info: '',
         host_processes: 0,
         host_uptime_secs: 0,
-        last_refreshed_secs: 0,
-        proc_cpu: 0,
-        proc_id: '',
-        proc_mem_bytes: 0,
-        proc_threads: 0,
-        proc_uptime_secs: 0,
+        // last_refreshed_secs: 0, // unused by frontend
+        // proc_cpu: 0, // unused by frontend
+        // proc_id: '', // unused by frontend
+        // proc_mem_bytes: 0, // unused by frontend
+        // proc_threads: 0, // unused by frontend
+        // proc_uptime_secs: 0, // unused by frontend
         version: '',
         ...overrides,
     };
@@ -169,10 +169,10 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
         server_id: payload.server_id,
         ip: payload.ip,
         connected_for_secs: toNumber(payload.connected_for_secs),
-        since_last_heartbeat_secs: toNumber(payload.since_last_heartbeat_secs),
+        // since_last_heartbeat_secs: toNumber(payload.since_last_heartbeat_secs), // unused by frontend
         stats: buildDefaultStats({
             ip: toString(statsSource.ip ?? payload.ip ?? statsSource.host_ip),
-            host_connections: toNumber(statsSource.host_connections),
+            // host_connections: toNumber(statsSource.host_connections), // unused by frontend
             host_cpu: toNumber(statsSource.host_cpu),
             host_ip: toString(statsSource.host_ip),
             host_local_ip: toString(statsSource.host_local_ip),
@@ -186,12 +186,12 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
             host_os_info: toString(statsSource.host_os_info),
             host_processes: toNumber(statsSource.host_processes),
             host_uptime_secs: toNumber(statsSource.host_uptime_secs),
-            last_refreshed_secs: toNumber(statsSource.last_refreshed_secs),
-            proc_cpu: toNumber(statsSource.proc_cpu),
-            proc_id: toString(statsSource.proc_id),
-            proc_mem_bytes: toNumber(statsSource.proc_mem_bytes),
-            proc_threads: toNumber(statsSource.proc_threads),
-            proc_uptime_secs: toNumber(statsSource.proc_uptime_secs),
+            // last_refreshed_secs: toNumber(statsSource.last_refreshed_secs), // unused by frontend
+            // proc_cpu: toNumber(statsSource.proc_cpu), // unused by frontend
+            // proc_id: toString(statsSource.proc_id), // unused by frontend
+            // proc_mem_bytes: toNumber(statsSource.proc_mem_bytes), // unused by frontend
+            // proc_threads: toNumber(statsSource.proc_threads), // unused by frontend
+            // proc_uptime_secs: toNumber(statsSource.proc_uptime_secs), // unused by frontend
             version: toString(statsSource.version),
         }),
     };
@@ -280,7 +280,7 @@ export async function GET(req: Request) {
                 ip,
                 server_id: payload?.server_id ?? node.id,
                 connected_for_secs: payload?.connected_for_secs ?? 0,
-                since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0,
+                // since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0, // unused by frontend
                 is_online: isOnline,
                 stats,
                 services,

@@ -1,6 +1,6 @@
 export interface NodeStats {
     ip: string;
-    host_connections: number;
+    // host_connections: number; // unused by frontend
     host_cpu: number;
     host_ip: string;
     host_local_ip: string;
@@ -12,12 +12,12 @@ export interface NodeStats {
     host_os_info: string;
     host_processes: number;
     host_uptime_secs: number;
-    last_refreshed_secs: number;
-    proc_cpu: number;
-    proc_id: string;
-    proc_mem_bytes: number;
-    proc_threads: number;
-    proc_uptime_secs: number;
+    // last_refreshed_secs: number; // unused by frontend
+    // proc_cpu: number; // unused by frontend
+    // proc_id: string; // unused by frontend
+    // proc_mem_bytes: number; // unused by frontend
+    // proc_threads: number; // unused by frontend
+    // proc_uptime_secs: number; // unused by frontend
     version?: string;
 }
 
@@ -28,7 +28,7 @@ export interface TunnelNode {
     is_online: boolean;
     name: string;
     server_id: string;
-    since_last_heartbeat_secs: number;
+    // since_last_heartbeat_secs: number; // unused by frontend
     stats: NodeStats;
     services: Record<string, number | { visibility: 'public' | 'private'; count: number }>;
 }
