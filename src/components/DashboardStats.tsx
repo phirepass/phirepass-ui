@@ -5,12 +5,20 @@ interface DashboardStatsProps {
     nodes: TunnelNode[];
 }
 
+const serviceCount = (summary: TunnelNode['services'][string]): number => {
+    if (typeof summary === 'number') {
+        return summary;
+    }
+    return summary.count;
+};
+
 export function DashboardStats({ nodes }: DashboardStatsProps) {
     const online = nodes.filter((n) => n.is_online).length;
     const offline = nodes.length - online;
-    const avgPing = /*Math.round(
-    nodes.filter((n) => n.isOnline).reduce((acc, n) => acc + n.stats.ping, 0) / online || 0
-  );*/ 0;
+    const activeServices = nodes.reduce(
+        (sum, node) => sum + Object.values(node.services).reduce<number>((s, summary) => s + serviceCount(summary), 0),
+        0
+    );
 
     const stats = [
         {
@@ -32,8 +40,8 @@ export function DashboardStats({ nodes }: DashboardStatsProps) {
             color: 'text-destructive',
         },
         {
-            label: 'Avg Ping',
-            value: `${avgPing}ms`,
+            label: 'Active Services',
+            value: activeServices,
             icon: Activity,
             color: 'text-warning',
         },
