@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // ...existing code...
 import { DashboardStats } from '@/components/DashboardStats';
@@ -27,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import initChannel, { Channel } from 'phirepass-channel';
+import { toast } from 'sonner';
 
 export default function Nodes() {
     const [nodes, setNodes] = useState<TunnelNode[]>([]);
@@ -34,6 +35,7 @@ export default function Nodes() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const hasLoadedNodesOnceRef = useRef(false);
 
     // Fetch nodes from same-origin API
     useEffect(() => {
@@ -55,14 +57,33 @@ export default function Nodes() {
                     return;
                 }
 
-                setNodes(nextNodes);
+                // Merge by id so nodes missing from the response (e.g. dropped due to
+                // malformed stats) aren't removed from the UI.
+                setNodes((prevNodes) => {
+                    const nextById = new Map(nextNodes.map((node) => [node.id, node]));
+                    const merged = prevNodes.map((node) => nextById.get(node.id) ?? node);
+                    const prevIds = new Set(prevNodes.map((node) => node.id));
+                    for (const node of nextNodes) {
+                        if (!prevIds.has(node.id)) {
+                            merged.push(node);
+                        }
+                    }
+                    return merged;
+                });
                 setError(null);
+                hasLoadedNodesOnceRef.current = true;
             } catch (err) {
                 if (isDisposed) {
                     return;
                 }
 
-                setError(err instanceof Error ? err.message : 'Failed to fetch nodes');
+                // Only surface the error inline before nodes have ever loaded successfully;
+                // once we have a node list, a failed poll shouldn't disturb the UI - just toast it.
+                if (!hasLoadedNodesOnceRef.current) {
+                    setError('Failed to fetch nodes');
+                } else {
+                    toast.error('Failed to fetch nodes');
+                }
             } finally {
                 if (!isDisposed && showLoading) {
                     setLoading(false);
@@ -1170,7 +1191,8 @@ export default function Nodes() {
                 </div>
             )}
 
-            {/* Only show remaining content when not loading */}
+            {/* Only show remaining content when not loading; an inline error only
+                appears before the first successful load, when there's nothing to show yet */}
             {!loading && !error && (
                 <>
                     {/* Monitoring Alerts */}
