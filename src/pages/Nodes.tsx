@@ -169,6 +169,8 @@ export default function Nodes() {
     const [deleteSaving, setDeleteSaving] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [enableSshDialogOpen, setEnableSshDialogOpen] = useState(false);
+    const [enableSshMode, setEnableSshMode] = useState<'create' | 'update'>('create');
+    const [enableSshLoadingDetails, setEnableSshLoadingDetails] = useState(false);
     const [nodeToEnableSsh, setNodeToEnableSsh] = useState<TunnelNode | null>(null);
     const [enableSshHost, setEnableSshHost] = useState('0.0.0.0');
     const [enableSshPort, setEnableSshPort] = useState('22');
@@ -181,6 +183,8 @@ export default function Nodes() {
     const [disableSshSubmitting, setDisableSshSubmitting] = useState(false);
     const [disableSshError, setDisableSshError] = useState<string | null>(null);
     const [enableSftpDialogOpen, setEnableSftpDialogOpen] = useState(false);
+    const [enableSftpMode, setEnableSftpMode] = useState<'create' | 'update'>('create');
+    const [enableSftpLoadingDetails, setEnableSftpLoadingDetails] = useState(false);
     const [nodeToEnableSftp, setNodeToEnableSftp] = useState<TunnelNode | null>(null);
     const [enableSftpHost, setEnableSftpHost] = useState('0.0.0.0');
     const [enableSftpPort, setEnableSftpPort] = useState('22');
@@ -193,6 +197,8 @@ export default function Nodes() {
     const [disableSftpSubmitting, setDisableSftpSubmitting] = useState(false);
     const [disableSftpError, setDisableSftpError] = useState<string | null>(null);
     const [enableHttpProxyDialogOpen, setEnableHttpProxyDialogOpen] = useState(false);
+    const [enableHttpProxyMode, setEnableHttpProxyMode] = useState<'create' | 'update'>('create');
+    const [enableHttpProxyLoadingDetails, setEnableHttpProxyLoadingDetails] = useState(false);
     const [nodeToEnableHttpProxy, setNodeToEnableHttpProxy] = useState<TunnelNode | null>(null);
     const [enableHttpProxyHost, setEnableHttpProxyHost] = useState('0.0.0.0');
     const [enableHttpProxyPort, setEnableHttpProxyPort] = useState('8080');
@@ -504,8 +510,81 @@ export default function Nodes() {
         setDeleteDialogOpen(true);
     };
 
-    const openEnableSshDialog = (node: TunnelNode) => {
+    type ServiceDetail = {
+        kind: string;
+        host: string;
+        port: number;
+        username: string | null;
+        password: string | null;
+        visibility: 'public' | 'private';
+        scheme: 'http' | 'https' | null;
+    };
+
+    const fetchServiceDetail = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http'): Promise<ServiceDetail | null> => {
+        try {
+            const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                return null;
+            }
+            const data = await res.json() as { services?: ServiceDetail[] };
+            return data.services?.[0] ?? null;
+        } catch {
+            return null;
+        }
+    };
+
+    const openEditSshDialog = async (node: TunnelNode) => {
         setNodeToEnableSsh(node);
+        setEnableSshMode('update');
+        setEnableSshError(null);
+        setEnableSshLoadingDetails(true);
+        setEnableSshDialogOpen(true);
+
+        const detail = await fetchServiceDetail(node.id, 'ssh');
+        setEnableSshHost(detail?.host || '0.0.0.0');
+        setEnableSshPort(detail ? String(detail.port) : '22');
+        setEnableSshUsername(detail?.username ?? '');
+        setEnableSshPassword(detail?.password ?? '');
+        setEnableSshLoadingDetails(false);
+    };
+
+    const openEditSftpDialog = async (node: TunnelNode) => {
+        setNodeToEnableSftp(node);
+        setEnableSftpMode('update');
+        setEnableSftpError(null);
+        setEnableSftpLoadingDetails(true);
+        setEnableSftpDialogOpen(true);
+
+        const detail = await fetchServiceDetail(node.id, 'sftp');
+        setEnableSftpHost(detail?.host || '0.0.0.0');
+        setEnableSftpPort(detail ? String(detail.port) : '22');
+        setEnableSftpUsername(detail?.username ?? '');
+        setEnableSftpPassword(detail?.password ?? '');
+        setEnableSftpLoadingDetails(false);
+    };
+
+    const openEditHttpProxyDialog = async (node: TunnelNode) => {
+        setNodeToEnableHttpProxy(node);
+        setEnableHttpProxyMode('update');
+        setEnableHttpProxyError(null);
+        setEnableHttpProxyLoadingDetails(true);
+        setEnableHttpProxyDialogOpen(true);
+
+        const detail = await fetchServiceDetail(node.id, 'http');
+        setEnableHttpProxyHost(detail?.host || '0.0.0.0');
+        setEnableHttpProxyPort(detail ? String(detail.port) : '8080');
+        setEnableHttpProxyUsername(detail?.username ?? '');
+        setEnableHttpProxyPassword(detail?.password ?? '');
+        setEnableHttpProxyVisibility(detail?.visibility ?? 'private');
+        setEnableHttpProxyScheme(detail?.scheme ?? 'http');
+        setEnableHttpProxyLoadingDetails(false);
+    };
+
+    const openEnableSshDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
+        setNodeToEnableSsh(node);
+        setEnableSshMode(mode);
         setEnableSshHost('0.0.0.0');
         setEnableSshPort('22');
         setEnableSshUsername('');
@@ -530,8 +609,9 @@ export default function Nodes() {
         setNodeToDisableSsh(null);
     };
 
-    const openEnableSftpDialog = (node: TunnelNode) => {
+    const openEnableSftpDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
         setNodeToEnableSftp(node);
+        setEnableSftpMode(mode);
         setEnableSftpHost('0.0.0.0');
         setEnableSftpPort('22');
         setEnableSftpUsername('');
@@ -556,8 +636,9 @@ export default function Nodes() {
         setNodeToDisableSftp(null);
     };
 
-    const openEnableHttpProxyDialog = (node: TunnelNode) => {
+    const openEnableHttpProxyDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
         setNodeToEnableHttpProxy(node);
+        setEnableHttpProxyMode(mode);
         setEnableHttpProxyHost('0.0.0.0');
         setEnableHttpProxyPort('8080');
         setEnableHttpProxyUsername('');
@@ -667,6 +748,8 @@ export default function Nodes() {
             const portNum = parseInt(enableSshPort, 10) || 22;
             const username = enableSshUsername || null;
             const password = enableSshPassword || null;
+            const isUpdate = enableSshMode === 'update';
+            const responseType = isUpdate ? 'UpdateServiceResponse' : 'CreateServiceResponse';
 
             await new Promise<void>((resolve, reject) => {
                 let settled = false;
@@ -695,15 +778,19 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.enable_service(nodeId, 'ssh', host, portNum, username, password, null);
+                    if (isUpdate) {
+                        channel.update_service(nodeId, 'ssh', host, portNum, username, password, null);
+                    } else {
+                        channel.create_service(nodeId, 'ssh', host, portNum, username, password, null);
+                    }
                 });
 
-                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                channel.on_protocol_message_type(responseType, (data: { created?: boolean, updated?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.enabled) {
+                    if (data.created || data.updated) {
                         settle(resolve);
                     } else {
-                        settle(() => reject(new Error(data.error ?? 'Server refused to enable SSH service.')));
+                        settle(() => reject(new Error(data.error ?? `Server refused to ${isUpdate ? 'update' : 'enable'} SSH service.`)));
                     }
                     channel.disconnect();
                 });
@@ -722,6 +809,7 @@ export default function Nodes() {
             });
 
             updateSshServiceInNode(nodeId, true);
+            toast.success(isUpdate ? 'SSH service updated' : 'SSH service created');
             closeEnableSshDialog();
         } catch (err) {
             setEnableSshError(err instanceof Error ? err.message : 'Failed to enable SSH.');
@@ -787,12 +875,12 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.disable_service(nodeId, 'ssh', host, portNum, username, password, null);
+                    channel.delete_service(nodeId, 'ssh', host, portNum, username, password, null);
                 });
 
-                channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
+                channel.on_protocol_message_type('DeleteServiceResponse', (data: { deleted?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.disabled === true || data.enabled === false) {
+                    if (data.deleted === true) {
                         settle(resolve);
                     } else {
                         settle(() => reject(new Error(data.error ?? 'Server refused to disable SSH service.')));
@@ -814,6 +902,7 @@ export default function Nodes() {
             });
 
             updateSshServiceInNode(nodeId, false);
+            toast.success('SSH service deleted');
             closeDisableSshDialog();
         } catch (err) {
             setDisableSshError(err instanceof Error ? err.message : 'Failed to disable SSH.');
@@ -851,6 +940,8 @@ export default function Nodes() {
             const portNum = parseInt(enableSftpPort, 10) || 22;
             const username = enableSftpUsername || null;
             const password = enableSftpPassword || null;
+            const isUpdate = enableSftpMode === 'update';
+            const responseType = isUpdate ? 'UpdateServiceResponse' : 'CreateServiceResponse';
 
             await new Promise<void>((resolve, reject) => {
                 let settled = false;
@@ -879,15 +970,19 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.enable_service(nodeId, 'sftp', host, portNum, username, password, null);
+                    if (isUpdate) {
+                        channel.update_service(nodeId, 'sftp', host, portNum, username, password, null);
+                    } else {
+                        channel.create_service(nodeId, 'sftp', host, portNum, username, password, null);
+                    }
                 });
 
-                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                channel.on_protocol_message_type(responseType, (data: { created?: boolean, updated?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.enabled) {
+                    if (data.created || data.updated) {
                         settle(resolve);
                     } else {
-                        settle(() => reject(new Error(data.error ?? 'Server refused to enable SFTP service.')));
+                        settle(() => reject(new Error(data.error ?? `Server refused to ${isUpdate ? 'update' : 'enable'} SFTP service.`)));
                     }
                     channel.disconnect();
                 });
@@ -906,6 +1001,7 @@ export default function Nodes() {
             });
 
             updateSftpServiceInNode(nodeId, true);
+            toast.success(isUpdate ? 'SFTP service updated' : 'SFTP service created');
             closeEnableSftpDialog();
         } catch (err) {
             setEnableSftpError(err instanceof Error ? err.message : 'Failed to enable SFTP.');
@@ -971,12 +1067,12 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.disable_service(nodeId, 'sftp', host, portNum, username, password, null);
+                    channel.delete_service(nodeId, 'sftp', host, portNum, username, password, null);
                 });
 
-                channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
+                channel.on_protocol_message_type('DeleteServiceResponse', (data: { deleted?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.disabled === true || data.enabled === false) {
+                    if (data.deleted === true) {
                         settle(resolve);
                     } else {
                         settle(() => reject(new Error(data.error ?? 'Server refused to disable SFTP service.')));
@@ -998,6 +1094,7 @@ export default function Nodes() {
             });
 
             updateSftpServiceInNode(nodeId, false);
+            toast.success('SFTP service deleted');
             closeDisableSftpDialog();
         } catch (err) {
             setDisableSftpError(err instanceof Error ? err.message : 'Failed to disable SFTP.');
@@ -1035,6 +1132,8 @@ export default function Nodes() {
             const portNum = parseInt(enableHttpProxyPort, 10) || 8080;
             const username = enableHttpProxyUsername || null;
             const password = enableHttpProxyPassword || null;
+            const isUpdate = enableHttpProxyMode === 'update';
+            const responseType = isUpdate ? 'UpdateServiceResponse' : 'CreateServiceResponse';
 
             await new Promise<void>((resolve, reject) => {
                 let settled = false;
@@ -1063,15 +1162,19 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.enable_service(nodeId, 'http', host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
+                    if (isUpdate) {
+                        channel.update_service(nodeId, 'http', host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
+                    } else {
+                        channel.create_service(nodeId, 'http', host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
+                    }
                 });
 
-                channel.on_protocol_message_type('EnableServiceResponse', (data: { enabled: boolean, error?: string }) => {
+                channel.on_protocol_message_type(responseType, (data: { created?: boolean, updated?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.enabled) {
+                    if (data.created || data.updated) {
                         settle(resolve);
                     } else {
-                        settle(() => reject(new Error(data.error ?? 'Server refused to enable HTTP service.')));
+                        settle(() => reject(new Error(data.error ?? `Server refused to ${isUpdate ? 'update' : 'enable'} HTTP service.`)));
                     }
                     channel.disconnect();
                 });
@@ -1090,6 +1193,7 @@ export default function Nodes() {
             });
 
             updateHttpProxyServiceInNode(nodeId, true, enableHttpProxyVisibility);
+            toast.success(isUpdate ? 'HTTP service updated' : 'HTTP service created');
             closeEnableHttpProxyDialog();
         } catch (err) {
             setEnableHttpProxyError(err instanceof Error ? err.message : 'Failed to enable HTTP.');
@@ -1155,12 +1259,12 @@ export default function Nodes() {
                 });
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
-                    channel.disable_service(nodeId, 'http', host, portNum, username, password, null);
+                    channel.delete_service(nodeId, 'http', host, portNum, username, password, null);
                 });
 
-                channel.on_protocol_message_type('DisableServiceResponse', (data: { disabled?: boolean, enabled?: boolean, error?: string }) => {
+                channel.on_protocol_message_type('DeleteServiceResponse', (data: { deleted?: boolean, error?: string }) => {
                     clearTimeout(timeoutId);
-                    if (data.disabled === true || data.enabled === false) {
+                    if (data.deleted === true) {
                         settle(resolve);
                     } else {
                         settle(() => reject(new Error(data.error ?? 'Server refused to disable HTTP service.')));
@@ -1182,6 +1286,7 @@ export default function Nodes() {
             });
 
             updateHttpProxyServiceInNode(nodeId, false);
+            toast.success('HTTP service deleted');
             closeDisableHttpProxyDialog();
         } catch (err) {
             setDisableHttpProxyError(err instanceof Error ? err.message : 'Failed to disable HTTP.');
@@ -1311,10 +1416,13 @@ export default function Nodes() {
                                 onDelete={handleDeleteNode}
                                 onEnableSsh={() => openEnableSshDialog(node)}
                                 onDisableSsh={() => openDisableSshDialog(node)}
+                                onEditSsh={() => void openEditSshDialog(node)}
                                 onEnableSftp={() => openEnableSftpDialog(node)}
                                 onDisableSftp={() => openDisableSftpDialog(node)}
+                                onEditSftp={() => void openEditSftpDialog(node)}
                                 onEnableHttpProxy={() => openEnableHttpProxyDialog(node)}
                                 onDisableHttpProxy={() => openDisableHttpProxyDialog(node)}
+                                onEditHttpProxy={() => void openEditHttpProxyDialog(node)}
                             />
                         ))}
                     </div>
@@ -1333,12 +1441,15 @@ export default function Nodes() {
                     >
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Enable SSH</DialogTitle>
+                                <DialogTitle>{enableSshMode === 'update' ? 'Edit SSH' : 'Enable SSH'}</DialogTitle>
                                 <DialogDescription>
                                     Configure SSH settings for {nodeToEnableSsh?.name ?? 'this node'}.
                                 </DialogDescription>
                             </DialogHeader>
 
+                            {enableSshLoadingDetails ? (
+                                <p className="text-sm text-muted-foreground">Loading current settings...</p>
+                            ) : (
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
@@ -1394,10 +1505,13 @@ export default function Nodes() {
                                         Cancel
                                     </Button>
                                     <Button type="submit" disabled={enableSshSubmitting}>
-                                        {enableSshSubmitting ? 'Enabling...' : 'Enable SSH'}
+                                        {enableSshSubmitting
+                                            ? (enableSshMode === 'update' ? 'Saving...' : 'Enabling...')
+                                            : (enableSshMode === 'update' ? 'Save' : 'Enable SSH')}
                                     </Button>
                                 </DialogFooter>
                             </form>
+                            )}
                         </DialogContent>
                     </Dialog>
 
@@ -1453,12 +1567,15 @@ export default function Nodes() {
                     >
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Enable SFTP</DialogTitle>
+                                <DialogTitle>{enableSftpMode === 'update' ? 'Edit SFTP' : 'Enable SFTP'}</DialogTitle>
                                 <DialogDescription>
                                     Configure SFTP settings for {nodeToEnableSftp?.name ?? 'this node'}.
                                 </DialogDescription>
                             </DialogHeader>
 
+                            {enableSftpLoadingDetails ? (
+                                <p className="text-sm text-muted-foreground">Loading current settings...</p>
+                            ) : (
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
@@ -1514,10 +1631,13 @@ export default function Nodes() {
                                         Cancel
                                     </Button>
                                     <Button type="submit" disabled={enableSftpSubmitting}>
-                                        {enableSftpSubmitting ? 'Enabling...' : 'Enable SFTP'}
+                                        {enableSftpSubmitting
+                                            ? (enableSftpMode === 'update' ? 'Saving...' : 'Enabling...')
+                                            : (enableSftpMode === 'update' ? 'Save' : 'Enable SFTP')}
                                     </Button>
                                 </DialogFooter>
                             </form>
+                            )}
                         </DialogContent>
                     </Dialog>
 
@@ -1573,12 +1693,15 @@ export default function Nodes() {
                     >
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Enable HTTP</DialogTitle>
+                                <DialogTitle>{enableHttpProxyMode === 'update' ? 'Edit HTTP' : 'Enable HTTP'}</DialogTitle>
                                 <DialogDescription>
                                     Configure HTTP settings for {nodeToEnableHttpProxy?.name ?? 'this node'}.
                                 </DialogDescription>
                             </DialogHeader>
 
+                            {enableHttpProxyLoadingDetails ? (
+                                <p className="text-sm text-muted-foreground">Loading current settings...</p>
+                            ) : (
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
@@ -1683,10 +1806,13 @@ export default function Nodes() {
                                         Cancel
                                     </Button>
                                     <Button type="submit" disabled={enableHttpProxySubmitting}>
-                                        {enableHttpProxySubmitting ? 'Enabling...' : 'Enable HTTP'}
+                                        {enableHttpProxySubmitting
+                                            ? (enableHttpProxyMode === 'update' ? 'Saving...' : 'Enabling...')
+                                            : (enableHttpProxyMode === 'update' ? 'Save' : 'Enable HTTP')}
                                     </Button>
                                 </DialogFooter>
                             </form>
+                            )}
                         </DialogContent>
                     </Dialog>
 

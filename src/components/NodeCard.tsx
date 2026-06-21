@@ -33,6 +33,21 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+const MIN_COMPATIBLE_AGENT_VERSION = '0.1.278';
+
+function compareVersions(a: string, b: string): number {
+    const partsA = a.split('.').map((part) => parseInt(part, 10) || 0);
+    const partsB = b.split('.').map((part) => parseInt(part, 10) || 0);
+    const length = Math.max(partsA.length, partsB.length);
+
+    for (let i = 0; i < length; i++) {
+        const diff = (partsA[i] ?? 0) - (partsB[i] ?? 0);
+        if (diff !== 0) return diff;
+    }
+
+    return 0;
+}
+
 interface NodeCardProps {
     node: TunnelNode;
     onCreateTunnel: (node: TunnelNode) => void;
@@ -47,10 +62,13 @@ interface NodeCardProps {
     onDelete?: (node: TunnelNode) => void;
     onEnableSsh?: () => void;
     onDisableSsh?: () => void;
+    onEditSsh?: () => void;
     onEnableSftp?: () => void;
     onDisableSftp?: () => void;
+    onEditSftp?: () => void;
     onEnableHttpProxy?: () => void;
     onDisableHttpProxy?: () => void;
+    onEditHttpProxy?: () => void;
     isShared?: boolean;
     sharedBy?: string;
     // True while the node's data may be stale (e.g. rendered from a local cache before
@@ -75,10 +93,13 @@ export function NodeCard({
     onDelete,
     onEnableSsh,
     onDisableSsh,
+    onEditSsh,
     onEnableSftp,
     onDisableSftp,
+    onEditSftp,
     onEnableHttpProxy,
     onDisableHttpProxy,
+    onEditHttpProxy,
     isShared = false,
     sharedBy,
     actionsDisabled = false,
@@ -113,6 +134,9 @@ export function NodeCard({
     const loadAverageLabel = node.stats.host_load_average.map((value) => value.toFixed(2)).join(' / ');
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
     const nodeVersion = node.stats.version?.trim();
+    const isIncompatible = node.is_online
+        && !!nodeVersion
+        && compareVersions(nodeVersion, MIN_COMPATIBLE_AGENT_VERSION) < 0;
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
     const displayLocalIp = (node.stats.host_local_ip || '').trim();
     const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
@@ -188,6 +212,12 @@ export function NodeCard({
         else onDisableHttpProxy?.();
     };
 
+    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+        if (kind === 'SSH') onEditSsh?.();
+        else if (kind === 'SFTP') onEditSftp?.();
+        else onEditHttpProxy?.();
+    };
+
     return (
         <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
             {/* Main Card */}
@@ -198,13 +228,18 @@ export function NodeCard({
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     'border-border',
                     'transition-transform duration-300',
-                    !node.is_online && 'select-none'
+                    (!node.is_online || isIncompatible) && 'select-none'
                 )}
             >
-                {!node.is_online && (
+                {(!node.is_online || isIncompatible) && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
-                        <div className="flex items-center gap-2 rounded-full border border-orange-400/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-orange-500 shadow-sm select-none">
-                            <span>Offline</span>
+                        <div className={cn(
+                            'flex items-center gap-2 rounded-full border bg-card/90 px-3 py-1.5 text-sm font-medium shadow-sm select-none',
+                            isIncompatible
+                                ? 'border-orange-400/35 text-orange-500'
+                                : 'border-red-400/35 text-red-500'
+                        )}>
+                            <span>{isIncompatible ? 'Incompatible' : 'Offline'}</span>
                         </div>
                     </div>
                 )}
@@ -247,9 +282,11 @@ export function NodeCard({
                                                     <span className="text-xs uppercase tracking-wider text-muted-foreground">Node actions</span>
                                                     <span className={cn(
                                                         'text-[11px] font-medium',
-                                                        node.is_online ? 'text-emerald-500' : 'text-orange-500'
+                                                        isIncompatible
+                                                            ? 'text-orange-500'
+                                                            : node.is_online ? 'text-emerald-500' : 'text-red-500'
                                                     )}>
-                                                        {node.is_online ? 'Online' : 'Offline'}
+                                                        {isIncompatible ? 'Incompatible' : node.is_online ? 'Online' : 'Offline'}
                                                     </span>
                                                 </div>
                                             </DropdownMenuLabel>
@@ -489,10 +526,8 @@ export function NodeCard({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    disabled
-                                    className="disabled:opacity-25"
-                                    title="Editing a service isn't supported yet"
                                     aria-label={`Edit ${serviceInstanceLabel(serviceInstancePicker.kind)} #${instance.index}`}
+                                    onClick={() => selectServiceInstance(() => triggerEditService(serviceInstancePicker.kind))}
                                 >
                                     <Pencil className="w-4 h-4" />
                                 </Button>
