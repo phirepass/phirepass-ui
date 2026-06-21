@@ -502,7 +502,12 @@ export default function Nodes() {
 
     const normalizeServiceKind = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
 
-    const upsertServiceCount = (services: Record<string, number>, kind: string, isEnabled: boolean) => {
+    const upsertServiceCount = (
+        services: TunnelNode['services'],
+        kind: string,
+        isEnabled: boolean,
+        visibility?: 'public' | 'private'
+    ) => {
         const existingKey = Object.keys(services).find((service) => normalizeServiceKind(service) === kind);
 
         if (!isEnabled) {
@@ -517,13 +522,13 @@ export default function Nodes() {
             return services;
         }
 
-        return { ...services, [kind]: 1 };
+        return { ...services, [kind]: visibility ? { visibility, count: 1 } : 1 };
     };
 
-    const updateServiceInNode = (nodeId: string, kind: string, isEnabled: boolean) => {
+    const updateServiceInNode = (nodeId: string, kind: string, isEnabled: boolean, visibility?: 'public' | 'private') => {
         const updateNodeServices = (entry: TunnelNode) => (
             entry.id === nodeId
-                ? { ...entry, services: upsertServiceCount(entry.services ?? {}, kind, isEnabled) }
+                ? { ...entry, services: upsertServiceCount(entry.services ?? {}, kind, isEnabled, visibility) }
                 : entry
         );
 
@@ -534,7 +539,8 @@ export default function Nodes() {
 
     const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SSH', isEnabled);
     const updateSftpServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SFTP', isEnabled);
-    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'HTTP', isEnabled);
+    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean, visibility?: 'public' | 'private') =>
+        updateServiceInNode(nodeId, 'HTTP', isEnabled, visibility);
 
     const submitEnableSsh = async () => {
         if (!nodeToEnableSsh) return;
@@ -987,7 +993,7 @@ export default function Nodes() {
                 channel.connect();
             });
 
-            updateHttpProxyServiceInNode(nodeId, true);
+            updateHttpProxyServiceInNode(nodeId, true, enableHttpProxyVisibility);
             closeEnableHttpProxyDialog();
         } catch (err) {
             setEnableHttpProxyError(err instanceof Error ? err.message : 'Failed to enable HTTP.');

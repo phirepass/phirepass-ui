@@ -61,8 +61,11 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
     return [0, 0, 0];
 }
 
-function normalizeServices(value: unknown): Record<string, number> {
+type ServiceSummary = number | { visibility: 'public' | 'private'; count: number };
+
+function normalizeServices(value: unknown): Record<string, ServiceSummary> {
     const counts: Record<string, number> = {};
+    const httpVisibility: Record<string, 'public' | 'private'> = {};
 
     const addKind = (entry: unknown) => {
         if (!entry || typeof entry !== 'object') {
@@ -75,21 +78,36 @@ function normalizeServices(value: unknown): Record<string, number> {
         }
 
         const service = kind.trim();
-        if (service) {
-            counts[service] = (counts[service] ?? 0) + 1;
+        if (!service) {
+            return;
+        }
+
+        counts[service] = (counts[service] ?? 0) + 1;
+
+        if (service.toUpperCase() === 'HTTP') {
+            const visibility = (entry as { visibility?: unknown }).visibility;
+            if (visibility === 'public') {
+                httpVisibility[service] = 'public';
+            } else if (!httpVisibility[service]) {
+                httpVisibility[service] = 'private';
+            }
         }
     };
 
     if (Array.isArray(value)) {
         value.forEach(addKind);
-        return counts;
-    }
-
-    if (value && typeof value === 'object') {
+    } else if (value && typeof value === 'object') {
         Object.values(value as Record<string, unknown>).forEach(addKind);
     }
 
-    return counts;
+    const result: Record<string, ServiceSummary> = {};
+    for (const [service, count] of Object.entries(counts)) {
+        result[service] = service in httpVisibility
+            ? { visibility: httpVisibility[service], count }
+            : count;
+    }
+
+    return result;
 }
 
 function normalizeSettings(value: unknown): NodeSettings {

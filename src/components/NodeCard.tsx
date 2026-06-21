@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import {
     Globe,
+    Lock,
     Terminal,
     FolderOpen,
     Clock,
@@ -109,13 +110,21 @@ export function NodeCard({
     const nodeVersion = node.stats.version?.trim();
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
     const displayLocalIp = (node.stats.host_local_ip || '').trim();
+    const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
+        typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
+    );
     const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
-    const serviceCount = (kind: string) => Object.entries(node.services ?? {})
+    const matchingServices = (kind: string) => Object.entries(node.services ?? {})
         .filter(([service]) => normalizeServiceName(service) === kind)
-        .reduce((sum, [, count]) => sum + count, 0);
+        .map(([, summary]) => toServiceSummary(summary));
+    const serviceCount = (kind: string) => matchingServices(kind)
+        .reduce((sum, summary) => sum + summary.count, 0);
     const hasSsh = serviceCount('SSH') > 0;
     const hasSftp = serviceCount('SFTP') > 0;
     const hasHttpProxy = serviceCount('HTTP') > 0;
+    const httpProxyVisibility = matchingServices('HTTP')
+        .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
+    const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
@@ -225,7 +234,7 @@ export function NodeCard({
                                                     )}
                                                     {hasHttpProxy ? (
                                                         <DropdownMenuItem onClick={onDisableHttpProxy} className="text-orange-500 focus:text-orange-500">
-                                                            <Globe className="mr-2 w-4 h-4" />
+                                                            <HttpProxyIcon className="mr-2 w-4 h-4" />
                                                             Disable HTTP
                                                         </DropdownMenuItem>
                                                     ) : (
@@ -418,7 +427,7 @@ export function NodeCard({
                         onClick={() => window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank')}
                         disabled={!node.is_online || !hasHttpProxy}
                     >
-                        <Globe className="w-4 h-4" />
+                        <HttpProxyIcon className="w-4 h-4" />
                         HTTP
                     </Button>
                 </div>
