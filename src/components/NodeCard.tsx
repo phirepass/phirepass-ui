@@ -162,7 +162,7 @@ export function NodeCard({
                     </div>
                 )}
                 {/* Header */}
-                <div className="flex items-start">
+                <div className="relative z-30 flex items-start">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                         {/* Selection checkbox removed */}
                         <StatusIndicator isOnline={node.is_online} size="md" />
@@ -274,7 +274,7 @@ export function NodeCard({
                             <TooltipTrigger asChild>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs text-muted-foreground font-mono block truncate">
-                                        {node.stats.host_name}
+                                        {node.stats.host_name?.trim() || 'Hostname unavailable'}
                                     </p>
                                 </div>
                             </TooltipTrigger>
