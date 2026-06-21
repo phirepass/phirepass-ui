@@ -28,6 +28,32 @@ import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
+
+const NODES_PER_PAGE = 6;
+
+const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsis')[] => {
+    const range: (number | 'ellipsis')[] = [];
+    const window = new Set([1, pageCount, page - 1, page, page + 1]);
+
+    for (let i = 1; i <= pageCount; i++) {
+        if (window.has(i)) {
+            range.push(i);
+        } else if (range[range.length - 1] !== 'ellipsis') {
+            range.push('ellipsis');
+        }
+    }
+
+    return range;
+};
 
 export default function Nodes() {
     const [nodes, setNodes] = useState<TunnelNode[]>([]);
@@ -35,6 +61,7 @@ export default function Nodes() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [nodesPage, setNodesPage] = useState(1);
     const hasLoadedNodesOnceRef = useRef(false);
 
     // Fetch nodes from same-origin API
@@ -195,6 +222,65 @@ export default function Nodes() {
             if (a.is_online === b.is_online) return 0;
             return a.is_online ? -1 : 1;
         });
+
+    const nodesPageCount = Math.max(1, Math.ceil(filteredNodes.length / NODES_PER_PAGE));
+    const clampedNodesPage = Math.min(nodesPage, nodesPageCount);
+    const pagedNodes = filteredNodes.slice((clampedNodesPage - 1) * NODES_PER_PAGE, clampedNodesPage * NODES_PER_PAGE);
+
+    const renderNodesPager = (page: number, pageCount: number, onPageChange: (page: number) => void) => {
+        if (pageCount <= 1) {
+            return null;
+        }
+
+        return (
+            <Pagination className="justify-end">
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href="#"
+                            aria-disabled={page === 1}
+                            className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (page > 1) onPageChange(page - 1);
+                            }}
+                        />
+                    </PaginationItem>
+                    {getPaginationRange(page, pageCount).map((entry, index) => (
+                        entry === 'ellipsis' ? (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                                <PaginationEllipsis />
+                            </PaginationItem>
+                        ) : (
+                            <PaginationItem key={entry}>
+                                <PaginationLink
+                                    href="#"
+                                    isActive={entry === page}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onPageChange(entry);
+                                    }}
+                                >
+                                    {entry}
+                                </PaginationLink>
+                            </PaginationItem>
+                        )
+                    ))}
+                    <PaginationItem>
+                        <PaginationNext
+                            href="#"
+                            aria-disabled={page === pageCount}
+                            className={page === pageCount ? 'pointer-events-none opacity-50' : undefined}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (page < pageCount) onPageChange(page + 1);
+                            }}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+        );
+    };
 
     const handleCreateTunnel = (node: TunnelNode) => {
         setSelectedTunnelNode({ ...node });
@@ -1182,7 +1268,7 @@ export default function Nodes() {
                                 type="text"
                                 placeholder="Search nodes..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => { setSearchQuery(e.target.value); setNodesPage(1); }}
                                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                             />
                         </div>
@@ -1201,7 +1287,7 @@ export default function Nodes() {
                                 : 'flex flex-col gap-3'
                         )}
                     >
-                        {filteredNodes.map((node) => (
+                        {pagedNodes.map((node) => (
                             <NodeCard
                                 key={node.id}
                                 node={node}
@@ -1221,6 +1307,8 @@ export default function Nodes() {
                             />
                         ))}
                     </div>
+
+                    {renderNodesPager(clampedNodesPage, nodesPageCount, setNodesPage)}
 
                     <Dialog
                         open={enableSshDialogOpen}

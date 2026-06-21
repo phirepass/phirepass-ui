@@ -58,7 +58,7 @@ import {
     PaginationPrevious,
 } from '@/components/ui/pagination';
 
-const TOKENS_PER_PAGE = 5;
+const TOKENS_PER_PAGE = 6;
 
 const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsis')[] => {
     const range: (number | 'ellipsis')[] = [];
