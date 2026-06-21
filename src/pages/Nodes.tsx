@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
+import { getCachedNodes, setCachedNodes } from '@/lib/nodesCache';
 import {
     Pagination,
     PaginationContent,
@@ -56,13 +57,18 @@ const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsi
 };
 
 export default function Nodes() {
-    const [nodes, setNodes] = useState<TunnelNode[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [initialCachedNodes] = useState(() => getCachedNodes());
+    const [nodes, setNodes] = useState<TunnelNode[]>(() => initialCachedNodes ?? []);
+    const [loading, setLoading] = useState(() => initialCachedNodes === null);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [nodesPage, setNodesPage] = useState(1);
-    const hasLoadedNodesOnceRef = useRef(false);
+    // True once we have a live /api/nodes response for this page load. Nodes rendered
+    // from the localStorage cache may be stale, so their action buttons stay disabled
+    // until the first real response confirms current state.
+    const [nodesFresh, setNodesFresh] = useState(initialCachedNodes === null);
+    const hasLoadedNodesOnceRef = useRef(initialCachedNodes !== null);
 
     // Fetch nodes from same-origin API
     useEffect(() => {
@@ -95,9 +101,11 @@ export default function Nodes() {
                             merged.push(node);
                         }
                     }
+                    setCachedNodes(merged);
                     return merged;
                 });
                 setError(null);
+                setNodesFresh(true);
                 hasLoadedNodesOnceRef.current = true;
             } catch (err) {
                 if (isDisposed) {
@@ -118,7 +126,9 @@ export default function Nodes() {
             }
         };
 
-        void fetchNodes(true);
+        // Skip the loading spinner on the very first fetch if we already have cached
+        // nodes to show instantly; the request still runs to refresh them in the background.
+        void fetchNodes(initialCachedNodes === null);
 
         const intervalId = window.setInterval(() => {
             void fetchNodes(false);
@@ -1291,6 +1301,7 @@ export default function Nodes() {
                             <NodeCard
                                 key={node.id}
                                 node={node}
+                                actionsDisabled={!nodesFresh}
                                 onCreateTunnel={handleCreateTunnel}
                                 onOpenFiles={handleOpenFiles}
                                 onRefreshStats={handleRefreshStats}

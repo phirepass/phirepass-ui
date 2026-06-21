@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { ReactNode } from "react";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
+import { clearCachedNodes } from "@/lib/nodesCache";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
         } catch { /* empty */ }
         setCachedProfile(null);
+        clearCachedNodes();
         toast({
             title: "Logged out",
             description: "You have been successfully logged out",

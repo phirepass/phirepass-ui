@@ -53,6 +53,10 @@ interface NodeCardProps {
     onDisableHttpProxy?: () => void;
     isShared?: boolean;
     sharedBy?: string;
+    // True while the node's data may be stale (e.g. rendered from a local cache before
+    // the first live API response of this page load). Keeps the action buttons from
+    // acting on possibly-outdated service state.
+    actionsDisabled?: boolean;
 }
 
 import { useState } from 'react';
@@ -77,6 +81,7 @@ export function NodeCard({
     onDisableHttpProxy,
     isShared = false,
     sharedBy,
+    actionsDisabled = false,
 }: NodeCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
 
@@ -417,6 +422,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('SSH')}
+                        disabled={actionsDisabled}
                     >
                         <Terminal className="w-4 h-4" />
                         Console{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
@@ -426,6 +432,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('SFTP')}
+                        disabled={actionsDisabled}
                     >
                         <FolderOpen className="w-4 h-4" />
                         Files{serviceCount('SFTP') > 0 ? <span className="font-mono"> [{serviceCount('SFTP')}]</span> : ''}
@@ -435,6 +442,7 @@ export function NodeCard({
                         size="sm"
                         className="flex-1 shrink-0 whitespace-nowrap snap-start"
                         onClick={() => runOrPickInstance('HTTP')}
+                        disabled={actionsDisabled}
                     >
                         <HttpProxyIcon className="w-4 h-4" />
                         HTTP{serviceCount('HTTP') > 0 ? <span className="font-mono"> [{serviceCount('HTTP')}]</span> : ''}
