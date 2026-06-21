@@ -210,9 +210,17 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
     }
 
     const entries = new Map<string, { stats: NodeStatsPayload }>();
+    if (keys.length === 0) {
+        return entries;
+    }
 
-    for (const key of keys) {
-        const node = await redis.hGetAll(key);
+    // Pipeline all hash reads into a single round trip instead of awaiting them one by one.
+    const pipeline = keys.reduce((multi, key) => multi.hGetAll(key), redis.multi());
+    const results = await pipeline.exec() as unknown as Record<string, string>[];
+
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        const node = results[i];
         if (!node) continue;
         if (Object.keys(node).length === 0) continue;
 
@@ -229,7 +237,7 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
             }
         } catch (e) {
             console.warn(`[getUserNodeStats] Failed to parse stats for key ${key}:`, e);
-        }        
+        }
     }
 
     return entries;

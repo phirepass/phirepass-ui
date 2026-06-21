@@ -171,7 +171,10 @@ export async function getVerifiedAuthToken(): Promise<string> {
 }
 
 export async function verifyToken(): Promise<UserInfo> {
-    const token = await getVerifiedAuthToken();
+    const cookieStore = await cookies();
+    const token = cookieStore.get("phirepass_auth_token")?.value;
+    if (!token) throw new Error("Token not found");
+
     const payload = verifyJWT(token);
     if (!payload || !hasSub(payload)) throw new Error("Invalid token payload");
 

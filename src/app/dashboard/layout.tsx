@@ -5,24 +5,31 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { ReactNode } from "react";
+import { getCachedProfile, setCachedProfile } from "./profile-cache";
 
 export const dynamic = "force-dynamic";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
     const router = useRouter();
     const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const cachedProfile = getCachedProfile();
+    const [isLoading, setIsLoading] = useState(!cachedProfile);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!cachedProfile);
 
     // User state fetched from API
     const [user, setUser] = useState<{
         name: string | null;
         email: string | null;
         avatar: string | null;
-    } | null>(null);
+    } | null>(cachedProfile);
 
-    // Fetch user profile from API using HttpOnly cookies (auth + GitHub token)
+    // Fetch user profile from API using HttpOnly cookies (auth + GitHub token).
+    // Skipped if already cached from a previous mount of this layout in this session.
     useEffect(() => {
+        if (getCachedProfile()) {
+            return;
+        }
+
         const load = async () => {
             try {
                 const res = await fetch('/api/profile', { credentials: 'include' });
@@ -33,6 +40,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         email: data.email || null,
                         avatar: data.avatar_url || null,
                     };
+                    setCachedProfile(userInfo);
                     setUser(userInfo);
                     setIsAuthenticated(true);
                     setIsLoading(false);
@@ -71,6 +79,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         try {
             await fetch('/api/logout', { method: 'POST', credentials: 'include' });
         } catch { /* empty */ }
+        setCachedProfile(null);
         toast({
             title: "Logged out",
             description: "You have been successfully logged out",
