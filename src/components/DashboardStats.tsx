@@ -15,10 +15,12 @@ const serviceCount = (summary: TunnelNode['services'][string]): number => {
 export function DashboardStats({ nodes }: DashboardStatsProps) {
     const online = nodes.filter((n) => n.is_online).length;
     const offline = nodes.length - online;
-    const activeServices = nodes.reduce(
-        (sum, node) => sum + Object.values(node.services).reduce<number>((s, summary) => s + serviceCount(summary), 0),
-        0
-    );
+    const activeServices = nodes
+        .filter((node) => node.is_online)
+        .reduce(
+            (sum, node) => sum + Object.values(node.services).reduce<number>((s, summary) => s + serviceCount(summary), 0),
+            0
+        );
 
     const stats = [
         {

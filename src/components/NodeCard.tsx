@@ -11,7 +11,6 @@ import {
     Terminal,
     FolderOpen,
     Clock,
-    Wifi,
     Activity,
     Cpu,
     Users,
@@ -19,6 +18,7 @@ import {
     MoreVertical,
     Pencil,
     Trash2,
+    Plus,
     Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -119,9 +119,6 @@ export function NodeCard({
         .map(([, summary]) => toServiceSummary(summary));
     const serviceCount = (kind: string) => matchingServices(kind)
         .reduce((sum, summary) => sum + summary.count, 0);
-    const hasSsh = serviceCount('SSH') > 0;
-    const hasSftp = serviceCount('SFTP') > 0;
-    const hasHttpProxy = serviceCount('HTTP') > 0;
     const httpProxyVisibility = matchingServices('HTTP')
         .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
     const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
@@ -132,6 +129,59 @@ export function NodeCard({
     const [sshPort, setSshPort] = useState('22');
     const [sshUsername, setSshUsername] = useState('');
     const [sshPassword, setSshPassword] = useState('');
+
+    // Service instance picker — always shown when connecting/opening a service,
+    // listing every instance of that kind. The backend currently only supports a
+    // single instance per kind per node, so today this always lists exactly one
+    // entry, but the data shape (visibility per instance) is wired up for when
+    // multi-instance services land.
+    type ServiceInstance = { index: number; visibility?: 'public' | 'private' };
+    const [serviceInstancePicker, setServiceInstancePicker] = useState<{
+        kind: 'SSH' | 'SFTP' | 'HTTP';
+        instances: ServiceInstance[];
+    } | null>(null);
+
+    const getServiceInstances = (kind: string): ServiceInstance[] => {
+        const instances: ServiceInstance[] = [];
+        for (const summary of matchingServices(kind)) {
+            for (let i = 0; i < summary.count; i++) {
+                instances.push({ index: instances.length + 1, visibility: summary.visibility });
+            }
+        }
+        return instances;
+    };
+
+    const runOrPickInstance = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+        setServiceInstancePicker({ kind, instances: getServiceInstances(kind) });
+    };
+
+    const selectServiceInstance = (action: () => void) => {
+        setServiceInstancePicker(null);
+        action();
+    };
+
+    const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP') => (
+        kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : 'HTTP service'
+    );
+
+    // Same icon as the Console/Files/HTTP action buttons; for HTTP it follows this
+    // specific instance's visibility (Globe for public, Lock for private), same as
+    // the aggregate HttpProxyIcon does for the card-level button.
+    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP', instance: ServiceInstance) => (
+        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : (instance.visibility === 'public' ? Globe : Lock)
+    );
+
+    const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+        if (kind === 'SSH') onEnableSsh?.();
+        else if (kind === 'SFTP') onEnableSftp?.();
+        else onEnableHttpProxy?.();
+    };
+
+    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+        if (kind === 'SSH') onDisableSsh?.();
+        else if (kind === 'SFTP') onDisableSftp?.();
+        else onDisableHttpProxy?.();
+    };
 
     return (
         <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
@@ -207,44 +257,6 @@ export function NodeCard({
                                                 <Pencil className="mr-2 w-4 h-4" />
                                                 Rename Node
                                             </DropdownMenuItem>
-                                            {node.is_online ? (
-                                                <>
-                                                    <DropdownMenuSeparator />
-                                                    {hasSsh ? (
-                                                        <DropdownMenuItem onClick={onDisableSsh} className="text-orange-500 focus:text-orange-500">
-                                                            <Wifi className="mr-2 w-4 h-4" />
-                                                            Disable SSH
-                                                        </DropdownMenuItem>
-                                                    ) : (
-                                                        <DropdownMenuItem onClick={onEnableSsh}>
-                                                            <Wifi className="mr-2 w-4 h-4" />
-                                                            Enable SSH
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {hasSftp ? (
-                                                        <DropdownMenuItem onClick={onDisableSftp} className="text-orange-500 focus:text-orange-500">
-                                                            <FolderOpen className="mr-2 w-4 h-4" />
-                                                            Disable SFTP
-                                                        </DropdownMenuItem>
-                                                    ) : (
-                                                        <DropdownMenuItem onClick={onEnableSftp}>
-                                                            <FolderOpen className="mr-2 w-4 h-4" />
-                                                            Enable SFTP
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    {hasHttpProxy ? (
-                                                        <DropdownMenuItem onClick={onDisableHttpProxy} className="text-orange-500 focus:text-orange-500">
-                                                            <HttpProxyIcon className="mr-2 w-4 h-4" />
-                                                            Disable HTTP
-                                                        </DropdownMenuItem>
-                                                    ) : (
-                                                        <DropdownMenuItem onClick={onEnableHttpProxy}>
-                                                            <Globe className="mr-2 w-4 h-4" />
-                                                            Enable HTTP
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </>
-                                            ) : null}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 onClick={() => onDelete?.(node)}
@@ -403,35 +415,104 @@ export function NodeCard({
                     <Button
                         variant="default"
                         size="sm"
-                        className="flex-1 disabled:opacity-15"
-                        onClick={() => onCreateTunnel(node)}
-                        disabled={!node.is_online || !hasSsh}
+                        className="flex-1"
+                        onClick={() => runOrPickInstance('SSH')}
                     >
                         <Terminal className="w-4 h-4" />
-                        Connect
+                        Console{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 disabled:opacity-15"
-                        onClick={() => onOpenFiles(node)}
-                        disabled={!node.is_online || !hasSftp}
+                        className="flex-1"
+                        onClick={() => runOrPickInstance('SFTP')}
                     >
                         <FolderOpen className="w-4 h-4" />
-                        Files
+                        Files{serviceCount('SFTP') > 0 ? <span className="font-mono"> [{serviceCount('SFTP')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 disabled:opacity-15"
-                        onClick={() => window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank')}
-                        disabled={!node.is_online || !hasHttpProxy}
+                        className="flex-1"
+                        onClick={() => runOrPickInstance('HTTP')}
                     >
                         <HttpProxyIcon className="w-4 h-4" />
-                        HTTP
+                        HTTP{serviceCount('HTTP') > 0 ? <span className="font-mono"> [{serviceCount('HTTP')}]</span> : ''}
                     </Button>
                 </div>
             </div>
+
+            {/* Service instance picker */}
+            <Dialog open={!!serviceInstancePicker} onOpenChange={(open) => !open && setServiceInstancePicker(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {serviceInstancePicker ? `Select ${serviceInstanceLabel(serviceInstancePicker.kind)}` : ''}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        {serviceInstancePicker && serviceInstancePicker.instances.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                No {serviceInstanceLabel(serviceInstancePicker.kind)} configured yet.
+                            </p>
+                        ) : null}
+                        {serviceInstancePicker?.instances.map((instance) => {
+                            const InstanceIcon = serviceInstanceIcon(serviceInstancePicker.kind, instance);
+                            return (
+                            <div key={instance.index} className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 justify-between"
+                                    onClick={() => selectServiceInstance(() => {
+                                        const kind = serviceInstancePicker.kind;
+                                        if (kind === 'SSH') onCreateTunnel(node);
+                                        else if (kind === 'SFTP') onOpenFiles(node);
+                                        else window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank');
+                                    })}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <InstanceIcon className="w-4 h-4" />
+                                        {serviceInstanceLabel(serviceInstancePicker.kind)} #{instance.index}
+                                    </span>
+                                    {instance.visibility ? (
+                                        <span className="text-xs text-muted-foreground capitalize">{instance.visibility}</span>
+                                    ) : null}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled
+                                    className="disabled:opacity-25"
+                                    title="Editing a service isn't supported yet"
+                                    aria-label={`Edit ${serviceInstanceLabel(serviceInstancePicker.kind)} #${instance.index}`}
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    aria-label={`Delete ${serviceInstanceLabel(serviceInstancePicker.kind)} #${instance.index}`}
+                                    onClick={() => selectServiceInstance(() => triggerDisableService(serviceInstancePicker.kind))}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+                            );
+                        })}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            className="w-full gap-2"
+                            onClick={() => selectServiceInstance(() => triggerEnableService(serviceInstancePicker!.kind))}
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add {serviceInstancePicker ? serviceInstanceLabel(serviceInstancePicker.kind) : ''}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
