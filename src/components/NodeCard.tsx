@@ -109,11 +109,13 @@ export function NodeCard({
     const nodeVersion = node.stats.version?.trim();
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
     const displayLocalIp = (node.stats.host_local_ip || '').trim();
-    const nodeServices = (node.services ?? []).filter((service) => service.trim().length > 0);
     const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
-    const hasSsh = nodeServices.some((service) => normalizeServiceName(service) === 'SSH');
-    const hasSftp = nodeServices.some((service) => normalizeServiceName(service) === 'SFTP');
-    const hasHttpProxy = nodeServices.some((service) => normalizeServiceName(service) === 'HTTP');
+    const serviceCount = (kind: string) => Object.entries(node.services ?? {})
+        .filter(([service]) => normalizeServiceName(service) === kind)
+        .reduce((sum, [, count]) => sum + count, 0);
+    const hasSsh = serviceCount('SSH') > 0;
+    const hasSftp = serviceCount('SFTP') > 0;
+    const hasHttpProxy = serviceCount('HTTP') > 0;
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);

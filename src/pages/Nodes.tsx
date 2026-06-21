@@ -500,20 +500,30 @@ export default function Nodes() {
         return `${protocol}//${host}:${port}/api/web/ws`;
     };
 
-    const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => {
-        const upsertSshService = (services: string[]) => {
-            const hasSsh = services.some((service) => service.toUpperCase() === 'SSH');
+    const normalizeServiceKind = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
 
-            if (isEnabled) {
-                return hasSsh ? services : [...services, 'SSH'];
+    const upsertServiceCount = (services: Record<string, number>, kind: string, isEnabled: boolean) => {
+        const existingKey = Object.keys(services).find((service) => normalizeServiceKind(service) === kind);
+
+        if (!isEnabled) {
+            if (!existingKey) {
+                return services;
             }
+            const { [existingKey]: _removed, ...rest } = services;
+            return rest;
+        }
 
-            return services.filter((service) => service.toUpperCase() !== 'SSH');
-        };
+        if (existingKey) {
+            return services;
+        }
 
+        return { ...services, [kind]: 1 };
+    };
+
+    const updateServiceInNode = (nodeId: string, kind: string, isEnabled: boolean) => {
         const updateNodeServices = (entry: TunnelNode) => (
             entry.id === nodeId
-                ? { ...entry, services: upsertSshService(entry.services ?? []) }
+                ? { ...entry, services: upsertServiceCount(entry.services ?? {}, kind, isEnabled) }
                 : entry
         );
 
@@ -522,49 +532,9 @@ export default function Nodes() {
         setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
     };
 
-    const updateSftpServiceInNode = (nodeId: string, isEnabled: boolean) => {
-        const upsertSftpService = (services: string[]) => {
-            const hasSftp = services.some((service) => service.toUpperCase() === 'SFTP');
-
-            if (isEnabled) {
-                return hasSftp ? services : [...services, 'SFTP'];
-            }
-
-            return services.filter((service) => service.toUpperCase() !== 'SFTP');
-        };
-
-        const updateNodeServices = (entry: TunnelNode) => (
-            entry.id === nodeId
-                ? { ...entry, services: upsertSftpService(entry.services ?? []) }
-                : entry
-        );
-
-        setNodes((prev) => prev.map(updateNodeServices));
-        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
-        setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
-    };
-
-    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean) => {
-        const upsertHttpProxyService = (services: string[]) => {
-            const hasHttpProxy = services.some((service) => service.trim().toUpperCase().replace(/[\s_-]+/g, '') === 'HTTP');
-
-            if (isEnabled) {
-                return hasHttpProxy ? services : [...services, 'HTTP'];
-            }
-
-            return services.filter((service) => service.trim().toUpperCase().replace(/[\s_-]+/g, '') !== 'HTTP');
-        };
-
-        const updateNodeServices = (entry: TunnelNode) => (
-            entry.id === nodeId
-                ? { ...entry, services: upsertHttpProxyService(entry.services ?? []) }
-                : entry
-        );
-
-        setNodes((prev) => prev.map(updateNodeServices));
-        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
-        setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
-    };
+    const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SSH', isEnabled);
+    const updateSftpServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SFTP', isEnabled);
+    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'HTTP', isEnabled);
 
     const submitEnableSsh = async () => {
         if (!nodeToEnableSsh) return;

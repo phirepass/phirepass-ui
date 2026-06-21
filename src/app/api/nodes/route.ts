@@ -61,8 +61,8 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
     return [0, 0, 0];
 }
 
-function normalizeServices(value: unknown): string[] {
-    const normalized = new Set<string>();
+function normalizeServices(value: unknown): Record<string, number> {
+    const counts: Record<string, number> = {};
 
     const addKind = (entry: unknown) => {
         if (!entry || typeof entry !== 'object') {
@@ -76,20 +76,20 @@ function normalizeServices(value: unknown): string[] {
 
         const service = kind.trim();
         if (service) {
-            normalized.add(service);
+            counts[service] = (counts[service] ?? 0) + 1;
         }
     };
 
     if (Array.isArray(value)) {
         value.forEach(addKind);
-        return Array.from(normalized);
+        return counts;
     }
 
     if (value && typeof value === 'object') {
         Object.values(value as Record<string, unknown>).forEach(addKind);
     }
 
-    return Array.from(normalized);
+    return counts;
 }
 
 function normalizeSettings(value: unknown): NodeSettings {

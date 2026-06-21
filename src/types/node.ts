@@ -30,7 +30,7 @@ export interface TunnelNode {
     server_id: string;
     since_last_heartbeat_secs: number;
     stats: NodeStats;
-    services: Array<string>;
+    services: Record<string, number>;
 }
 
 export interface TerminalTab {
