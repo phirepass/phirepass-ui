@@ -57,7 +57,7 @@
         "next-themes": "^0.4.6",
         "pg": "^8.21.0",
         "phirepass-channel": "^0.1.282",
-        "phirepass-widgets": "^0.0.73",
+        "phirepass-widgets": "^0.0.74",
         "react": "^18.3.1",
         "react-day-picker": "^8.10.1",
         "react-dom": "^18.3.1",
