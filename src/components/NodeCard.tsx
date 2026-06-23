@@ -187,6 +187,11 @@ export function NodeCard({
         action();
     };
 
+    // Only one HTTP proxy is allowed per node; SSH/SFTP have no such limit.
+    const httpLimitReached = serviceInstancePicker?.kind === 'HTTP'
+        && !serviceInstancePicker.loading
+        && serviceInstancePicker.instances.length >= 1;
+
     const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP') => (
         kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : 'HTTP service'
     );
@@ -549,15 +554,21 @@ export function NodeCard({
                             );
                         })}
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="flex-col items-stretch gap-1.5 sm:flex-col">
                         <Button
                             variant="outline"
                             className="w-full gap-2"
                             onClick={() => selectServiceInstance(() => triggerEnableService(serviceInstancePicker!.kind))}
+                            disabled={httpLimitReached}
                         >
                             <Plus className="w-4 h-4" />
                             Add {serviceInstancePicker ? serviceInstanceLabel(serviceInstancePicker.kind) : ''}
                         </Button>
+                        {httpLimitReached ? (
+                            <p className="text-xs text-muted-foreground text-center">
+                                Only one HTTP service is allowed per node.
+                            </p>
+                        ) : null}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
