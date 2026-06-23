@@ -3,7 +3,7 @@ import { TunnelNode } from '@/types/node';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import {
     Globe,
@@ -48,10 +48,12 @@ function compareVersions(a: string, b: string): number {
     return 0;
 }
 
+type ListedService = { id: string; name: string | null; visibility: 'public' | 'private' };
+
 interface NodeCardProps {
     node: TunnelNode;
-    onCreateTunnel: (node: TunnelNode) => void;
-    onOpenFiles: (node: TunnelNode) => void;
+    onCreateTunnel: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
+    onOpenFiles: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
     onReboot?: (node: TunnelNode) => void;
     onShutdown?: (node: TunnelNode) => void;
     onRefreshStats?: (node: TunnelNode) => void;
@@ -61,14 +63,17 @@ interface NodeCardProps {
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
     onEnableSsh?: () => void;
-    onDisableSsh?: () => void;
-    onEditSsh?: () => void;
+    onDisableSsh?: (serviceId: string) => void;
+    onEditSsh?: (serviceId: string) => void;
     onEnableSftp?: () => void;
-    onDisableSftp?: () => void;
-    onEditSftp?: () => void;
+    onDisableSftp?: (serviceId: string) => void;
+    onEditSftp?: (serviceId: string) => void;
     onEnableHttpProxy?: () => void;
-    onDisableHttpProxy?: () => void;
-    onEditHttpProxy?: () => void;
+    onDisableHttpProxy?: (serviceId: string) => void;
+    onEditHttpProxy?: (serviceId: string) => void;
+    // Fetches the real list of configured services for a kind (id, name, visibility),
+    // used to populate the service instance picker with actual identifiable entries.
+    onListServices?: (kind: 'ssh' | 'sftp' | 'http') => Promise<ListedService[]>;
     isShared?: boolean;
     sharedBy?: string;
     // True while the node's data may be stale (e.g. rendered from a local cache before
@@ -100,6 +105,7 @@ export function NodeCard({
     onEnableHttpProxy,
     onDisableHttpProxy,
     onEditHttpProxy,
+    onListServices,
     isShared = false,
     sharedBy,
     actionsDisabled = false,
@@ -160,28 +166,20 @@ export function NodeCard({
     const [sshPassword, setSshPassword] = useState('');
 
     // Service instance picker — always shown when connecting/opening a service,
-    // listing every instance of that kind. The backend currently only supports a
-    // single instance per kind per node, so today this always lists exactly one
-    // entry, but the data shape (visibility per instance) is wired up for when
-    // multi-instance services land.
-    type ServiceInstance = { index: number; visibility?: 'public' | 'private' };
+    // listing every real configured instance of that kind (fetched by id/name via
+    // onListServices). The backend currently only supports a single instance per
+    // kind per node, so today this always lists at most one entry, but it's
+    // wired up with real ids/names for when multi-instance services land.
     const [serviceInstancePicker, setServiceInstancePicker] = useState<{
         kind: 'SSH' | 'SFTP' | 'HTTP';
-        instances: ServiceInstance[];
+        loading: boolean;
+        instances: ListedService[];
     } | null>(null);
 
-    const getServiceInstances = (kind: string): ServiceInstance[] => {
-        const instances: ServiceInstance[] = [];
-        for (const summary of matchingServices(kind)) {
-            for (let i = 0; i < summary.count; i++) {
-                instances.push({ index: instances.length + 1, visibility: summary.visibility });
-            }
-        }
-        return instances;
-    };
-
-    const runOrPickInstance = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
-        setServiceInstancePicker({ kind, instances: getServiceInstances(kind) });
+    const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+        setServiceInstancePicker({ kind, loading: true, instances: [] });
+        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http')) ?? [];
+        setServiceInstancePicker({ kind, loading: false, instances });
     };
 
     const selectServiceInstance = (action: () => void) => {
@@ -196,7 +194,7 @@ export function NodeCard({
     // Same icon as the Console/Files/HTTP action buttons; for HTTP it follows this
     // specific instance's visibility (Globe for public, Lock for private), same as
     // the aggregate HttpProxyIcon does for the card-level button.
-    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP', instance: ServiceInstance) => (
+    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP', instance: ListedService) => (
         kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : (instance.visibility === 'public' ? Globe : Lock)
     );
 
@@ -206,16 +204,16 @@ export function NodeCard({
         else onEnableHttpProxy?.();
     };
 
-    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
-        if (kind === 'SSH') onDisableSsh?.();
-        else if (kind === 'SFTP') onDisableSftp?.();
-        else onDisableHttpProxy?.();
+    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP', serviceId: string) => {
+        if (kind === 'SSH') onDisableSsh?.(serviceId);
+        else if (kind === 'SFTP') onDisableSftp?.(serviceId);
+        else onDisableHttpProxy?.(serviceId);
     };
 
-    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
-        if (kind === 'SSH') onEditSsh?.();
-        else if (kind === 'SFTP') onEditSftp?.();
-        else onEditHttpProxy?.();
+    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP', serviceId: string) => {
+        if (kind === 'SSH') onEditSsh?.(serviceId);
+        else if (kind === 'SFTP') onEditSftp?.(serviceId);
+        else onEditHttpProxy?.(serviceId);
     };
 
     return (
@@ -453,35 +451,35 @@ export function NodeCard({
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-auto overflow-x-auto scrollbar-hide -mx-1 px-1 snap-x snap-mandatory">
+                <div className="flex gap-1.5 mt-auto">
                     <Button
                         variant="default"
                         size="sm"
-                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
-                        onClick={() => runOrPickInstance('SSH')}
+                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
+                        onClick={() => void runOrPickInstance('SSH')}
                         disabled={actionsDisabled}
                     >
-                        <Terminal className="w-4 h-4" />
+                        <Terminal />
                         Console{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
-                        onClick={() => runOrPickInstance('SFTP')}
+                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
+                        onClick={() => void runOrPickInstance('SFTP')}
                         disabled={actionsDisabled}
                     >
-                        <FolderOpen className="w-4 h-4" />
+                        <FolderOpen />
                         Files{serviceCount('SFTP') > 0 ? <span className="font-mono"> [{serviceCount('SFTP')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 shrink-0 whitespace-nowrap snap-start"
-                        onClick={() => runOrPickInstance('HTTP')}
+                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
+                        onClick={() => void runOrPickInstance('HTTP')}
                         disabled={actionsDisabled}
                     >
-                        <HttpProxyIcon className="w-4 h-4" />
+                        <HttpProxyIcon />
                         HTTP{serviceCount('HTTP') > 0 ? <span className="font-mono"> [{serviceCount('HTTP')}]</span> : ''}
                     </Button>
                 </div>
@@ -494,40 +492,47 @@ export function NodeCard({
                         <DialogTitle>
                             {serviceInstancePicker ? `Select ${serviceInstanceLabel(serviceInstancePicker.kind)}` : ''}
                         </DialogTitle>
+                        <DialogDescription>
+                            Choose which instance to connect to, edit, or delete.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-2">
-                        {serviceInstancePicker && serviceInstancePicker.instances.length === 0 ? (
+                        {serviceInstancePicker?.loading ? (
+                            <p className="text-sm text-muted-foreground">Loading...</p>
+                        ) : null}
+                        {serviceInstancePicker && !serviceInstancePicker.loading && serviceInstancePicker.instances.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No {serviceInstanceLabel(serviceInstancePicker.kind)} configured yet.
                             </p>
                         ) : null}
-                        {serviceInstancePicker?.instances.map((instance) => {
+                        {!serviceInstancePicker?.loading && serviceInstancePicker?.instances.map((instance) => {
                             const InstanceIcon = serviceInstanceIcon(serviceInstancePicker.kind, instance);
+                            const displayName = instance.name?.trim() || `${serviceInstanceLabel(serviceInstancePicker.kind)} ${instance.id.slice(0, 8)}`;
                             return (
-                            <div key={instance.index} className="flex items-center gap-2">
+                            <div key={instance.id} className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     className="flex-1 justify-between"
                                     onClick={() => selectServiceInstance(() => {
                                         const kind = serviceInstancePicker.kind;
-                                        if (kind === 'SSH') onCreateTunnel(node);
-                                        else if (kind === 'SFTP') onOpenFiles(node);
+                                        if (kind === 'SSH') onCreateTunnel(node, instance.id, instance.name);
+                                        else if (kind === 'SFTP') onOpenFiles(node, instance.id, instance.name);
                                         else window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank');
                                     })}
                                 >
                                     <span className="flex items-center gap-2">
                                         <InstanceIcon className="w-4 h-4" />
-                                        {serviceInstanceLabel(serviceInstancePicker.kind)} #{instance.index}
+                                        {displayName}
                                     </span>
-                                    {instance.visibility ? (
+                                    {serviceInstancePicker.kind === 'HTTP' ? (
                                         <span className="text-xs text-muted-foreground capitalize">{instance.visibility}</span>
                                     ) : null}
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    aria-label={`Edit ${serviceInstanceLabel(serviceInstancePicker.kind)} #${instance.index}`}
-                                    onClick={() => selectServiceInstance(() => triggerEditService(serviceInstancePicker.kind))}
+                                    aria-label={`Edit ${displayName}`}
+                                    onClick={() => selectServiceInstance(() => triggerEditService(serviceInstancePicker.kind, instance.id))}
                                 >
                                     <Pencil className="w-4 h-4" />
                                 </Button>
@@ -535,8 +540,8 @@ export function NodeCard({
                                     variant="ghost"
                                     size="icon"
                                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    aria-label={`Delete ${serviceInstanceLabel(serviceInstancePicker.kind)} #${instance.index}`}
-                                    onClick={() => selectServiceInstance(() => triggerDisableService(serviceInstancePicker.kind))}
+                                    aria-label={`Delete ${displayName}`}
+                                    onClick={() => selectServiceInstance(() => triggerDisableService(serviceInstancePicker.kind, instance.id))}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </Button>

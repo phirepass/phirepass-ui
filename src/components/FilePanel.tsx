@@ -123,7 +123,9 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
 
                     {tabs.length > 0 && (
                         <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto">
-                            {tabs.map((tab) => (
+                            {tabs.map((tab) => {
+                                const label = tab.serviceName?.trim() || tab.nodeName;
+                                return (
                                 <div
                                     key={tab.id}
                                     className={cn(
@@ -134,19 +136,20 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
                                     )}
                                     onClick={() => onSelectTab(tab.id)}
                                 >
-                                    <span className="font-mono text-xs whitespace-nowrap">{tab.nodeName}</span>
+                                    <span className="font-mono text-xs whitespace-nowrap">{label}</span>
                                     <button
                                         className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onCloseTab(tab.id);
                                         }}
-                                        aria-label={`Close file manager for ${tab.nodeName}`}
+                                        aria-label={`Close file manager for ${label}`}
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 
@@ -163,6 +166,7 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
                                         hide-header
                                         node-id={tab.nodeId}
                                         server-id={tab.serverId}
+                                        service-id={tab.serviceId}
                                         token={token}
                                         style={{
                                             display: 'block',

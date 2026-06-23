@@ -46,6 +46,8 @@ export interface FilePanelTab {
     nodeId: string;
     nodeName: string;
     serverId?: string;
+    serviceId: string;
+    serviceName?: string | null;
 }
 
 export interface FileItem {

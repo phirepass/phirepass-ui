@@ -10,8 +10,10 @@ type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 
 interface CachedTerminalSession {
     nodeId: string;
+    serviceId: string;
     serverId?: string | null;
     nodeName?: string | null;
+    serviceName?: string | null;
 }
 
 interface CreateTunnelPanelProps {
@@ -20,9 +22,16 @@ interface CreateTunnelPanelProps {
     nodeId?: string | null;
     serverId?: string | null;
     nodeName?: string | null;
+    serviceId?: string | null;
+    serviceName?: string | null;
 }
 
-export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName }: CreateTunnelPanelProps) {
+// Sessions are keyed by (nodeId, serviceId) so picking different service instances
+// on the same node opens separate tabs, even though the underlying tunnel connection
+// (open_ssh_tunnel) is currently only addressable by node id.
+const sessionKey = (nodeId: string, serviceId: string) => `${nodeId}::${serviceId}`;
+
+export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName, serviceId, serviceName }: CreateTunnelPanelProps) {
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
@@ -32,7 +41,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
     const [connectionErrors, setConnectionErrors] = useState<Record<string, string | null>>({});
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isPanelVisible, setIsPanelVisible] = useState(false);
-    const [activeSessionNodeId, setActiveSessionNodeId] = useState<string | null>(null);
+    const [activeSessionKey, setActiveSessionKey] = useState<string | null>(null);
     const panelTransitionDurationMs = isFullScreen ? 260 : 620;
 
     const readConnectionErrorMessage = (value: unknown): string | null => {
@@ -67,40 +76,43 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
     }, []);
 
     useEffect(() => {
-        if (!nodeId) {
+        if (!nodeId || !serviceId) {
             return;
         }
 
-        setActiveSessionNodeId(nodeId);
+        const key = sessionKey(nodeId, serviceId);
+        setActiveSessionKey(key);
 
         setCachedSessions((prev) => {
-            const existingSession = prev.find((session) => session.nodeId === nodeId);
+            const existingSession = prev.find((session) => sessionKey(session.nodeId, session.serviceId) === key);
             if (existingSession) {
                 return prev.map((session) =>
-                    session.nodeId === nodeId
+                    sessionKey(session.nodeId, session.serviceId) === key
                         ? {
                             ...session,
                             serverId: session.serverId ?? serverId ?? null,
                             nodeName: nodeName ?? session.nodeName ?? nodeId,
+                            serviceName: serviceName ?? session.serviceName ?? null,
                         }
                         : session
                 );
             }
 
-            return [...prev, { nodeId, serverId: serverId ?? null, nodeName: nodeName ?? nodeId }];
+            return [...prev, { nodeId, serviceId, serverId: serverId ?? null, nodeName: nodeName ?? nodeId, serviceName: serviceName ?? null }];
         });
-    }, [nodeId, serverId, nodeName]);
+    }, [nodeId, serviceId, serverId, nodeName, serviceName]);
 
     useEffect(() => {
         if (cachedSessions.length === 0) {
-            setActiveSessionNodeId(null);
+            setActiveSessionKey(null);
             return;
         }
 
-        if (!activeSessionNodeId || !cachedSessions.some((session) => session.nodeId === activeSessionNodeId)) {
-            setActiveSessionNodeId(cachedSessions[cachedSessions.length - 1].nodeId);
+        if (!activeSessionKey || !cachedSessions.some((session) => sessionKey(session.nodeId, session.serviceId) === activeSessionKey)) {
+            const last = cachedSessions[cachedSessions.length - 1];
+            setActiveSessionKey(sessionKey(last.nodeId, last.serviceId));
         }
-    }, [activeSessionNodeId, cachedSessions]);
+    }, [activeSessionKey, cachedSessions]);
 
     useEffect(() => {
         if (!isOpen || cachedSessions.length === 0 || token || loadingToken || tokenError) {
@@ -143,8 +155,9 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
 
         const detachListeners: Array<() => void> = [];
 
-        cachedSessions.forEach(({ nodeId: cachedNodeId }) => {
-            const terminalContainer = document.getElementById(`terminal-session-${cachedNodeId}`);
+        cachedSessions.forEach((session) => {
+            const key = sessionKey(session.nodeId, session.serviceId);
+            const terminalContainer = document.getElementById(`terminal-session-${key}`);
             const terminalElement = terminalContainer?.querySelector('phirepass-terminal');
 
             if (!terminalElement) {
@@ -160,12 +173,12 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
 
                 setConnectionStates((prev) => ({
                     ...prev,
-                    [cachedNodeId]: state,
+                    [key]: state,
                 }));
 
                 setConnectionErrors((prev) => ({
                     ...prev,
-                    [cachedNodeId]: state === 'error'
+                    [key]: state === 'error'
                         ? readConnectionErrorMessage(error)
                         : null,
                 }));
@@ -208,37 +221,40 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
         setTokenError(null);
     };
 
-    const handleReconnect = (targetNodeId: string) => {
+    const handleReconnect = (targetSession: CachedTerminalSession) => {
+        const key = sessionKey(targetSession.nodeId, targetSession.serviceId);
         setConnectionStates((prev) => {
             const next = { ...prev };
-            delete next[targetNodeId];
+            delete next[key];
             return next;
         });
         setConnectionErrors((prev) => {
             const next = { ...prev };
-            delete next[targetNodeId];
+            delete next[key];
             return next;
         });
         setCachedSessions((prev) => (
-            prev.some((session) => session.nodeId === targetNodeId)
+            prev.some((session) => sessionKey(session.nodeId, session.serviceId) === key)
                 ? prev
-                : [...prev, { nodeId: targetNodeId, serverId: null, nodeName: targetNodeId }]
+                : [...prev, targetSession]
         ));
-        setActiveSessionNodeId(targetNodeId);
+        setActiveSessionKey(key);
         setSessionRenderVersions((prev) => ({
             ...prev,
-            [targetNodeId]: (prev[targetNodeId] ?? 0) + 1,
+            [key]: (prev[key] ?? 0) + 1,
         }));
     };
 
-    const handleCloseSession = (targetNodeId: string) => {
-        setCachedSessions((prev) => {
-            const closeIndex = prev.findIndex((session) => session.nodeId === targetNodeId);
-            const remainingSessions = prev.filter((session) => session.nodeId !== targetNodeId);
+    const handleCloseSession = (targetSession: CachedTerminalSession) => {
+        const key = sessionKey(targetSession.nodeId, targetSession.serviceId);
 
-            setActiveSessionNodeId((currentActiveNodeId) => {
-                if (currentActiveNodeId !== targetNodeId) {
-                    return currentActiveNodeId;
+        setCachedSessions((prev) => {
+            const closeIndex = prev.findIndex((session) => sessionKey(session.nodeId, session.serviceId) === key);
+            const remainingSessions = prev.filter((session) => sessionKey(session.nodeId, session.serviceId) !== key);
+
+            setActiveSessionKey((currentActiveKey) => {
+                if (currentActiveKey !== key) {
+                    return currentActiveKey;
                 }
 
                 if (remainingSessions.length === 0) {
@@ -246,7 +262,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                 }
 
                 const fallbackSession = remainingSessions[Math.max(0, closeIndex - 1)] ?? remainingSessions[0];
-                return fallbackSession.nodeId;
+                return sessionKey(fallbackSession.nodeId, fallbackSession.serviceId);
             });
 
             return remainingSessions;
@@ -254,25 +270,25 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
 
         setConnectionStates((prev) => {
             const next = { ...prev };
-            delete next[targetNodeId];
+            delete next[key];
             return next;
         });
 
         setConnectionErrors((prev) => {
             const next = { ...prev };
-            delete next[targetNodeId];
+            delete next[key];
             return next;
         });
 
         setSessionRenderVersions((prev) => {
             const next = { ...prev };
-            delete next[targetNodeId];
+            delete next[key];
             return next;
         });
     };
 
-    const activeConnectionState = activeSessionNodeId ? connectionStates[activeSessionNodeId] : undefined;
-    const activeConnectionError = activeSessionNodeId ? connectionErrors[activeSessionNodeId] : null;
+    const activeConnectionState = activeSessionKey ? connectionStates[activeSessionKey] : undefined;
+    const activeConnectionError = activeSessionKey ? connectionErrors[activeSessionKey] : null;
 
     return (
         <div className={cn('mb-0 fixed inset-0 z-50 transition-opacity duration-500', isOpen ? 'pointer-events-auto' : 'pointer-events-none')}>
@@ -305,7 +321,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            {activeSessionNodeId && token && (
+                            {activeSessionKey && token && (
                                 <div className="mr-2 flex items-center gap-2 text-xs">
                                     <span className="text-muted-foreground">Connection:</span>
                                     <span
@@ -337,35 +353,39 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
 
                     {cachedSessions.length > 0 && (
                         <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto shrink-0">
-                            {cachedSessions.map((session) => (
+                            {cachedSessions.map((session) => {
+                                const key = sessionKey(session.nodeId, session.serviceId);
+                                const label = session.serviceName?.trim() || session.nodeName || session.nodeId;
+                                return (
                                 <div
-                                    key={session.nodeId}
+                                    key={key}
                                     className={cn(
                                         'flex shrink-0 items-center gap-2 px-3 py-1.5 rounded-md text-sm cursor-pointer transition-colors group',
-                                        activeSessionNodeId === session.nodeId
+                                        activeSessionKey === key
                                             ? 'bg-secondary text-foreground'
                                             : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                                     )}
-                                    onClick={() => setActiveSessionNodeId(session.nodeId)}
+                                    onClick={() => setActiveSessionKey(key)}
                                 >
-                                    <span className="font-mono text-xs whitespace-nowrap">{session.nodeName ?? session.nodeId}</span>
+                                    <span className="font-mono text-xs whitespace-nowrap">{label}</span>
                                     <button
                                         className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
                                         onClick={(event) => {
                                             event.stopPropagation();
-                                            handleCloseSession(session.nodeId);
+                                            handleCloseSession(session);
                                         }}
-                                        aria-label={`Close terminal session for ${session.nodeName ?? session.nodeId}`}
+                                        aria-label={`Close terminal session for ${label}`}
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
 
                     <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-4">
-                        {!activeSessionNodeId && (
+                        {!activeSessionKey && (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Select a node to start a terminal session.
                             </div>
@@ -375,13 +395,13 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                             <p className="mb-3 text-xs text-destructive break-words">{activeConnectionError}</p>
                         )}
 
-                        {activeSessionNodeId && loadingToken && (
+                        {activeSessionKey && loadingToken && (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                                 Loading terminal token...
                             </div>
                         )}
 
-                        {activeSessionNodeId && !loadingToken && tokenError && (
+                        {activeSessionKey && !loadingToken && tokenError && (
                             <div className="h-full flex flex-col items-center justify-center gap-3 text-sm text-destructive text-center px-6">
                                 <div>{tokenError}</div>
                                 <Button variant="outline" size="sm" onClick={handleRetryToken}>
@@ -390,14 +410,21 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                             </div>
                         )}
 
-                        {token && activeSessionNodeId && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
+                        {token && activeSessionKey && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
                             <div className="relative h-full w-full min-h-0 min-w-0 border border-border overflow-hidden bg-black/20">
                                 {activeConnectionState !== 'connected' && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
                                         {activeConnectionState === 'disconnected' ? (
                                             <>
                                                 <span className="text-sm text-muted-foreground">Disconnected</span>
-                                                <Button variant="outline" size="sm" onClick={() => handleReconnect(activeSessionNodeId)}>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        const activeSession = cachedSessions.find((session) => sessionKey(session.nodeId, session.serviceId) === activeSessionKey);
+                                                        if (activeSession) handleReconnect(activeSession);
+                                                    }}
+                                                >
                                                     Reconnect
                                                 </Button>
                                             </>
@@ -407,13 +434,14 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                                     </div>
                                 )}
                                 {cachedSessions.map((session) => {
-                                    const { nodeId: cachedNodeId, serverId: cachedServerId } = session;
-                                    const renderVersion = sessionRenderVersions[cachedNodeId] ?? 0;
-                                    const isActive = activeSessionNodeId === cachedNodeId;
-                                    const sessionState = connectionStates[cachedNodeId];
+                                    const { nodeId: cachedNodeId, serverId: cachedServerId, serviceId: cachedServiceId } = session;
+                                    const key = sessionKey(session.nodeId, session.serviceId);
+                                    const renderVersion = sessionRenderVersions[key] ?? 0;
+                                    const isActive = activeSessionKey === key;
+                                    const sessionState = connectionStates[key];
                                     const isConnected = sessionState === 'connected';
-                                    return <div key={`${cachedNodeId}-${renderVersion}`}
-                                        id={`terminal-session-${cachedNodeId}`}
+                                    return <div key={`${key}-${renderVersion}`}
+                                        id={`terminal-session-${key}`}
                                         className={cn(
                                             'terminal-session absolute inset-0 h-full w-full min-h-0 min-w-0 transition-opacity duration-200',
                                             isActive && isConnected
@@ -423,6 +451,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName 
                                         <phirepass-terminal
                                             node-id={cachedNodeId}
                                             server-id={cachedServerId ?? undefined}
+                                            service-id={cachedServiceId}
                                             token={token}
                                             style={{ display: 'block', width: '100%', height: '100%' }}
                                         />

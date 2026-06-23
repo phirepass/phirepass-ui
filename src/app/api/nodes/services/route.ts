@@ -1,10 +1,13 @@
 import { json_response } from '@/app/lib/framework';
 import { verifyToken } from '@/app/lib/auth';
+import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
 
 type NodeSettings = Record<string, unknown>;
 
 type ServiceDetail = {
+    id: string;
+    name: string | null;
     kind: string;
     host: string;
     port: number;
@@ -49,7 +52,14 @@ function toServiceDetail(entry: unknown): ServiceDetail | null {
         return null;
     }
 
+    const id = typeof raw.id === 'string' ? raw.id : null;
+    if (!id) {
+        return null;
+    }
+
     return {
+        id,
+        name: typeof raw.name === 'string' ? raw.name : null,
         kind,
         host: typeof raw.host === 'string' ? raw.host : '',
         port: typeof raw.port === 'number' ? raw.port : 0,
@@ -60,8 +70,7 @@ function toServiceDetail(entry: unknown): ServiceDetail | null {
     };
 }
 
-function extractServices(settings: NodeSettings): ServiceDetail[] {
-    const value = settings.services;
+function extractServices(value: unknown): ServiceDetail[] {
     const entries = Array.isArray(value)
         ? value
         : value && typeof value === 'object'
@@ -71,6 +80,33 @@ function extractServices(settings: NodeSettings): ServiceDetail[] {
     return entries
         .map(toServiceDetail)
         .filter((service): service is ServiceDetail => service !== null);
+}
+
+// The agent's live heartbeat payload carries its currently configured services,
+// including the ids actually registered with the connected agent. This is the
+// source of truth whenever the node is online — Postgres can lag behind (e.g.
+// stale ids from a previous run) and a stale id makes OpenTunnel a silent no-op
+// since the agent won't recognize it.
+async function fetchLiveServices(userId: string, nodeId: string): Promise<unknown> {
+    const redis = await getRedisClient();
+    if (!redis) {
+        return null;
+    }
+
+    try {
+        const key = `phirepass:users:${userId}:nodes:${nodeId}`;
+        const fields = await redis.hGetAll(key);
+        if (!fields || Object.keys(fields).length === 0) {
+            return null;
+        }
+
+        // The server stores the node record (not the heartbeat stats) under the
+        // "node" hash field; that's where `settings.services` actually lives.
+        const node = JSON.parse(fields.node) as { settings?: { services?: unknown } };
+        return node?.settings?.services ?? null;
+    } catch {
+        return null;
+    }
 }
 
 // Returns the full configuration (including credentials) for a node's services,
@@ -96,11 +132,17 @@ export async function GET(req: Request) {
             return json_response({ error: 'Node not found' }, 404);
         }
 
-        const settings = normalizeSettings(result.rows[0].settings);
-        const services = extractServices(settings)
-            .filter((service) => !requestedKind || service.kind === requestedKind);
+        const liveServices = await fetchLiveServices(user.id, nodeId);
+        let services = extractServices(liveServices);
 
-        return json_response({ services }, 200);
+        if (services.length === 0) {
+            const settings = normalizeSettings(result.rows[0].settings);
+            services = extractServices(settings.services);
+        }
+
+        const filtered = services.filter((service) => !requestedKind || service.kind === requestedKind);
+
+        return json_response({ services: filtered }, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
         return json_response({ error: 'Server error' }, 500);
