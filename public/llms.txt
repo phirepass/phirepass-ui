@@ -1,0 +1,23 @@
+# PhirePass
+
+> PhirePass is a remote-access tool. A lightweight Rust agent runs on a private or NATed machine and dials out (outbound-only, over WebSocket) to a PhirePass server, exposing SSH, SFTP, and arbitrary local HTTP services on that machine to an authenticated browser session — no inbound firewall rules or port forwarding required.
+
+This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, personal access tokens (PATs), and users. It talks directly to its own database for CRUD (nodes, tokens, users), and connects over WebSocket to the PhirePass server/relay for live SSH/SFTP/terminal sessions and HTTP proxying, rendered via embedded terminal and SFTP web components.
+
+## How it works
+
+- **Agent**: runs on the target host, opens outbound-only WebSocket connections, and proxies real local SSH/SFTP sessions and local HTTP services through the server.
+- **Server**: authenticates browser clients and node agents, and forwards framed traffic between them (PAT bootstrap → Ed25519 challenge → short-lived node JWT).
+- **Relay**: a reverse-proxy layer in front of the server for WebSocket and HTTP proxy traffic in production deployments, so a single public endpoint can route to many server instances.
+- **Dashboard**: this Next.js app — node/tunnel/token management, plus in-browser terminal (xterm.js) and SFTP client backed by a WebAssembly channel module.
+
+## Core concepts
+
+- **Node**: an installation of the agent on a machine you want remote access to.
+- **PAT (Personal Access Token)**: a scoped, revocable token used by an agent to authenticate and bootstrap a session with the server.
+- **Tunnel**: a live SSH, SFTP, or HTTP proxy session routed through the server/relay to a specific node.
+
+## Notes
+
+- PhirePass is not a VPN — access is per-node and per-session, brokered by short-lived authenticated tunnels rather than a flat network join.
+- Agents never accept inbound connections; all connectivity is initiated outbound by the agent.
