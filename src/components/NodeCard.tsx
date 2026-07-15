@@ -158,6 +158,8 @@ export function NodeCard({
         .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
     const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
 
+    const [ipBlurred, setIpBlurred] = useState(false);
+
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
     const [sshHost, setSshHost] = useState('0.0.0.0');
@@ -387,12 +389,15 @@ export function NodeCard({
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-2 py-2">
+                            <div
+                                className="flex items-center gap-2 bg-secondary/50 rounded-lg px-2 py-2 cursor-pointer"
+                                onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
+                            >
                                 <Globe className="w-4 h-4 text-primary shrink-0" />
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-muted-foreground shrink-0">IP</span>
-                                        <div className="min-w-0">
+                                        <div className={cn('min-w-0', ipBlurred && 'blur-sm select-none')}>
                                             <p className="font-mono text-foreground truncate">{displayIp || 'unknown'}</p>
                                             <p className="font-mono text-muted-foreground truncate">{displayLocalIp || 'unknown'}</p>
                                         </div>
@@ -401,9 +406,9 @@ export function NodeCard({
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            Public: {displayIp || 'IP unavailable'}
+                            Public: {ipBlurred ? '••••••••' : (displayIp || 'IP unavailable')}
                             <br />
-                            Local: {displayLocalIp || 'IP unavailable'}
+                            Local: {ipBlurred ? '••••••••' : (displayLocalIp || 'IP unavailable')}
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>

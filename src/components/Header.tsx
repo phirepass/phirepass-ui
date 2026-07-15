@@ -23,6 +23,9 @@ interface HeaderProps {
 
 export function Header({ user, onLogout }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [identityBlurred, setIdentityBlurred] = useState(false);
+    const identityClickTimer = useRef(0);
     const touchStartY = useRef<number | null>(null);
     const router = useRouter();
     const pathname = usePathname();
@@ -110,7 +113,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                             Tokens
                         </Button>
                         <div className="w-px h-6 bg-border" />
-                        <DropdownMenu>
+                        <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                     {user?.avatar ? (
@@ -124,7 +127,20 @@ export function Header({ user, onLogout }: HeaderProps) {
                                             <span className="text-xs font-bold text-primary-foreground">{getInitials()}</span>
                                         </div>
                                     )}
-                                    <div className="text-sm text-left">
+                                    <div
+                                        className={cn('text-sm text-left', identityBlurred && 'blur-sm select-none')}
+                                        onPointerDown={(e) => {
+                                            const now = Date.now();
+                                            if (now - identityClickTimer.current < 400) {
+                                                e.stopPropagation();
+                                                setProfileMenuOpen(false);
+                                                setIdentityBlurred((blurred) => !blurred);
+                                                identityClickTimer.current = 0;
+                                            } else {
+                                                identityClickTimer.current = now;
+                                            }
+                                        }}
+                                    >
                                         <p className="font-medium">{displayName}</p>
                                         <p className="text-muted-foreground text-xs">{displayEmail}</p>
                                     </div>

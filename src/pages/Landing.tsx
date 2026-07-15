@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
     Terminal,
@@ -269,17 +270,17 @@ const Landing = () => {
                     </div>
                 </section>
 
-                {/* Live terminal mockup */}
-                <section className="px-6 py-24 relative overflow-hidden">
+                {/* Dashboard screenshot */}
+                <section id="dashboard-preview" className="px-6 py-24 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
 
                     <div className="max-w-6xl mx-auto relative">
                         <div className="text-center mb-12">
                             <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                                Instant <span className="text-accent">Productivity</span>
+                                Your whole fleet, <span className="text-accent">one dashboard</span>
                             </h2>
                             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                                A full xterm.js terminal over a real SSH session, plus a visual SFTP file browser — no client install
+                                Every node&apos;s CPU, memory, uptime, and connection status at a glance — with one-click console, file, and HTTP access
                             </p>
                         </div>
 
@@ -288,22 +289,17 @@ const Landing = () => {
                                 <div className="w-3 h-3 rounded-full bg-destructive/80" />
                                 <div className="w-3 h-3 rounded-full bg-warning/80" />
                                 <div className="w-3 h-3 rounded-full bg-success/80" />
-                                <span className="ml-4 text-sm text-muted-foreground font-mono">phirepass — ssh session</span>
+                                <span className="ml-4 text-sm text-muted-foreground font-mono">phirepass — dashboard</span>
                             </div>
 
-                            <div className="p-6 font-mono text-sm bg-background">
-                                <div className="text-accent mb-2">$ phirepass-agent login --from-stdin</div>
-                                <div className="text-muted-foreground mb-2">Registering node, generating Ed25519 keypair...</div>
-                                <div className="text-success mb-2">✓ Node registered. Starting agent.</div>
-                                <div className="text-muted-foreground mb-4">Open the node in your browser to connect.</div>
-                                <div className="text-accent mb-2">$ ssh session opened via relay</div>
-                                <div className="text-foreground mb-2">Last login: Thu Jan 02 10:24:31 2026 from relay</div>
-                                <div className="text-muted-foreground mb-4">Welcome to Ubuntu 24.04.1 LTS</div>
-                                <div className="flex items-center text-accent">
-                                    <span>admin@production:~$</span>
-                                    <span className="ml-1 w-2 h-5 bg-accent animate-pulse" />
-                                </div>
-                            </div>
+                            <Image
+                                src="/dashboard-screenshot.png"
+                                alt="Phirepass dashboard showing a fleet of connected nodes with live CPU, memory, and uptime stats"
+                                width={2720}
+                                height={2065}
+                                className="w-full h-auto"
+                                priority
+                            />
                         </div>
                     </div>
                 </section>
