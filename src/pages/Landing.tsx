@@ -1,4 +1,13 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+    type CarouselApi,
+} from "@/components/ui/carousel";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -31,8 +40,56 @@ const colorStyles = {
     warning: { bg: "bg-warning/20", text: "text-warning" },
 } as const;
 
+const productShots = [
+    {
+        src: "/listing.png",
+        alt: "Phirepass dashboard showing a fleet of connected nodes with live CPU, memory, and uptime stats",
+        title: "Your whole fleet, one dashboard",
+        description: "Every node's CPU, memory, uptime, and connection status at a glance.",
+        width: 2722,
+        height: 2067,
+    },
+    {
+        src: "/terminal.png",
+        alt: "Full SSH terminal session running htop, streamed live in the browser",
+        title: "A real terminal, in the browser",
+        description: "Full xterm.js terminal backed by a real SSH session — PTY, resize, paste, the works.",
+        width: 2722,
+        height: 2067,
+    },
+    {
+        src: "/sftp.png",
+        alt: "Visual SFTP file browser showing a remote directory listing",
+        title: "Visual SFTP file browser",
+        description: "Browse, upload, and download files over the same tunnel — no separate client.",
+        width: 2722,
+        height: 2067,
+    },
+] as const;
+
 const Landing = () => {
     const router = useRouter();
+    const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+    const [activeSlide, setActiveSlide] = useState(0);
+
+    useEffect(() => {
+        if (!carouselApi) return;
+
+        setActiveSlide(carouselApi.selectedScrollSnap());
+        carouselApi.on("select", () => {
+            setActiveSlide(carouselApi.selectedScrollSnap());
+        });
+    }, [carouselApi]);
+
+    useEffect(() => {
+        if (!carouselApi) return;
+
+        const interval = setInterval(() => {
+            carouselApi.scrollNext();
+        }, 4500);
+
+        return () => clearInterval(interval);
+    }, [carouselApi]);
 
     const architectureSteps = [
         {
@@ -270,36 +327,57 @@ const Landing = () => {
                     </div>
                 </section>
 
-                {/* Dashboard screenshot */}
+                {/* Product carousel */}
                 <section id="dashboard-preview" className="px-6 py-24 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
 
                     <div className="max-w-6xl mx-auto relative">
                         <div className="text-center mb-12">
                             <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                                Your whole fleet, <span className="text-accent">one dashboard</span>
+                                See it <span className="text-accent">in action</span>
                             </h2>
                             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                                Every node&apos;s CPU, memory, uptime, and connection status at a glance — with one-click console, file, and HTTP access
+                                One dashboard for every node, with a real terminal and file browser one click away
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 overflow-hidden">
-                            <div className="flex items-center gap-2 px-4 py-3 bg-secondary/50 border-b border-border">
-                                <div className="w-3 h-3 rounded-full bg-destructive/80" />
-                                <div className="w-3 h-3 rounded-full bg-warning/80" />
-                                <div className="w-3 h-3 rounded-full bg-success/80" />
-                                <span className="ml-4 text-sm text-muted-foreground font-mono">phirepass — dashboard</span>
-                            </div>
+                        <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="group">
+                            <CarouselContent>
+                                {productShots.map((shot) => (
+                                    <CarouselItem key={shot.src}>
+                                        <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 overflow-hidden">
+                                            <Image
+                                                src={shot.src}
+                                                alt={shot.alt}
+                                                width={shot.width}
+                                                height={shot.height}
+                                                className="w-full h-auto"
+                                                priority
+                                            />
+                                        </div>
+                                        <div className="text-center mt-6">
+                                            <h3 className="font-bold text-xl text-foreground mb-1">{shot.title}</h3>
+                                            <p className="text-muted-foreground">{shot.description}</p>
+                                        </div>
+                                    </CarouselItem>
+                                ))}
+                            </CarouselContent>
+                            <CarouselPrevious className="opacity-0 group-hover:opacity-100 transition-opacity -left-4 lg:-left-12" />
+                            <CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity -right-4 lg:-right-12" />
+                        </Carousel>
 
-                            <Image
-                                src="/dashboard-screenshot.png"
-                                alt="Phirepass dashboard showing a fleet of connected nodes with live CPU, memory, and uptime stats"
-                                width={2720}
-                                height={2065}
-                                className="w-full h-auto"
-                                priority
-                            />
+                        <div className="flex items-center justify-center gap-2 mt-6">
+                            {productShots.map((shot, index) => (
+                                <button
+                                    key={shot.src}
+                                    type="button"
+                                    aria-label={`Show ${shot.title}`}
+                                    onClick={() => carouselApi?.scrollTo(index)}
+                                    className={`h-2 rounded-full transition-all ${
+                                        index === activeSlide ? "w-6 bg-accent" : "w-2 bg-border hover:bg-accent/50"
+                                    }`}
+                                />
+                            ))}
                         </div>
                     </div>
                 </section>
