@@ -1,7 +1,7 @@
 # Multi-stage build for minimal Next.js app with Bun
 
 # Stage 1: Dependencies
-FROM imbios/bun-node:20-alpine AS deps
+FROM oven/bun:1-alpine AS deps
 WORKDIR /app
 
 # Copy package files
@@ -21,7 +21,7 @@ COPY . .
 RUN bun run build
 
 # Stage 3: Runner (minimal production image)
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 
 WORKDIR /app
 
