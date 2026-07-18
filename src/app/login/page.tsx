@@ -3,7 +3,7 @@ import { verifyToken } from "@/app/lib/auth";
 import Login from "@/pages/Login";
 
 export default async function LoginPage() {
-    let authenticated = false;
+    let authenticated: boolean;
 
     try {
         await verifyToken();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Carousel,
@@ -70,16 +70,20 @@ const productShots = [
 const Landing = () => {
     const router = useRouter();
     const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-    const [activeSlide, setActiveSlide] = useState(0);
 
-    useEffect(() => {
-        if (!carouselApi) return;
-
-        setActiveSlide(carouselApi.selectedScrollSnap());
-        carouselApi.on("select", () => {
-            setActiveSlide(carouselApi.selectedScrollSnap());
-        });
-    }, [carouselApi]);
+    const subscribeToSlideChange = useCallback(
+        (onStoreChange: () => void) => {
+            if (!carouselApi) return () => {};
+            carouselApi.on("select", onStoreChange);
+            return () => carouselApi.off("select", onStoreChange);
+        },
+        [carouselApi],
+    );
+    const getActiveSlideSnapshot = useCallback(
+        () => carouselApi?.selectedScrollSnap() ?? 0,
+        [carouselApi],
+    );
+    const activeSlide = useSyncExternalStore(subscribeToSlideChange, getActiveSlideSnapshot, () => 0);
 
     useEffect(() => {
         if (!carouselApi) return;

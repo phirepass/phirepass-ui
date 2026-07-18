@@ -205,8 +205,8 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
     const statsKeyPattern = `phirepass:users:${userId}:nodes:*`;
     const keys: string[] = [];
 
-    for await (const key of redis.scanIterator({ MATCH: statsKeyPattern })) {
-        keys.push(key as string);
+    for await (const batch of redis.scanIterator({ MATCH: statsKeyPattern })) {
+        keys.push(...(batch as string[]));
     }
 
     const entries = new Map<string, { stats: NodeStatsPayload }>();
@@ -215,7 +215,10 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
     }
 
     // Pipeline all hash reads into a single round trip instead of awaiting them one by one.
-    const pipeline = keys.reduce((multi, key) => multi.hGetAll(key), redis.multi());
+    let pipeline: ReturnType<typeof redis.multi> = redis.multi();
+    for (const key of keys) {
+        pipeline = pipeline.hGetAll(key) as unknown as typeof pipeline;
+    }
     const results = await pipeline.exec() as unknown as Record<string, string>[];
 
     for (let i = 0; i < keys.length; i++) {

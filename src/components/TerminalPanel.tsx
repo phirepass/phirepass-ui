@@ -34,6 +34,14 @@ export function TerminalPanel({
     const activeTab = tabs.find((t) => t.id === activeTabId);
     const onlineNodes = nodes.filter((n) => /*n.isOnline && */!tabs.some((t) => t.nodeId === n.id));
 
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
+        if (!isOpen) {
+            setIsFullScreen(false);
+        }
+    }
+
     useEffect(() => {
         if (isOpen && inputRef.current) {
             inputRef.current.focus();
@@ -45,12 +53,6 @@ export function TerminalPanel({
             terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
         }
     }, [outputs, activeTabId]);
-
-    useEffect(() => {
-        if (!isOpen) {
-            setIsFullScreen(false);
-        }
-    }, [isOpen]);
 
     const handleCommand = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && input.trim() && activeTab) {

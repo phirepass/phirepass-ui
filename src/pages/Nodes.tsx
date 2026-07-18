@@ -844,7 +844,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 
@@ -934,7 +934,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 
@@ -1035,7 +1035,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 
@@ -1125,7 +1125,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 
@@ -1226,7 +1226,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 
@@ -1316,7 +1316,7 @@ export default function Nodes() {
                     channel.disconnect();
                 });
 
-                channel.on_protocol_message((frame: any) => {
+                channel.on_protocol_message((frame: { data?: unknown }) => {
                     console.debug('Received protocol message:', frame.data);
                 });
 

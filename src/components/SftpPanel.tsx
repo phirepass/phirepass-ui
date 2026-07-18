@@ -31,55 +31,29 @@ const mockFiles: FileItem[] = [
   { name: 'app.log', type: 'file', size: 1048576, modified: 'Dec 13 10:00', permissions: '-rw-r--r--' },
 ];
 
-export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanelProps) {
-  const [mode, setMode] = useState<'browse' | 'transfer'>('browse');
-  const [sourceTunnel, setSourceTunnel] = useState<SshTunnel | null>(initialTunnel || null);
-  const [destTunnel, setDestTunnel] = useState<SshTunnel | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [sourcePath, setSourcePath] = useState('/');
-  const [destPath, setDestPath] = useState('/');
+function formatSize(bytes?: number) {
+  if (!bytes) return '-';
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)}K`;
+  return `${(bytes / 1048576).toFixed(1)}M`;
+}
 
-  const activeTunnels = tunnels.filter((t) => t.status === 'active');
+interface FileTableProps {
+  path: string;
+  tunnel: SshTunnel | null;
+  selectable?: boolean;
+  selectedFiles: Set<string>;
+  onToggleFile: (name: string) => void;
+  onNavigate: (path: string) => void;
+}
 
-  const toggleFile = (name: string) => {
-    const newSelected = new Set(selectedFiles);
-    if (newSelected.has(name)) {
-    newSelected.delete(name);
-    } else {
-    newSelected.add(name);
-    }
-    setSelectedFiles(newSelected);
-  };
-
-  const formatSize = (bytes?: number) => {
-    if (!bytes) return '-';
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)}K`;
-    return `${(bytes / 1048576).toFixed(1)}M`;
-  };
-
-  const handleDownload = () => {
-    toast.success(`Downloading ${selectedFiles.size} file(s) from ${sourceTunnel?.nodeName}`);
-    setSelectedFiles(new Set());
-  };
-
-  const handleUpload = () => {
-    toast.success(`Upload dialog would open for ${sourceTunnel?.nodeName}`);
-  };
-
-  const handleTransfer = () => {
-    toast.success(`Transferring ${selectedFiles.size} file(s) from ${sourceTunnel?.nodeName} to ${destTunnel?.nodeName}`);
-    setSelectedFiles(new Set());
-  };
-
-  if (!isOpen) return null;
-
-  const FileTable = ({ path, tunnel, selectable = true }: { path: string; tunnel: SshTunnel | null; selectable?: boolean }) => (
+function FileTable({ path, tunnel, selectable = true, selectedFiles, onToggleFile, onNavigate }: FileTableProps) {
+  return (
     <div className="flex-1 flex flex-col min-h-0">
     {/* Path bar */}
     {tunnel && (
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-background shrink-0">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSourcePath('/')}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onNavigate('/')}>
             <Home className="w-4 h-4" />
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -121,8 +95,8 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
                     'border-b border-border/50 hover:bg-secondary/50 cursor-pointer transition-colors',
                     selectable && selectedFiles.has(file.name) && 'bg-primary/10'
                 )}
-                onClick={() => selectable && file.name !== '..' && toggleFile(file.name)}
-                onDoubleClick={() => file.type === 'directory' && file.name !== '..' && setSourcePath(`${path}${file.name}/`)}
+                onClick={() => selectable && file.name !== '..' && onToggleFile(file.name)}
+                onDoubleClick={() => file.type === 'directory' && file.name !== '..' && onNavigate(`${path}${file.name}/`)}
                 >
                 {selectable && (
                     <td className="px-3 py-2">
@@ -130,7 +104,7 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
                         <input
                         type="checkbox"
                         checked={selectedFiles.has(file.name)}
-                        onChange={() => toggleFile(file.name)}
+                        onChange={() => onToggleFile(file.name)}
                         className="rounded border-border"
                         />
                     )}
@@ -167,6 +141,43 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
     </div>
     </div>
   );
+}
+
+export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanelProps) {
+  const [mode, setMode] = useState<'browse' | 'transfer'>('browse');
+  const [sourceTunnel, setSourceTunnel] = useState<SshTunnel | null>(initialTunnel || null);
+  const [destTunnel, setDestTunnel] = useState<SshTunnel | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [sourcePath, setSourcePath] = useState('/');
+  const [destPath, setDestPath] = useState('/');
+
+  const activeTunnels = tunnels.filter((t) => t.status === 'active');
+
+  const toggleFile = (name: string) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(name)) {
+    newSelected.delete(name);
+    } else {
+    newSelected.add(name);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const handleDownload = () => {
+    toast.success(`Downloading ${selectedFiles.size} file(s) from ${sourceTunnel?.nodeName}`);
+    setSelectedFiles(new Set());
+  };
+
+  const handleUpload = () => {
+    toast.success(`Upload dialog would open for ${sourceTunnel?.nodeName}`);
+  };
+
+  const handleTransfer = () => {
+    toast.success(`Transferring ${selectedFiles.size} file(s) from ${sourceTunnel?.nodeName} to ${destTunnel?.nodeName}`);
+    setSelectedFiles(new Set());
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-[800px] lg:w-[1100px] bg-card border-l border-border shadow-2xl z-50 animate-slide-in-right flex flex-col">
@@ -229,7 +240,13 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
             </div>
         </div>
 
-        <FileTable path={sourcePath} tunnel={sourceTunnel} />
+        <FileTable
+            path={sourcePath}
+            tunnel={sourceTunnel}
+            selectedFiles={selectedFiles}
+            onToggleFile={toggleFile}
+            onNavigate={setSourcePath}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-between gap-4 p-4 border-t border-border bg-secondary/50 shrink-0">
@@ -306,7 +323,14 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
             <div className="px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground shrink-0">
                 Source: {sourceTunnel?.nodeName || 'Not selected'}
             </div>
-            <FileTable path={sourcePath} tunnel={sourceTunnel} selectable={true} />
+            <FileTable
+                path={sourcePath}
+                tunnel={sourceTunnel}
+                selectable={true}
+                selectedFiles={selectedFiles}
+                onToggleFile={toggleFile}
+                onNavigate={setSourcePath}
+            />
             </div>
 
             {/* Destination Pane */}
@@ -314,7 +338,14 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
             <div className="px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground shrink-0">
                 Destination: {destTunnel?.nodeName || 'Not selected'}
             </div>
-            <FileTable path={destPath} tunnel={destTunnel} selectable={false} />
+            <FileTable
+                path={destPath}
+                tunnel={destTunnel}
+                selectable={false}
+                selectedFiles={selectedFiles}
+                onToggleFile={toggleFile}
+                onNavigate={setDestPath}
+            />
             </div>
         </div>
 

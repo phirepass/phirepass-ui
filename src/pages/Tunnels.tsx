@@ -34,6 +34,9 @@ const Tunnels = () => {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
+            // Deliberately read once after mount (not derived at render time): this page is
+            // server-rendered and reading window.location during render would cause a hydration mismatch.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setInitialDialog(params.get('create'));
         }
     }, []);

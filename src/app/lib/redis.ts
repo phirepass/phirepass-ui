@@ -1,5 +1,7 @@
 import { createClient, type RedisClientType } from "redis";
 
+type RedisSocketOptions = NonNullable<Parameters<typeof createClient>[0]>["socket"];
+
 let client: RedisClientType | null = null;
 let connectPromise: Promise<RedisClientType> | null = null;
 
@@ -15,10 +17,11 @@ export async function getRedisClient(): Promise<RedisClientType | null> {
             socket: {
                 tls: redisUrl.startsWith("rediss://"),
                 servername: redisHost,
-                keepAlive: 120000,
-                reconnectStrategy: (retries) =>
+                keepAlive: true,
+                keepAliveInitialDelay: 120000,
+                reconnectStrategy: (retries: number) =>
                     Math.min(1000 * 2 ** retries, 10000),
-            },
+            } as RedisSocketOptions,
         });
         client.on("error", (err) => {
             console.warn("[redis] client error", err);

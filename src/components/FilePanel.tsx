@@ -60,13 +60,22 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
         fetchToken();
     }, [isOpen, tabs.length, token, loadingToken, tokenError]);
 
-    useEffect(() => {
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
         if (!isOpen) {
             setIsPanelVisible(false);
             setIsFullScreen(false);
+        }
+    }
+
+    useEffect(() => {
+        if (!isOpen) {
             return;
         }
 
+        // Force a reflow at opacity-0 before scheduling the transition to opacity-100 below.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsPanelVisible(false);
         const timeoutId = window.setTimeout(() => {
             setIsPanelVisible(true);

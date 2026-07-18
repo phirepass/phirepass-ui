@@ -147,8 +147,11 @@ export default function DeviceAuth() {
     const { config } = useRuntimeConfig();
 
     useEffect(() => {
+        // Deliberately read once after mount (not derived at render time): this page is
+        // server-rendered and reading window.location during render would cause a hydration mismatch.
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDeviceCode(params.get('code') || '');
             setDeviceName(params.get('name') || 'Unknown Device');
         }
@@ -173,6 +176,8 @@ export default function DeviceAuth() {
 
     useEffect(() => {
         // Check if code is expired (example: after 10 minutes)
+        // Deliberately read once after mount (not derived at render time): this page is
+        // server-rendered and reading window.location during render would cause a hydration mismatch.
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             const codeTimestamp = params.get('ts');
@@ -180,6 +185,7 @@ export default function DeviceAuth() {
                 const timestamp = parseInt(codeTimestamp);
                 const tenMinutes = 10 * 60 * 1000;
                 if (Date.now() - timestamp > tenMinutes) {
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setStatus('expired');
                 }
             }

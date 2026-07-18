@@ -118,11 +118,6 @@ const PatTokens = () => {
     const [activePage, setActivePage] = useState(1);
     const [inactivePage, setInactivePage] = useState(1);
 
-    // Fetch existing tokens
-    useEffect(() => {
-        fetchTokens();
-    }, []);
-
     const fetchTokens = async () => {
         setLoading(true);
         try {
@@ -140,6 +135,12 @@ const PatTokens = () => {
             setLoading(false);
         }
     };
+
+    // Fetch existing tokens on mount.
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchTokens();
+    }, []);
 
     const toggleTokenVisibility = (tokenId: string) => {
         setVisibleTokens(prev => {

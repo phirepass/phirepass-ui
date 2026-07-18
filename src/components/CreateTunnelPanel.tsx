@@ -75,19 +75,17 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
         void defineCustomElements();
     }, []);
 
-    useEffect(() => {
-        if (!nodeId || !serviceId) {
-            return;
-        }
-
-        const key = sessionKey(nodeId, serviceId);
-        setActiveSessionKey(key);
+    const incomingSessionKey = nodeId && serviceId ? sessionKey(nodeId, serviceId) : null;
+    const [prevIncomingSessionKey, setPrevIncomingSessionKey] = useState<string | null>(null);
+    if (incomingSessionKey && incomingSessionKey !== prevIncomingSessionKey) {
+        setPrevIncomingSessionKey(incomingSessionKey);
+        setActiveSessionKey(incomingSessionKey);
 
         setCachedSessions((prev) => {
-            const existingSession = prev.find((session) => sessionKey(session.nodeId, session.serviceId) === key);
+            const existingSession = prev.find((session) => sessionKey(session.nodeId, session.serviceId) === incomingSessionKey);
             if (existingSession) {
                 return prev.map((session) =>
-                    sessionKey(session.nodeId, session.serviceId) === key
+                    sessionKey(session.nodeId, session.serviceId) === incomingSessionKey
                         ? {
                             ...session,
                             serverId: session.serverId ?? serverId ?? null,
@@ -98,21 +96,20 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
                 );
             }
 
-            return [...prev, { nodeId, serviceId, serverId: serverId ?? null, nodeName: nodeName ?? nodeId, serviceName: serviceName ?? null }];
+            return [...prev, { nodeId: nodeId as string, serviceId: serviceId as string, serverId: serverId ?? null, nodeName: nodeName ?? nodeId, serviceName: serviceName ?? null }];
         });
-    }, [nodeId, serviceId, serverId, nodeName, serviceName]);
+    }
 
-    useEffect(() => {
+    const [prevCachedSessions, setPrevCachedSessions] = useState(cachedSessions);
+    if (cachedSessions !== prevCachedSessions) {
+        setPrevCachedSessions(cachedSessions);
         if (cachedSessions.length === 0) {
             setActiveSessionKey(null);
-            return;
-        }
-
-        if (!activeSessionKey || !cachedSessions.some((session) => sessionKey(session.nodeId, session.serviceId) === activeSessionKey)) {
+        } else if (!activeSessionKey || !cachedSessions.some((session) => sessionKey(session.nodeId, session.serviceId) === activeSessionKey)) {
             const last = cachedSessions[cachedSessions.length - 1];
             setActiveSessionKey(sessionKey(last.nodeId, last.serviceId));
         }
-    }, [activeSessionKey, cachedSessions]);
+    }
 
     useEffect(() => {
         if (!isOpen || cachedSessions.length === 0 || token || loadingToken || tokenError) {
@@ -196,18 +193,22 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
         };
     }, [cachedSessions, sessionRenderVersions, token]);
 
-    useEffect(() => {
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
         if (!isOpen) {
             setIsFullScreen(false);
+            setIsPanelVisible(false);
         }
-    }, [isOpen]);
+    }
 
     useEffect(() => {
         if (!isOpen) {
-            setIsPanelVisible(false);
             return;
         }
 
+        // Force a reflow at opacity-0 before scheduling the transition to opacity-100 below.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsPanelVisible(false);
         const timeoutId = window.setTimeout(() => {
             setIsPanelVisible(true);

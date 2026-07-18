@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-declare global {
+declare module 'react' {
     namespace JSX {
         interface IntrinsicElements {
             'phirepass-terminal': {
