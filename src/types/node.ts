@@ -50,6 +50,15 @@ export interface FilePanelTab {
     serviceName?: string | null;
 }
 
+export interface VncPanelTab {
+    id: string;
+    nodeId: string;
+    nodeName: string;
+    serverId?: string;
+    serviceId: string;
+    serviceName?: string | null;
+}
+
 export interface FileItem {
     name: string;
     type: "file" | "directory";

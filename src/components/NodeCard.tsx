@@ -10,6 +10,7 @@ import {
     Lock,
     Terminal,
     FolderOpen,
+    MonitorPlay,
     Clock,
     Activity,
     Cpu,
@@ -54,6 +55,7 @@ interface NodeCardProps {
     node: TunnelNode;
     onCreateTunnel: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
     onOpenFiles: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
+    onOpenScreen: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
     onReboot?: (node: TunnelNode) => void;
     onShutdown?: (node: TunnelNode) => void;
     onRefreshStats?: (node: TunnelNode) => void;
@@ -71,9 +73,12 @@ interface NodeCardProps {
     onEnableHttpProxy?: () => void;
     onDisableHttpProxy?: (serviceId: string) => void;
     onEditHttpProxy?: (serviceId: string) => void;
+    onEnableVnc?: () => void;
+    onDisableVnc?: (serviceId: string) => void;
+    onEditVnc?: (serviceId: string) => void;
     // Fetches the real list of configured services for a kind (id, name, visibility),
     // used to populate the service instance picker with actual identifiable entries.
-    onListServices?: (kind: 'ssh' | 'sftp' | 'http') => Promise<ListedService[]>;
+    onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'vnc') => Promise<ListedService[]>;
     isShared?: boolean;
     sharedBy?: string;
     // True while the node's data may be stale (e.g. rendered from a local cache before
@@ -88,6 +93,7 @@ export function NodeCard({
     node,
     onCreateTunnel,
     onOpenFiles,
+    onOpenScreen,
     onReboot,
     onShutdown,
     onRefreshStats,
@@ -105,6 +111,9 @@ export function NodeCard({
     onEnableHttpProxy,
     onDisableHttpProxy,
     onEditHttpProxy,
+    onEnableVnc,
+    onDisableVnc,
+    onEditVnc,
     onListServices,
     isShared = false,
     sharedBy,
@@ -173,14 +182,14 @@ export function NodeCard({
     // kind per node, so today this always lists at most one entry, but it's
     // wired up with real ids/names for when multi-instance services land.
     const [serviceInstancePicker, setServiceInstancePicker] = useState<{
-        kind: 'SSH' | 'SFTP' | 'HTTP';
+        kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC';
         loading: boolean;
         instances: ListedService[];
     } | null>(null);
 
-    const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+    const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => {
         setServiceInstancePicker({ kind, loading: true, instances: [] });
-        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http')) ?? [];
+        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http' | 'vnc')) ?? [];
         setServiceInstancePicker({ kind, loading: false, instances });
     };
 
@@ -194,32 +203,35 @@ export function NodeCard({
         && !serviceInstancePicker.loading
         && serviceInstancePicker.instances.length >= 1;
 
-    const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP') => (
-        kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : 'HTTP service'
+    const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => (
+        kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : kind === 'VNC' ? 'VNC screen' : 'HTTP service'
     );
 
-    // Same icon as the Console/Files/HTTP action buttons; for HTTP it follows this
+    // Same icon as the SSH/Files/Screen/HTTP action buttons; for HTTP it follows this
     // specific instance's visibility (Globe for public, Lock for private), same as
     // the aggregate HttpProxyIcon does for the card-level button.
-    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP', instance: ListedService) => (
-        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : (instance.visibility === 'public' ? Globe : Lock)
+    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', instance: ListedService) => (
+        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : kind === 'VNC' ? MonitorPlay : (instance.visibility === 'public' ? Globe : Lock)
     );
 
-    const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP') => {
+    const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => {
         if (kind === 'SSH') onEnableSsh?.();
         else if (kind === 'SFTP') onEnableSftp?.();
+        else if (kind === 'VNC') onEnableVnc?.();
         else onEnableHttpProxy?.();
     };
 
-    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP', serviceId: string) => {
+    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', serviceId: string) => {
         if (kind === 'SSH') onDisableSsh?.(serviceId);
         else if (kind === 'SFTP') onDisableSftp?.(serviceId);
+        else if (kind === 'VNC') onDisableVnc?.(serviceId);
         else onDisableHttpProxy?.(serviceId);
     };
 
-    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP', serviceId: string) => {
+    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', serviceId: string) => {
         if (kind === 'SSH') onEditSsh?.(serviceId);
         else if (kind === 'SFTP') onEditSftp?.(serviceId);
+        else if (kind === 'VNC') onEditVnc?.(serviceId);
         else onEditHttpProxy?.(serviceId);
     };
 
@@ -470,7 +482,7 @@ export function NodeCard({
                         disabled={actionsDisabled}
                     >
                         <Terminal />
-                        Console{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
+                        SSH{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
@@ -481,6 +493,16 @@ export function NodeCard({
                     >
                         <FolderOpen />
                         Files{serviceCount('SFTP') > 0 ? <span className="font-mono"> [{serviceCount('SFTP')}]</span> : ''}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
+                        onClick={() => void runOrPickInstance('VNC')}
+                        disabled={actionsDisabled}
+                    >
+                        <MonitorPlay />
+                        Screen{serviceCount('VNC') > 0 ? <span className="font-mono"> [{serviceCount('VNC')}]</span> : ''}
                     </Button>
                     <Button
                         variant="outline"
@@ -527,6 +549,7 @@ export function NodeCard({
                                         const kind = serviceInstancePicker.kind;
                                         if (kind === 'SSH') onCreateTunnel(node, instance.id, instance.name);
                                         else if (kind === 'SFTP') onOpenFiles(node, instance.id, instance.name);
+                                        else if (kind === 'VNC') onOpenScreen(node, instance.id, instance.name);
                                         else window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank');
                                     })}
                                 >

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
+import { VncPanel } from '@/components/VncPanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
@@ -12,7 +13,7 @@ import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
-import { FilePanelTab, NodeStats, TunnelNode } from '@/types/node';
+import { FilePanelTab, NodeStats, TunnelNode, VncPanelTab } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
 import { getCachedNodes, setCachedNodes } from '@/lib/nodesCache';
+import { removeService, saveService } from '@/lib/service-mutations';
 import {
     Pagination,
     PaginationContent,
@@ -145,6 +147,11 @@ export default function Nodes() {
     const [filePanelTabs, setFilePanelTabs] = useState<FilePanelTab[]>([]);
     const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
 
+    // VNC panel state
+    const [vncPanelOpen, setVncPanelOpen] = useState(false);
+    const [vncPanelTabs, setVncPanelTabs] = useState<VncPanelTab[]>([]);
+    const [activeVncTabId, setActiveVncTabId] = useState<string | null>(null);
+
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
     const [selectedTunnelNode, setSelectedTunnelNode] = useState<TunnelNode | null>(null);
@@ -182,6 +189,24 @@ export default function Nodes() {
     const [enableSshPassword, setEnableSshPassword] = useState('');
     const [enableSshSubmitting, setEnableSshSubmitting] = useState(false);
     const [enableSshError, setEnableSshError] = useState<string | null>(null);
+    // VNC dialog state. There is no username field: RFB has no concept of one,
+    // and the password is entered in the viewer, not stored on the service.
+    const [enableVncDialogOpen, setEnableVncDialogOpen] = useState(false);
+    const [enableVncMode, setEnableVncMode] = useState<'create' | 'update'>('create');
+    const [enableVncLoadingDetails, setEnableVncLoadingDetails] = useState(false);
+    const [nodeToEnableVnc, setNodeToEnableVnc] = useState<TunnelNode | null>(null);
+    const [enableVncServiceId, setEnableVncServiceId] = useState<string | null>(null);
+    const [enableVncName, setEnableVncName] = useState('');
+    const [enableVncHost, setEnableVncHost] = useState('0.0.0.0');
+    const [enableVncPort, setEnableVncPort] = useState('5900');
+    const [enableVncSubmitting, setEnableVncSubmitting] = useState(false);
+    const [enableVncError, setEnableVncError] = useState<string | null>(null);
+    const [disableVncDialogOpen, setDisableVncDialogOpen] = useState(false);
+    const [nodeToDisableVnc, setNodeToDisableVnc] = useState<TunnelNode | null>(null);
+    const [serviceIdToDisableVnc, setServiceIdToDisableVnc] = useState<string | null>(null);
+    const [disableVncSubmitting, setDisableVncSubmitting] = useState(false);
+    const [disableVncError, setDisableVncError] = useState<string | null>(null);
+
     const [disableSshDialogOpen, setDisableSshDialogOpen] = useState(false);
     const [nodeToDisableSsh, setNodeToDisableSsh] = useState<TunnelNode | null>(null);
     const [serviceIdToDisableSsh, setServiceIdToDisableSsh] = useState<string | null>(null);
@@ -372,6 +397,51 @@ export default function Nodes() {
         setFilePanelOpen(true);
     };
 
+    const openScreen = (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
+        setVncPanelTabs((prev) => {
+            const existingTab = prev.find((tab) => tab.nodeId === node.id && tab.serviceId === serviceId);
+            if (existingTab) {
+                setActiveVncTabId(existingTab.id);
+                return prev;
+            }
+
+            const newTab: VncPanelTab = {
+                id: `vnc-${node.id}-${serviceId}`,
+                nodeId: node.id,
+                nodeName: node.name,
+                serverId: node.server_id,
+                serviceId,
+                serviceName: serviceName ?? null,
+            };
+
+            setActiveVncTabId(newTab.id);
+            return [...prev, newTab];
+        });
+        setVncPanelOpen(true);
+    };
+
+    const handleCloseVncTab = (tabId: string) => {
+        setVncPanelTabs((prev) => {
+            const remainingTabs = prev.filter((tab) => tab.id !== tabId);
+
+            setActiveVncTabId((currentActiveTabId) => {
+                if (currentActiveTabId !== tabId) {
+                    return currentActiveTabId;
+                }
+
+                const closedTabIndex = prev.findIndex((tab) => tab.id === tabId);
+                const fallbackTab = remainingTabs[Math.max(0, closedTabIndex - 1)] ?? remainingTabs[0] ?? null;
+                return fallbackTab?.id ?? null;
+            });
+
+            if (remainingTabs.length === 0) {
+                setVncPanelOpen(false);
+            }
+
+            return remainingTabs;
+        });
+    };
+
     const handleCloseFileTab = (tabId: string) => {
         setFilePanelTabs((prev) => {
             const remainingTabs = prev.filter((tab) => tab.id !== tabId);
@@ -537,7 +607,7 @@ export default function Nodes() {
         scheme: 'http' | 'https' | null;
     };
 
-    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http'): Promise<ServiceDetail[]> => {
+    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'vnc'): Promise<ServiceDetail[]> => {
         try {
             const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
                 credentials: 'include',
@@ -638,6 +708,102 @@ export default function Nodes() {
         setDisableSshDialogOpen(false);
         setNodeToDisableSsh(null);
         setServiceIdToDisableSsh(null);
+    };
+
+    const openEditVncDialog = async (node: TunnelNode, serviceId: string) => {
+        setNodeToEnableVnc(node);
+        setEnableVncMode('update');
+        setEnableVncServiceId(serviceId);
+        setEnableVncError(null);
+        setEnableVncLoadingDetails(true);
+        setEnableVncDialogOpen(true);
+
+        const services = await fetchServicesForKind(node.id, 'vnc');
+        const detail = services.find((s) => s.id === serviceId) ?? null;
+        setEnableVncName(detail?.name ?? '');
+        setEnableVncHost(detail?.host || '0.0.0.0');
+        setEnableVncPort(detail ? String(detail.port) : '5900');
+        setEnableVncLoadingDetails(false);
+    };
+
+    const openEnableVncDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
+        setNodeToEnableVnc(node);
+        setEnableVncMode(mode);
+        setEnableVncServiceId(null);
+        setEnableVncName('');
+        setEnableVncHost('0.0.0.0');
+        setEnableVncPort('5900');
+        setEnableVncError(null);
+        setEnableVncDialogOpen(true);
+    };
+
+    const openDisableVncDialog = (node: TunnelNode, serviceId: string) => {
+        setNodeToDisableVnc(node);
+        setServiceIdToDisableVnc(serviceId);
+        setDisableVncError(null);
+        setDisableVncDialogOpen(true);
+    };
+
+    const closeEnableVncDialog = () => {
+        setEnableVncDialogOpen(false);
+        setNodeToEnableVnc(null);
+        setEnableVncServiceId(null);
+    };
+
+    const closeDisableVncDialog = () => {
+        setDisableVncDialogOpen(false);
+        setNodeToDisableVnc(null);
+        setServiceIdToDisableVnc(null);
+    };
+
+    const submitEnableVnc = async () => {
+        if (!nodeToEnableVnc) return;
+
+        setEnableVncSubmitting(true);
+        setEnableVncError(null);
+
+        const isUpdate = enableVncMode === 'update';
+
+        try {
+            await saveService(
+                buildWsEndpoint(),
+                nodeToEnableVnc,
+                {
+                    kind: 'vnc',
+                    name: enableVncName.trim() || null,
+                    host: enableVncHost,
+                    port: parseInt(enableVncPort, 10) || 5900,
+                },
+                isUpdate ? enableVncServiceId : null,
+            );
+
+            updateServiceInNode(nodeToEnableVnc.id, 'VNC', true);
+            toast.success(isUpdate ? 'VNC service updated' : 'VNC service created');
+            closeEnableVncDialog();
+        } catch (err) {
+            setEnableVncError(err instanceof Error ? err.message : 'Failed to enable VNC.');
+        } finally {
+            setEnableVncSubmitting(false);
+        }
+    };
+
+    const submitDisableVnc = async () => {
+        if (!nodeToDisableVnc || !serviceIdToDisableVnc) return;
+
+        setDisableVncSubmitting(true);
+        setDisableVncError(null);
+
+        try {
+            await removeService(buildWsEndpoint(), nodeToDisableVnc, serviceIdToDisableVnc, 'vnc');
+
+            updateServiceInNode(nodeToDisableVnc.id, 'VNC', false);
+            toast.success('VNC service deleted');
+            closeDisableVncDialog();
+        } catch (err) {
+            setDisableVncError(err instanceof Error ? err.message : 'Failed to delete VNC.');
+        } finally {
+            setDisableVncSubmitting(false);
+        }
     };
 
     const openEnableSftpDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
@@ -1452,6 +1618,10 @@ export default function Nodes() {
                                 onViewNodeId={handleViewNodeId}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
+                                onOpenScreen={(target, serviceId, serviceName) => openScreen(target, serviceId, serviceName)}
+                                onEnableVnc={() => openEnableVncDialog(node)}
+                                onDisableVnc={(serviceId) => openDisableVncDialog(node, serviceId)}
+                                onEditVnc={(serviceId) => void openEditVncDialog(node, serviceId)}
                                 onEnableSsh={() => openEnableSshDialog(node)}
                                 onDisableSsh={(serviceId) => openDisableSshDialog(node, serviceId)}
                                 onEditSsh={(serviceId) => void openEditSshDialog(node, serviceId)}
@@ -1600,6 +1770,123 @@ export default function Nodes() {
                                     disabled={disableSshSubmitting}
                                 >
                                     {disableSshSubmitting ? 'Deleting...' : 'Delete SSH'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={enableVncDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeEnableVncDialog();
+                            } else {
+                                setEnableVncDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>{enableVncMode === 'update' ? 'Edit VNC' : 'Enable VNC'}</DialogTitle>
+                                <DialogDescription>
+                                    Configure the VNC server on {nodeToEnableVnc?.name ?? 'this node'}. The VNC
+                                    password is entered when you open the screen, not stored here.
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {enableVncLoadingDetails ? (
+                                <p className="text-sm text-muted-foreground">Loading current settings...</p>
+                            ) : (
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void submitEnableVnc();
+                                }}
+                                className="space-y-4"
+                            >
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Name</label>
+                                    <Input
+                                        value={enableVncName}
+                                        onChange={(event) => setEnableVncName(event.target.value)}
+                                        placeholder="Optional display name"
+                                        disabled={enableVncSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Host</label>
+                                    <Input
+                                        value={enableVncHost}
+                                        onChange={(event) => setEnableVncHost(event.target.value)}
+                                        placeholder="0.0.0.0"
+                                        disabled={enableVncSubmitting}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Port</label>
+                                    <Input
+                                        value={enableVncPort}
+                                        onChange={(event) => setEnableVncPort(event.target.value)}
+                                        placeholder="5900"
+                                        type="number"
+                                        min="1"
+                                        max="65535"
+                                        disabled={enableVncSubmitting}
+                                    />
+                                </div>
+                                {enableVncError && (
+                                    <p className="text-sm text-destructive">{enableVncError}</p>
+                                )}
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={closeEnableVncDialog} disabled={enableVncSubmitting}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={enableVncSubmitting}>
+                                        {enableVncSubmitting
+                                            ? (enableVncMode === 'update' ? 'Saving...' : 'Enabling...')
+                                            : (enableVncMode === 'update' ? 'Save' : 'Enable VNC')}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                            )}
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog
+                        open={disableVncDialogOpen}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                closeDisableVncDialog();
+                            } else {
+                                setDisableVncDialogOpen(true);
+                            }
+                        }}
+                    >
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Delete VNC</DialogTitle>
+                                <DialogDescription>
+                                    Delete VNC service for {nodeToDisableVnc?.name ?? 'this node'}?
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {disableVncError ? (
+                                <p className="text-sm text-destructive">{disableVncError}</p>
+                            ) : null}
+
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={closeDisableVncDialog} disabled={disableVncSubmitting}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => {
+                                        void submitDisableVnc();
+                                    }}
+                                    disabled={disableVncSubmitting}
+                                >
+                                    {disableVncSubmitting ? 'Deleting...' : 'Delete VNC'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -1939,6 +2226,16 @@ export default function Nodes() {
                         activeTabId={activeFileTabId}
                         onSelectTab={setActiveFileTabId}
                         onCloseTab={handleCloseFileTab}
+                    />
+
+                    {/* VNC Panel */}
+                    <VncPanel
+                        isOpen={vncPanelOpen}
+                        onClose={() => setVncPanelOpen(false)}
+                        tabs={vncPanelTabs}
+                        activeTabId={activeVncTabId}
+                        onSelectTab={setActiveVncTabId}
+                        onCloseTab={handleCloseVncTab}
                     />
 
                     {/* Create Tunnel Panel */}
