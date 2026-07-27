@@ -51,6 +51,35 @@ function compareVersions(a: string, b: string): number {
 
 type ListedService = { id: string; name: string | null; visibility: 'public' | 'private' };
 
+/**
+ * One hue per service kind, so a card can be read at a glance without parsing
+ * labels. Written out in full because Tailwind cannot resolve class names built
+ * at runtime. Unconfigured kinds deliberately opt out of all of this and stay
+ * muted — colour is what tells you a service actually exists.
+ */
+const SERVICE_TINTS = {
+    SSH: {
+        icon: 'text-accent',
+        count: 'text-accent',
+        tile: 'border-accent/35 bg-accent/10 hover:border-accent/70 hover:bg-accent/20',
+    },
+    SFTP: {
+        icon: 'text-info',
+        count: 'text-info',
+        tile: 'border-info/35 bg-info/10 hover:border-info/70 hover:bg-info/20',
+    },
+    VNC: {
+        icon: 'text-violet',
+        count: 'text-violet',
+        tile: 'border-violet/35 bg-violet/10 hover:border-violet/70 hover:bg-violet/20',
+    },
+    HTTP: {
+        icon: 'text-warning',
+        count: 'text-warning',
+        tile: 'border-warning/35 bg-warning/10 hover:border-warning/70 hover:bg-warning/20',
+    },
+} as const;
+
 interface NodeCardProps {
     node: TunnelNode;
     onCreateTunnel: (node: TunnelNode, serviceId: string, serviceName?: string | null) => void;
@@ -166,6 +195,8 @@ export function NodeCard({
     const httpProxyVisibility = matchingServices('HTTP')
         .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
     const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
+    const totalServiceCount = (['SSH', 'SFTP', 'VNC', 'HTTP'] as const)
+        .reduce((sum, kind) => sum + serviceCount(kind), 0);
 
     const [ipBlurred, setIpBlurred] = useState(false);
 
@@ -339,7 +370,7 @@ export function NodeCard({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-8 mt-1">
+                <div className="flex items-center gap-3 mb-4 mt-1">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -384,15 +415,13 @@ export function NodeCard({
                 </div>
 
                 {/* Extended Stats Grid */}
-                <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-2 mb-4 text-xs">
+                <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-x-4 gap-y-0.5 mb-3 text-xs">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                                <Clock className="w-5 h-5 text-primary" />
-                                <div>
-                                    <span className="text-muted-foreground">Uptime</span>
-                                    <p className="font-mono text-foreground">{formatDuration(node.stats.host_uptime_secs)}</p>
-                                </div>
+                            <div className="flex items-center gap-2 px-1 py-1">
+                                <Clock className="w-3.5 h-3.5 shrink-0 text-info/80" />
+                                <span className="text-muted-foreground">Uptime</span>
+                                <span className="ml-auto font-mono text-foreground">{formatDuration(node.stats.host_uptime_secs)}</span>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -402,19 +431,14 @@ export function NodeCard({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div
-                                className="flex items-center gap-2 bg-secondary/50 rounded-lg px-2 py-2 cursor-pointer"
+                                className="flex items-center gap-2 px-1 py-1 cursor-pointer"
                                 onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
                             >
-                                <Globe className="w-4 h-4 text-primary shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-muted-foreground shrink-0">IP</span>
-                                        <div className={cn('min-w-0', ipBlurred && 'blur-sm select-none')}>
-                                            <p className="font-mono text-foreground truncate">{displayIp || 'unknown'}</p>
-                                            <p className="font-mono text-muted-foreground truncate">{displayLocalIp || 'unknown'}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                <Globe className="w-3.5 h-3.5 shrink-0 text-accent/80" />
+                                <span className="text-muted-foreground shrink-0">IP</span>
+                                <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
+                                    {displayIp || 'unknown'}
+                                </span>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -425,28 +449,24 @@ export function NodeCard({
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                                <Activity className="w-5 h-5 text-accent" />
-                                <div>
-                                    <span className="text-muted-foreground">Load Avg</span>
-                                    <p className="font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</p>
-                                </div>
+                            <div className="flex items-center gap-2 px-1 py-1">
+                                <Activity className="w-3.5 h-3.5 shrink-0 text-warning/80" />
+                                <span className="text-muted-foreground">Load</span>
+                                <span className="ml-auto font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</span>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
                             {loadAverageLabel}
                         </TooltipContent>
                     </Tooltip>
-                    <div className="flex items-center gap-3 bg-secondary/50 rounded-lg px-3 py-2.5">
-                        <Cpu className="w-5 h-5 text-accent" />
-                        <div>
-                            <span className="text-muted-foreground">Processes</span>
-                            <p className="font-mono text-foreground">{node.stats.host_processes}</p>
-                        </div>
+                    <div className="flex items-center gap-2 px-1 py-1">
+                        <Cpu className="w-3.5 h-3.5 shrink-0 text-violet/80" />
+                        <span className="text-muted-foreground">Procs</span>
+                        <span className="ml-auto font-mono text-foreground">{node.stats.host_processes}</span>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span className="text-muted-foreground/60">
@@ -460,60 +480,72 @@ export function NodeCard({
                     <span className="text-muted-foreground/70">Version: {nodeVersion || 'unknown'}</span>
                 </div>
 
-                {/* Tags */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                    {/*node.tags.map((tag) => (
-                        <span
-                            key={tag}
-                            className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded"
-                        >
-                            {tag}
-                        </span>
-                    ))*/}
-                </div>
+                {/* Services — the card's primary affordance. Configured kinds carry a
+                    count; unconfigured ones stay muted with a + so the card doubles
+                    as the place you add them. */}
+                <div className="mt-auto">
+                    <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Services</span>
+                        {totalServiceCount > 0 ? (
+                            <span className="font-mono text-[11px] text-muted-foreground/70">{totalServiceCount} configured</span>
+                        ) : null}
+                    </div>
+                    <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-2">
+                        {([
+                            { kind: 'SSH' as const, label: 'SSH', Icon: Terminal },
+                            { kind: 'SFTP' as const, label: 'Files', Icon: FolderOpen },
+                            { kind: 'VNC' as const, label: 'Screen', Icon: MonitorPlay },
+                            { kind: 'HTTP' as const, label: 'HTTP', Icon: HttpProxyIcon },
+                        ]).map(({ kind, label, Icon }) => {
+                            const count = serviceCount(kind);
+                            const configured = count > 0;
+                            const tint = SERVICE_TINTS[kind];
 
-                {/* Actions */}
-                <div className="flex gap-1.5 mt-auto">
-                    <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
-                        onClick={() => void runOrPickInstance('SSH')}
-                        disabled={actionsDisabled}
-                    >
-                        <Terminal />
-                        SSH{serviceCount('SSH') > 0 ? <span className="font-mono"> [{serviceCount('SSH')}]</span> : ''}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
-                        onClick={() => void runOrPickInstance('SFTP')}
-                        disabled={actionsDisabled}
-                    >
-                        <FolderOpen />
-                        Files{serviceCount('SFTP') > 0 ? <span className="font-mono"> [{serviceCount('SFTP')}]</span> : ''}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
-                        onClick={() => void runOrPickInstance('VNC')}
-                        disabled={actionsDisabled}
-                    >
-                        <MonitorPlay />
-                        Screen{serviceCount('VNC') > 0 ? <span className="font-mono"> [{serviceCount('VNC')}]</span> : ''}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 min-w-0 gap-1 px-2 text-xs whitespace-nowrap [&_svg]:size-3.5"
-                        onClick={() => void runOrPickInstance('HTTP')}
-                        disabled={actionsDisabled}
-                    >
-                        <HttpProxyIcon />
-                        HTTP{serviceCount('HTTP') > 0 ? <span className="font-mono"> [{serviceCount('HTTP')}]</span> : ''}
-                    </Button>
+                            return (
+                                <Tooltip key={kind}>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            type="button"
+                                            onClick={() => void runOrPickInstance(kind)}
+                                            disabled={actionsDisabled}
+                                            aria-label={configured
+                                                ? `Open ${label} on ${node.name}`
+                                                : `Add a ${label} service to ${node.name}`}
+                                            className={cn(
+                                                'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                                'disabled:cursor-not-allowed disabled:opacity-50',
+                                                configured
+                                                    ? tint.tile
+                                                    : 'border-dashed border-border/60 hover:border-border hover:bg-secondary/30'
+                                            )}
+                                        >
+                                            <Icon className={cn(
+                                                'w-4 h-4 shrink-0',
+                                                configured ? tint.icon : 'text-muted-foreground/60'
+                                            )} />
+                                            <span className={cn(
+                                                'flex-1 truncate text-xs font-medium',
+                                                configured ? 'text-foreground' : 'text-muted-foreground'
+                                            )}>
+                                                {label}
+                                            </span>
+                                            {configured ? (
+                                                <span className={cn('font-mono text-xs font-semibold', tint.count)}>{count}</span>
+                                            ) : (
+                                                <Plus className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
+                                            )}
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {configured
+                                            ? `${count} ${label} ${count === 1 ? 'service' : 'services'}`
+                                            : `No ${label} service yet - click to add one`}
+                                    </TooltipContent>
+                                </Tooltip>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 

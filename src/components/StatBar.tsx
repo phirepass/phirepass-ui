@@ -19,15 +19,18 @@ export function StatBar({ label, value, unit = '%', variant = 'default', icon }:
 
   const colorVariant = getVariant();
 
+  // `--primary` is near-white in this theme, so a "default" bar rendered as a
+  // colourless strip. Healthy values now read in the brand emerald, which also
+  // makes the amber/red escalation at 70% and 90% actually mean something.
   const barColors = {
-    default: 'bg-primary',
+    default: 'bg-accent',
     warning: 'bg-warning',
     danger: 'bg-destructive',
     secondary: 'bg-muted-foreground',
   };
 
   const textColors = {
-    default: 'text-primary',
+    default: 'text-accent',
     warning: 'text-warning',
     danger: 'text-destructive',
     secondary: 'text-muted-foreground',
