@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { X, MonitorPlay, Maximize2, Minimize2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { X, MonitorPlay, Maximize2, Minimize2, Expand } from 'lucide-react';
 import { Button } from './ui/button';
 import { RdpPanelTab } from '@/types/node';
 import { cn } from '@/lib/utils';
 import { defineCustomElements } from 'phirepass-widgets/loader';
+import type { PhirepassRdpElement } from '@/types/custom-elements';
 
 interface RdpPanelProps {
     isOpen: boolean;
@@ -21,9 +22,25 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
     const [isPanelVisible, setIsPanelVisible] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
 
+    const widgetRefs = useRef(new Map<string, PhirepassRdpElement>());
+
     useEffect(() => {
         void defineCustomElements();
     }, []);
+
+    /**
+     * Puts the active session into browser fullscreen, which is also what lets
+     * the widget claim the shortcuts the browser normally keeps (Ctrl+W,
+     * Alt+Tab). It has to be driven from a click: browsers only grant
+     * fullscreen — and therefore the keyboard lock — to a user gesture.
+     */
+    const toggleWidgetFullScreen = useCallback(() => {
+        if (!activeTabId) {
+            return;
+        }
+
+        void widgetRefs.current.get(activeTabId)?.toggleFullscreen();
+    }, [activeTabId]);
 
     useEffect(() => {
         if (!isOpen || tabs.length === 0 || token || loadingToken || tokenError) {
@@ -115,6 +132,17 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
+                            {tabs.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={toggleWidgetFullScreen}
+                                    aria-label="Show the remote screen fullscreen and capture the keyboard"
+                                    title="Fullscreen — captures browser shortcuts"
+                                >
+                                    <Expand className="w-4 h-4" />
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -171,6 +199,13 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                                     aria-hidden={activeTabId === tab.id ? 'false' : 'true'}
                                 >
                                     <phirepass-rdp
+                                        ref={(element: PhirepassRdpElement | null) => {
+                                            if (element) {
+                                                widgetRefs.current.set(tab.id, element);
+                                            } else {
+                                                widgetRefs.current.delete(tab.id);
+                                            }
+                                        }}
                                         node-id={tab.nodeId}
                                         server-id={tab.serverId}
                                         service-id={tab.serviceId}
