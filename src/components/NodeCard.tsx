@@ -493,8 +493,8 @@ export function NodeCard({
                     <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-2">
                         {([
                             { kind: 'SSH' as const, label: 'SSH', Icon: Terminal },
-                            { kind: 'SFTP' as const, label: 'Files', Icon: FolderOpen },
-                            { kind: 'RDP' as const, label: 'Screen', Icon: MonitorPlay },
+                            { kind: 'SFTP' as const, label: 'SFTP', Icon: FolderOpen },
+                            { kind: 'RDP' as const, label: 'RDP', Icon: MonitorPlay },
                             { kind: 'HTTP' as const, label: 'HTTP', Icon: HttpProxyIcon },
                         ]).map(({ kind, label, Icon }) => {
                             const count = serviceCount(kind);

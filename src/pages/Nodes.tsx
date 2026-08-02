@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
-import { RdpPanel } from '@/components/RdpPanel';
+import { RdpPanel } from '@/components/RDPPanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';

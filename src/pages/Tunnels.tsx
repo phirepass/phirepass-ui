@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { TunnelCard } from '@/components/TunnelCard';
 import { TcpTunnelCard } from '@/components/TcpTunnelCard';
-import { SshTunnelCard } from '@/components/SshTunnelCard';
+import { SshTunnelCard } from '@/components/SSHTunnelCard';
 import { TerminalPanel } from '@/components/TerminalPanel';
-import { SftpPanel } from '@/components/SftpPanel';
+import { SftpPanel } from '@/components/SFTPPanel';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
