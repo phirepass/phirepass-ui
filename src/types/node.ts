@@ -50,13 +50,19 @@ export interface FilePanelTab {
     serviceName?: string | null;
 }
 
-export interface VncPanelTab {
+export interface RdpPanelTab {
     id: string;
     nodeId: string;
     nodeName: string;
     serverId?: string;
     serviceId: string;
     serviceName?: string | null;
+    /**
+     * `host:port` from the service settings. The agent dials from those same
+     * settings, so this never affects routing — it is only what the browser
+     * names in the CredSSP service principal, which some hosts check.
+     */
+    destination?: string;
 }
 
 export interface FileItem {

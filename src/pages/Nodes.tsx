@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
-import { VncPanel } from '@/components/VncPanel';
+import { RdpPanel } from '@/components/RdpPanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
@@ -13,7 +13,7 @@ import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
-import { FilePanelTab, NodeStats, TunnelNode, VncPanelTab } from '@/types/node';
+import { FilePanelTab, NodeStats, TunnelNode, RdpPanelTab } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -147,10 +147,10 @@ export default function Nodes() {
     const [filePanelTabs, setFilePanelTabs] = useState<FilePanelTab[]>([]);
     const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
 
-    // VNC panel state
-    const [vncPanelOpen, setVncPanelOpen] = useState(false);
-    const [vncPanelTabs, setVncPanelTabs] = useState<VncPanelTab[]>([]);
-    const [activeVncTabId, setActiveVncTabId] = useState<string | null>(null);
+    // RDP panel state
+    const [rdpPanelOpen, setRdpPanelOpen] = useState(false);
+    const [rdpPanelTabs, setRdpPanelTabs] = useState<RdpPanelTab[]>([]);
+    const [activeRdpTabId, setActiveRdpTabId] = useState<string | null>(null);
 
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
@@ -189,23 +189,24 @@ export default function Nodes() {
     const [enableSshPassword, setEnableSshPassword] = useState('');
     const [enableSshSubmitting, setEnableSshSubmitting] = useState(false);
     const [enableSshError, setEnableSshError] = useState<string | null>(null);
-    // VNC dialog state. There is no username field: RFB has no concept of one,
-    // and the password is entered in the viewer, not stored on the service.
-    const [enableVncDialogOpen, setEnableVncDialogOpen] = useState(false);
-    const [enableVncMode, setEnableVncMode] = useState<'create' | 'update'>('create');
-    const [enableVncLoadingDetails, setEnableVncLoadingDetails] = useState(false);
-    const [nodeToEnableVnc, setNodeToEnableVnc] = useState<TunnelNode | null>(null);
-    const [enableVncServiceId, setEnableVncServiceId] = useState<string | null>(null);
-    const [enableVncName, setEnableVncName] = useState('');
-    const [enableVncHost, setEnableVncHost] = useState('0.0.0.0');
-    const [enableVncPort, setEnableVncPort] = useState('5900');
-    const [enableVncSubmitting, setEnableVncSubmitting] = useState(false);
-    const [enableVncError, setEnableVncError] = useState<string | null>(null);
-    const [disableVncDialogOpen, setDisableVncDialogOpen] = useState(false);
-    const [nodeToDisableVnc, setNodeToDisableVnc] = useState<TunnelNode | null>(null);
-    const [serviceIdToDisableVnc, setServiceIdToDisableVnc] = useState<string | null>(null);
-    const [disableVncSubmitting, setDisableVncSubmitting] = useState(false);
-    const [disableVncError, setDisableVncError] = useState<string | null>(null);
+    // RDP dialog state. There are no credential fields: CredSSP runs in the
+    // browser's own RDP client, so the username and password are entered when
+    // the screen is opened and never stored on the service.
+    const [enableRdpDialogOpen, setEnableRdpDialogOpen] = useState(false);
+    const [enableRdpMode, setEnableRdpMode] = useState<'create' | 'update'>('create');
+    const [enableRdpLoadingDetails, setEnableRdpLoadingDetails] = useState(false);
+    const [nodeToEnableRdp, setNodeToEnableRdp] = useState<TunnelNode | null>(null);
+    const [enableRdpServiceId, setEnableRdpServiceId] = useState<string | null>(null);
+    const [enableRdpName, setEnableRdpName] = useState('');
+    const [enableRdpHost, setEnableRdpHost] = useState('0.0.0.0');
+    const [enableRdpPort, setEnableRdpPort] = useState('3389');
+    const [enableRdpSubmitting, setEnableRdpSubmitting] = useState(false);
+    const [enableRdpError, setEnableRdpError] = useState<string | null>(null);
+    const [disableRdpDialogOpen, setDisableRdpDialogOpen] = useState(false);
+    const [nodeToDisableRdp, setNodeToDisableRdp] = useState<TunnelNode | null>(null);
+    const [serviceIdToDisableRdp, setServiceIdToDisableRdp] = useState<string | null>(null);
+    const [disableRdpSubmitting, setDisableRdpSubmitting] = useState(false);
+    const [disableRdpError, setDisableRdpError] = useState<string | null>(null);
 
     const [disableSshDialogOpen, setDisableSshDialogOpen] = useState(false);
     const [nodeToDisableSsh, setNodeToDisableSsh] = useState<TunnelNode | null>(null);
@@ -397,34 +398,41 @@ export default function Nodes() {
         setFilePanelOpen(true);
     };
 
-    const openScreen = (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
-        setVncPanelTabs((prev) => {
-            const existingTab = prev.find((tab) => tab.nodeId === node.id && tab.serviceId === serviceId);
-            if (existingTab) {
-                setActiveVncTabId(existingTab.id);
-                return prev;
-            }
+    const openScreen = async (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
+        const existingTab = rdpPanelTabs.find((tab) => tab.nodeId === node.id && tab.serviceId === serviceId);
+        if (existingTab) {
+            setActiveRdpTabId(existingTab.id);
+            setRdpPanelOpen(true);
+            return;
+        }
 
-            const newTab: VncPanelTab = {
-                id: `vnc-${node.id}-${serviceId}`,
-                nodeId: node.id,
-                nodeName: node.name,
-                serverId: node.server_id,
-                serviceId,
-                serviceName: serviceName ?? null,
-            };
+        // Only for the CredSSP service principal — the agent dials the host in
+        // its own settings regardless, so a failed lookup is not fatal.
+        const services = await fetchServicesForKind(node.id, 'rdp');
+        const detail = services.find((service) => service.id === serviceId) ?? null;
 
-            setActiveVncTabId(newTab.id);
-            return [...prev, newTab];
-        });
-        setVncPanelOpen(true);
+        const newTab: RdpPanelTab = {
+            id: `rdp-${node.id}-${serviceId}`,
+            nodeId: node.id,
+            nodeName: node.name,
+            serverId: node.server_id,
+            serviceId,
+            serviceName: serviceName ?? null,
+            destination: detail ? `${detail.host}:${detail.port}` : undefined,
+        };
+
+        setRdpPanelTabs((prev) => (
+            prev.some((tab) => tab.id === newTab.id) ? prev : [...prev, newTab]
+        ));
+        setActiveRdpTabId(newTab.id);
+        setRdpPanelOpen(true);
     };
 
-    const handleCloseVncTab = (tabId: string) => {
-        setVncPanelTabs((prev) => {
+    const handleCloseRdpTab = (tabId: string) => {
+        setRdpPanelTabs((prev) => {
             const remainingTabs = prev.filter((tab) => tab.id !== tabId);
 
-            setActiveVncTabId((currentActiveTabId) => {
+            setActiveRdpTabId((currentActiveTabId) => {
                 if (currentActiveTabId !== tabId) {
                     return currentActiveTabId;
                 }
@@ -435,7 +443,7 @@ export default function Nodes() {
             });
 
             if (remainingTabs.length === 0) {
-                setVncPanelOpen(false);
+                setRdpPanelOpen(false);
             }
 
             return remainingTabs;
@@ -607,7 +615,7 @@ export default function Nodes() {
         scheme: 'http' | 'https' | null;
     };
 
-    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'vnc'): Promise<ServiceDetail[]> => {
+    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'rdp'): Promise<ServiceDetail[]> => {
         try {
             const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
                 credentials: 'include',
@@ -710,99 +718,99 @@ export default function Nodes() {
         setServiceIdToDisableSsh(null);
     };
 
-    const openEditVncDialog = async (node: TunnelNode, serviceId: string) => {
-        setNodeToEnableVnc(node);
-        setEnableVncMode('update');
-        setEnableVncServiceId(serviceId);
-        setEnableVncError(null);
-        setEnableVncLoadingDetails(true);
-        setEnableVncDialogOpen(true);
+    const openEditRdpDialog = async (node: TunnelNode, serviceId: string) => {
+        setNodeToEnableRdp(node);
+        setEnableRdpMode('update');
+        setEnableRdpServiceId(serviceId);
+        setEnableRdpError(null);
+        setEnableRdpLoadingDetails(true);
+        setEnableRdpDialogOpen(true);
 
-        const services = await fetchServicesForKind(node.id, 'vnc');
+        const services = await fetchServicesForKind(node.id, 'rdp');
         const detail = services.find((s) => s.id === serviceId) ?? null;
-        setEnableVncName(detail?.name ?? '');
-        setEnableVncHost(detail?.host || '0.0.0.0');
-        setEnableVncPort(detail ? String(detail.port) : '5900');
-        setEnableVncLoadingDetails(false);
+        setEnableRdpName(detail?.name ?? '');
+        setEnableRdpHost(detail?.host || '0.0.0.0');
+        setEnableRdpPort(detail ? String(detail.port) : '3389');
+        setEnableRdpLoadingDetails(false);
     };
 
-    const openEnableVncDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
-        setNodeToEnableVnc(node);
-        setEnableVncMode(mode);
-        setEnableVncServiceId(null);
-        setEnableVncName('');
-        setEnableVncHost('0.0.0.0');
-        setEnableVncPort('5900');
-        setEnableVncError(null);
-        setEnableVncDialogOpen(true);
+    const openEnableRdpDialog = (node: TunnelNode, mode: 'create' | 'update' = 'create') => {
+        setNodeToEnableRdp(node);
+        setEnableRdpMode(mode);
+        setEnableRdpServiceId(null);
+        setEnableRdpName('');
+        setEnableRdpHost('0.0.0.0');
+        setEnableRdpPort('3389');
+        setEnableRdpError(null);
+        setEnableRdpDialogOpen(true);
     };
 
-    const openDisableVncDialog = (node: TunnelNode, serviceId: string) => {
-        setNodeToDisableVnc(node);
-        setServiceIdToDisableVnc(serviceId);
-        setDisableVncError(null);
-        setDisableVncDialogOpen(true);
+    const openDisableRdpDialog = (node: TunnelNode, serviceId: string) => {
+        setNodeToDisableRdp(node);
+        setServiceIdToDisableRdp(serviceId);
+        setDisableRdpError(null);
+        setDisableRdpDialogOpen(true);
     };
 
-    const closeEnableVncDialog = () => {
-        setEnableVncDialogOpen(false);
-        setNodeToEnableVnc(null);
-        setEnableVncServiceId(null);
+    const closeEnableRdpDialog = () => {
+        setEnableRdpDialogOpen(false);
+        setNodeToEnableRdp(null);
+        setEnableRdpServiceId(null);
     };
 
-    const closeDisableVncDialog = () => {
-        setDisableVncDialogOpen(false);
-        setNodeToDisableVnc(null);
-        setServiceIdToDisableVnc(null);
+    const closeDisableRdpDialog = () => {
+        setDisableRdpDialogOpen(false);
+        setNodeToDisableRdp(null);
+        setServiceIdToDisableRdp(null);
     };
 
-    const submitEnableVnc = async () => {
-        if (!nodeToEnableVnc) return;
+    const submitEnableRdp = async () => {
+        if (!nodeToEnableRdp) return;
 
-        setEnableVncSubmitting(true);
-        setEnableVncError(null);
+        setEnableRdpSubmitting(true);
+        setEnableRdpError(null);
 
-        const isUpdate = enableVncMode === 'update';
+        const isUpdate = enableRdpMode === 'update';
 
         try {
             await saveService(
                 buildWsEndpoint(),
-                nodeToEnableVnc,
+                nodeToEnableRdp,
                 {
-                    kind: 'vnc',
-                    name: enableVncName.trim() || null,
-                    host: enableVncHost,
-                    port: parseInt(enableVncPort, 10) || 5900,
+                    kind: 'rdp',
+                    name: enableRdpName.trim() || null,
+                    host: enableRdpHost,
+                    port: parseInt(enableRdpPort, 10) || 3389,
                 },
-                isUpdate ? enableVncServiceId : null,
+                isUpdate ? enableRdpServiceId : null,
             );
 
-            updateServiceInNode(nodeToEnableVnc.id, 'VNC', true);
-            toast.success(isUpdate ? 'VNC service updated' : 'VNC service created');
-            closeEnableVncDialog();
+            updateServiceInNode(nodeToEnableRdp.id, 'RDP', true);
+            toast.success(isUpdate ? 'RDP service updated' : 'RDP service created');
+            closeEnableRdpDialog();
         } catch (err) {
-            setEnableVncError(err instanceof Error ? err.message : 'Failed to enable VNC.');
+            setEnableRdpError(err instanceof Error ? err.message : 'Failed to enable RDP.');
         } finally {
-            setEnableVncSubmitting(false);
+            setEnableRdpSubmitting(false);
         }
     };
 
-    const submitDisableVnc = async () => {
-        if (!nodeToDisableVnc || !serviceIdToDisableVnc) return;
+    const submitDisableRdp = async () => {
+        if (!nodeToDisableRdp || !serviceIdToDisableRdp) return;
 
-        setDisableVncSubmitting(true);
-        setDisableVncError(null);
+        setDisableRdpSubmitting(true);
+        setDisableRdpError(null);
 
         try {
-            await removeService(buildWsEndpoint(), nodeToDisableVnc, serviceIdToDisableVnc, 'vnc');
+            await removeService(buildWsEndpoint(), nodeToDisableRdp, serviceIdToDisableRdp, 'rdp');
 
-            updateServiceInNode(nodeToDisableVnc.id, 'VNC', false);
-            toast.success('VNC service deleted');
-            closeDisableVncDialog();
+            updateServiceInNode(nodeToDisableRdp.id, 'RDP', false);
+            toast.success('RDP service deleted');
+            closeDisableRdpDialog();
         } catch (err) {
-            setDisableVncError(err instanceof Error ? err.message : 'Failed to delete VNC.');
+            setDisableRdpError(err instanceof Error ? err.message : 'Failed to delete RDP.');
         } finally {
-            setDisableVncSubmitting(false);
+            setDisableRdpSubmitting(false);
         }
     };
 
@@ -1618,10 +1626,10 @@ export default function Nodes() {
                                 onViewNodeId={handleViewNodeId}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
-                                onOpenScreen={(target, serviceId, serviceName) => openScreen(target, serviceId, serviceName)}
-                                onEnableVnc={() => openEnableVncDialog(node)}
-                                onDisableVnc={(serviceId) => openDisableVncDialog(node, serviceId)}
-                                onEditVnc={(serviceId) => void openEditVncDialog(node, serviceId)}
+                                onOpenScreen={(target, serviceId, serviceName) => void openScreen(target, serviceId, serviceName)}
+                                onEnableRdp={() => openEnableRdpDialog(node)}
+                                onDisableRdp={(serviceId) => openDisableRdpDialog(node, serviceId)}
+                                onEditRdp={(serviceId) => void openEditRdpDialog(node, serviceId)}
                                 onEnableSsh={() => openEnableSshDialog(node)}
                                 onDisableSsh={(serviceId) => openDisableSshDialog(node, serviceId)}
                                 onEditSsh={(serviceId) => void openEditSshDialog(node, serviceId)}
@@ -1776,75 +1784,75 @@ export default function Nodes() {
                     </Dialog>
 
                     <Dialog
-                        open={enableVncDialogOpen}
+                        open={enableRdpDialogOpen}
                         onOpenChange={(open) => {
                             if (!open) {
-                                closeEnableVncDialog();
+                                closeEnableRdpDialog();
                             } else {
-                                setEnableVncDialogOpen(true);
+                                setEnableRdpDialogOpen(true);
                             }
                         }}
                     >
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>{enableVncMode === 'update' ? 'Edit VNC' : 'Enable VNC'}</DialogTitle>
+                                <DialogTitle>{enableRdpMode === 'update' ? 'Edit RDP' : 'Enable RDP'}</DialogTitle>
                                 <DialogDescription>
-                                    Configure the VNC server on {nodeToEnableVnc?.name ?? 'this node'}. The VNC
-                                    password is entered when you open the screen, not stored here.
+                                    Configure the RDP host on {nodeToEnableRdp?.name ?? 'this node'}. The Windows
+                                    username and password are entered when you open the screen, not stored here.
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {enableVncLoadingDetails ? (
+                            {enableRdpLoadingDetails ? (
                                 <p className="text-sm text-muted-foreground">Loading current settings...</p>
                             ) : (
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
-                                    void submitEnableVnc();
+                                    void submitEnableRdp();
                                 }}
                                 className="space-y-4"
                             >
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Name</label>
                                     <Input
-                                        value={enableVncName}
-                                        onChange={(event) => setEnableVncName(event.target.value)}
+                                        value={enableRdpName}
+                                        onChange={(event) => setEnableRdpName(event.target.value)}
                                         placeholder="Optional display name"
-                                        disabled={enableVncSubmitting}
+                                        disabled={enableRdpSubmitting}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Host</label>
                                     <Input
-                                        value={enableVncHost}
-                                        onChange={(event) => setEnableVncHost(event.target.value)}
+                                        value={enableRdpHost}
+                                        onChange={(event) => setEnableRdpHost(event.target.value)}
                                         placeholder="0.0.0.0"
-                                        disabled={enableVncSubmitting}
+                                        disabled={enableRdpSubmitting}
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Port</label>
                                     <Input
-                                        value={enableVncPort}
-                                        onChange={(event) => setEnableVncPort(event.target.value)}
-                                        placeholder="5900"
+                                        value={enableRdpPort}
+                                        onChange={(event) => setEnableRdpPort(event.target.value)}
+                                        placeholder="3389"
                                         type="number"
                                         min="1"
                                         max="65535"
-                                        disabled={enableVncSubmitting}
+                                        disabled={enableRdpSubmitting}
                                     />
                                 </div>
-                                {enableVncError && (
-                                    <p className="text-sm text-destructive">{enableVncError}</p>
+                                {enableRdpError && (
+                                    <p className="text-sm text-destructive">{enableRdpError}</p>
                                 )}
                                 <DialogFooter>
-                                    <Button type="button" variant="outline" onClick={closeEnableVncDialog} disabled={enableVncSubmitting}>
+                                    <Button type="button" variant="outline" onClick={closeEnableRdpDialog} disabled={enableRdpSubmitting}>
                                         Cancel
                                     </Button>
-                                    <Button type="submit" disabled={enableVncSubmitting}>
-                                        {enableVncSubmitting
-                                            ? (enableVncMode === 'update' ? 'Saving...' : 'Enabling...')
-                                            : (enableVncMode === 'update' ? 'Save' : 'Enable VNC')}
+                                    <Button type="submit" disabled={enableRdpSubmitting}>
+                                        {enableRdpSubmitting
+                                            ? (enableRdpMode === 'update' ? 'Saving...' : 'Enabling...')
+                                            : (enableRdpMode === 'update' ? 'Save' : 'Enable RDP')}
                                     </Button>
                                 </DialogFooter>
                             </form>
@@ -1853,40 +1861,40 @@ export default function Nodes() {
                     </Dialog>
 
                     <Dialog
-                        open={disableVncDialogOpen}
+                        open={disableRdpDialogOpen}
                         onOpenChange={(open) => {
                             if (!open) {
-                                closeDisableVncDialog();
+                                closeDisableRdpDialog();
                             } else {
-                                setDisableVncDialogOpen(true);
+                                setDisableRdpDialogOpen(true);
                             }
                         }}
                     >
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Delete VNC</DialogTitle>
+                                <DialogTitle>Delete RDP</DialogTitle>
                                 <DialogDescription>
-                                    Delete VNC service for {nodeToDisableVnc?.name ?? 'this node'}?
+                                    Delete RDP service for {nodeToDisableRdp?.name ?? 'this node'}?
                                 </DialogDescription>
                             </DialogHeader>
 
-                            {disableVncError ? (
-                                <p className="text-sm text-destructive">{disableVncError}</p>
+                            {disableRdpError ? (
+                                <p className="text-sm text-destructive">{disableRdpError}</p>
                             ) : null}
 
                             <DialogFooter>
-                                <Button type="button" variant="outline" onClick={closeDisableVncDialog} disabled={disableVncSubmitting}>
+                                <Button type="button" variant="outline" onClick={closeDisableRdpDialog} disabled={disableRdpSubmitting}>
                                     Cancel
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="destructive"
                                     onClick={() => {
-                                        void submitDisableVnc();
+                                        void submitDisableRdp();
                                     }}
-                                    disabled={disableVncSubmitting}
+                                    disabled={disableRdpSubmitting}
                                 >
-                                    {disableVncSubmitting ? 'Deleting...' : 'Delete VNC'}
+                                    {disableRdpSubmitting ? 'Deleting...' : 'Delete RDP'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -2228,14 +2236,14 @@ export default function Nodes() {
                         onCloseTab={handleCloseFileTab}
                     />
 
-                    {/* VNC Panel */}
-                    <VncPanel
-                        isOpen={vncPanelOpen}
-                        onClose={() => setVncPanelOpen(false)}
-                        tabs={vncPanelTabs}
-                        activeTabId={activeVncTabId}
-                        onSelectTab={setActiveVncTabId}
-                        onCloseTab={handleCloseVncTab}
+                    {/* RDP Panel */}
+                    <RdpPanel
+                        isOpen={rdpPanelOpen}
+                        onClose={() => setRdpPanelOpen(false)}
+                        tabs={rdpPanelTabs}
+                        activeTabId={activeRdpTabId}
+                        onSelectTab={setActiveRdpTabId}
+                        onCloseTab={handleCloseRdpTab}
                     />
 
                     {/* Create Tunnel Panel */}

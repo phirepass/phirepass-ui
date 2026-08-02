@@ -22,7 +22,7 @@ declare module 'react' {
                 'aria-hidden'?: boolean | 'true' | 'false';
                 'hide-header'?: boolean;
             };
-            'phirepass-vnc': {
+            'phirepass-rdp': {
                 'node-id'?: string;
                 'server-id'?: string;
                 'service-id'?: string;
@@ -30,8 +30,11 @@ declare module 'react' {
                 style?: CSSProperties;
                 class?: string;
                 'aria-hidden'?: boolean | 'true' | 'false';
-                'scale-viewport'?: boolean;
-                'resize-session'?: boolean;
+                /** `host:port` as the remote knows itself, for the CredSSP SPN. */
+                destination?: string;
+                username?: string;
+                password?: string;
+                scale?: 'fit' | 'full' | 'real';
             };
         }
     }

@@ -68,7 +68,7 @@ const SERVICE_TINTS = {
         count: 'text-info',
         tile: 'border-info/35 bg-info/10 hover:border-info/70 hover:bg-info/20',
     },
-    VNC: {
+    RDP: {
         icon: 'text-violet',
         count: 'text-violet',
         tile: 'border-violet/35 bg-violet/10 hover:border-violet/70 hover:bg-violet/20',
@@ -102,12 +102,12 @@ interface NodeCardProps {
     onEnableHttpProxy?: () => void;
     onDisableHttpProxy?: (serviceId: string) => void;
     onEditHttpProxy?: (serviceId: string) => void;
-    onEnableVnc?: () => void;
-    onDisableVnc?: (serviceId: string) => void;
-    onEditVnc?: (serviceId: string) => void;
+    onEnableRdp?: () => void;
+    onDisableRdp?: (serviceId: string) => void;
+    onEditRdp?: (serviceId: string) => void;
     // Fetches the real list of configured services for a kind (id, name, visibility),
     // used to populate the service instance picker with actual identifiable entries.
-    onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'vnc') => Promise<ListedService[]>;
+    onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'rdp') => Promise<ListedService[]>;
     isShared?: boolean;
     sharedBy?: string;
     // True while the node's data may be stale (e.g. rendered from a local cache before
@@ -140,9 +140,9 @@ export function NodeCard({
     onEnableHttpProxy,
     onDisableHttpProxy,
     onEditHttpProxy,
-    onEnableVnc,
-    onDisableVnc,
-    onEditVnc,
+    onEnableRdp,
+    onDisableRdp,
+    onEditRdp,
     onListServices,
     isShared = false,
     sharedBy,
@@ -195,7 +195,7 @@ export function NodeCard({
     const httpProxyVisibility = matchingServices('HTTP')
         .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
     const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
-    const totalServiceCount = (['SSH', 'SFTP', 'VNC', 'HTTP'] as const)
+    const totalServiceCount = (['SSH', 'SFTP', 'RDP', 'HTTP'] as const)
         .reduce((sum, kind) => sum + serviceCount(kind), 0);
 
     const [ipBlurred, setIpBlurred] = useState(false);
@@ -213,14 +213,14 @@ export function NodeCard({
     // kind per node, so today this always lists at most one entry, but it's
     // wired up with real ids/names for when multi-instance services land.
     const [serviceInstancePicker, setServiceInstancePicker] = useState<{
-        kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC';
+        kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP';
         loading: boolean;
         instances: ListedService[];
     } | null>(null);
 
-    const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => {
+    const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => {
         setServiceInstancePicker({ kind, loading: true, instances: [] });
-        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http' | 'vnc')) ?? [];
+        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http' | 'rdp')) ?? [];
         setServiceInstancePicker({ kind, loading: false, instances });
     };
 
@@ -234,35 +234,35 @@ export function NodeCard({
         && !serviceInstancePicker.loading
         && serviceInstancePicker.instances.length >= 1;
 
-    const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => (
-        kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : kind === 'VNC' ? 'VNC screen' : 'HTTP service'
+    const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => (
+        kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : kind === 'RDP' ? 'RDP screen' : 'HTTP service'
     );
 
     // Same icon as the SSH/Files/Screen/HTTP action buttons; for HTTP it follows this
     // specific instance's visibility (Globe for public, Lock for private), same as
     // the aggregate HttpProxyIcon does for the card-level button.
-    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', instance: ListedService) => (
-        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : kind === 'VNC' ? MonitorPlay : (instance.visibility === 'public' ? Globe : Lock)
+    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP', instance: ListedService) => (
+        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : kind === 'RDP' ? MonitorPlay : (instance.visibility === 'public' ? Globe : Lock)
     );
 
-    const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC') => {
+    const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => {
         if (kind === 'SSH') onEnableSsh?.();
         else if (kind === 'SFTP') onEnableSftp?.();
-        else if (kind === 'VNC') onEnableVnc?.();
+        else if (kind === 'RDP') onEnableRdp?.();
         else onEnableHttpProxy?.();
     };
 
-    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', serviceId: string) => {
+    const triggerDisableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP', serviceId: string) => {
         if (kind === 'SSH') onDisableSsh?.(serviceId);
         else if (kind === 'SFTP') onDisableSftp?.(serviceId);
-        else if (kind === 'VNC') onDisableVnc?.(serviceId);
+        else if (kind === 'RDP') onDisableRdp?.(serviceId);
         else onDisableHttpProxy?.(serviceId);
     };
 
-    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'VNC', serviceId: string) => {
+    const triggerEditService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP', serviceId: string) => {
         if (kind === 'SSH') onEditSsh?.(serviceId);
         else if (kind === 'SFTP') onEditSftp?.(serviceId);
-        else if (kind === 'VNC') onEditVnc?.(serviceId);
+        else if (kind === 'RDP') onEditRdp?.(serviceId);
         else onEditHttpProxy?.(serviceId);
     };
 
@@ -494,7 +494,7 @@ export function NodeCard({
                         {([
                             { kind: 'SSH' as const, label: 'SSH', Icon: Terminal },
                             { kind: 'SFTP' as const, label: 'Files', Icon: FolderOpen },
-                            { kind: 'VNC' as const, label: 'Screen', Icon: MonitorPlay },
+                            { kind: 'RDP' as const, label: 'Screen', Icon: MonitorPlay },
                             { kind: 'HTTP' as const, label: 'HTTP', Icon: HttpProxyIcon },
                         ]).map(({ kind, label, Icon }) => {
                             const count = serviceCount(kind);
@@ -581,7 +581,7 @@ export function NodeCard({
                                         const kind = serviceInstancePicker.kind;
                                         if (kind === 'SSH') onCreateTunnel(node, instance.id, instance.name);
                                         else if (kind === 'SFTP') onOpenFiles(node, instance.id, instance.name);
-                                        else if (kind === 'VNC') onOpenScreen(node, instance.id, instance.name);
+                                        else if (kind === 'RDP') onOpenScreen(node, instance.id, instance.name);
                                         else window.open(`https://${node.id}.http.proxy.phirepass.com`, '_blank');
                                     })}
                                 >

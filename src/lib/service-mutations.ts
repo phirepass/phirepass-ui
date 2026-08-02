@@ -13,7 +13,7 @@ import initChannel, { Channel } from 'phirepass-channel';
 
 const MUTATION_TIMEOUT_MS = 35_000;
 
-export type ServiceKindName = 'ssh' | 'sftp' | 'http' | 'vnc';
+export type ServiceKindName = 'ssh' | 'sftp' | 'http' | 'rdp';
 
 export interface MutationTarget {
     id: string;

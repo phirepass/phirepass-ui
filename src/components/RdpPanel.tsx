@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { X, MonitorPlay, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from './ui/button';
-import { VncPanelTab } from '@/types/node';
+import { RdpPanelTab } from '@/types/node';
 import { cn } from '@/lib/utils';
 import { defineCustomElements } from 'phirepass-widgets/loader';
 
-interface VncPanelProps {
+interface RdpPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    tabs: VncPanelTab[];
+    tabs: RdpPanelTab[];
     activeTabId: string | null;
     onSelectTab: (tabId: string) => void;
     onCloseTab: (tabId: string) => void;
 }
 
-export function VncPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCloseTab }: VncPanelProps) {
+export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCloseTab }: RdpPanelProps) {
     const [token, setToken] = useState<string | null>(null);
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [loadingToken, setLoadingToken] = useState(false);
@@ -111,7 +111,7 @@ export function VncPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                             <MonitorPlay className="w-5 h-5 text-primary" />
                             <div>
                                 <span className="text-sm font-medium leading-tight">Remote Screen</span>
-                                <p className="text-xs leading-tight text-muted-foreground">Persistent VNC sessions</p>
+                                <p className="text-xs leading-tight text-muted-foreground">Persistent RDP sessions</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -161,7 +161,7 @@ export function VncPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                         </div>
                     )}
 
-                    {/* VNC Widget */}
+                    {/* RDP Widget */}
                     {tabs.length > 0 && token ? (
                         <div className="flex-1 w-full overflow-hidden bg-background">
                             {tabs.map((tab) => (
@@ -170,10 +170,11 @@ export function VncPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                                     className={cn('w-full h-full', activeTabId === tab.id ? 'block' : 'hidden')}
                                     aria-hidden={activeTabId === tab.id ? 'false' : 'true'}
                                 >
-                                    <phirepass-vnc
+                                    <phirepass-rdp
                                         node-id={tab.nodeId}
                                         server-id={tab.serverId}
                                         service-id={tab.serviceId}
+                                        destination={tab.destination}
                                         token={token}
                                         style={{
                                             display: 'block',
@@ -209,7 +210,7 @@ export function VncPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                         <div className="flex-1 flex items-center justify-center text-muted-foreground">
                             <div className="text-center">
                                 <p className="text-sm mb-2">No screen sessions open</p>
-                                <p className="text-xs text-muted-foreground">Open Screen on a node to start a separate VNC session</p>
+                                <p className="text-xs text-muted-foreground">Open Screen on a node to start a separate RDP session</p>
                             </div>
                         </div>
                     )}
