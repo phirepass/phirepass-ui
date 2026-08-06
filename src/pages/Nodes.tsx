@@ -1797,8 +1797,7 @@ export default function Nodes() {
                             <DialogHeader>
                                 <DialogTitle>{enableRdpMode === 'update' ? 'Edit RDP' : 'Enable RDP'}</DialogTitle>
                                 <DialogDescription>
-                                    Configure the RDP host on {nodeToEnableRdp?.name ?? 'this node'}. The Windows
-                                    username and password are entered when you open the screen, not stored here.
+                                    Configure the RDP host on {nodeToEnableRdp?.name ?? 'this node'}. The username and password are entered when you open the screen, not stored here.
                                 </DialogDescription>
                             </DialogHeader>
 
