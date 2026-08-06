@@ -14,9 +14,10 @@ env:
   IMAGE_NAME: dimitrmok/phirepass-ui
 
 jobs:
+
   Release:
-    runs-on: self-hosted
-    # runs-on: ubuntu-latest
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     permissions:
       contents: write
