@@ -25,6 +25,13 @@ docker-build:
 		--progress=plain \
 		.
 
+# Same image, but on the distroless :debug base so `make shell` works
+docker-build-debug:
+	docker build -t $(IMAGE_NAME) \
+		--build-arg RUNNER_IMAGE=gcr.io/distroless/nodejs22-debian12:debug-nonroot \
+		--progress=plain \
+		.
+
 # Run the container
 docker-run:
 	docker run -it --rm --name $(CONTAINER_NAME) \
@@ -52,9 +59,9 @@ up: build stop docker-run
 logs:
 	docker logs -f $(CONTAINER_NAME)
 
-# Shell into container
+# Shell into container (requires `make docker-build-debug` — the release image has no shell)
 shell:
-	docker exec -it $(CONTAINER_NAME) /bin/sh
+	docker exec -it $(CONTAINER_NAME) /busybox/sh
 
 # Clean up
 clean: stop
@@ -64,4 +71,4 @@ clean: stop
 format:
 	npx eclint fix 'src/**/*'
 
-.PHONY: dev run start-prod format build docker-run stop up logs shell clean
+.PHONY: dev run start-prod format build docker-build docker-build-debug docker-run stop up logs shell clean
