@@ -1619,6 +1619,7 @@ export default function Nodes() {
                                 key={node.id}
                                 node={node}
                                 actionsDisabled={!nodesFresh}
+                                statusPending={!nodesFresh}
                                 onCreateTunnel={handleCreateTunnel}
                                 onOpenFiles={handleOpenFiles}
                                 onRefreshStats={handleRefreshStats}

@@ -2,6 +2,7 @@ import { json_response } from '@/app/lib/framework';
 import { verifyToken } from '@/app/lib/auth';
 import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
+import type { NodeStatus } from '@/types/node';
 
 type NodeStats = {
     ip: string;
@@ -394,10 +395,18 @@ export async function GET(req: Request) {
                 ?? payload?.stats?.ip
                 ?? payload?.stats?.host_ip
                 ?? '';
-            // Still keyed off the heartbeat payload, not `info`: `info` only proves
-            // the agent authenticated at some point inside the key's TTL, whereas
-            // stats prove it was alive as of its last heartbeat.
-            const isOnline = !!statsPayload;
+            // Three states, not two, because Redis can genuinely say "don't know
+            // yet": the server writes `info` the moment an agent authenticates and
+            // `stats` only on its first heartbeat, so a node that has just
+            // connected has an entry with no proof of life. Calling that `offline`
+            // would flash a wrong answer at exactly the moment a user is watching
+            // for the node to come up.
+            const status: NodeStatus = statsPayload
+                ? 'online'
+                : rawPayload?.info
+                    ? 'connecting'
+                    : 'offline';
+            const isOnline = status === 'online';
             const settings = normalizeSettings(node.settings);
             const services = normalizeServices(settings.services ?? payload?.services);
 
@@ -409,6 +418,7 @@ export async function GET(req: Request) {
                 connected_for_secs: payload?.connected_for_secs ?? 0,
                 // since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0, // unused by frontend
                 is_online: isOnline,
+                status,
                 stats,
                 info: payload?.info ?? null,
                 services,

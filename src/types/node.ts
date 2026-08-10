@@ -68,11 +68,27 @@ export interface NodeStats {
     version?: string;
 }
 
+/**
+ * What the server could tell us about a node, which is not always a yes or a no:
+ *
+ * - `online`     — heartbeat seen; everything on the card is live.
+ * - `connecting` — the agent authenticated but has not heartbeated yet, so its
+ *                  metrics do not exist. Shown as still-resolving rather than
+ *                  offline, because it is on its way up, not down.
+ * - `offline`    — no registry entry at all.
+ *
+ * A fourth, purely client-side state exists before the first response of a page
+ * load lands: see `NodeCard`'s `statusPending`.
+ */
+export type NodeStatus = 'online' | 'connecting' | 'offline';
+
 export interface TunnelNode {
     connected_for_secs: number;
     id: string;
     ip: string;
     is_online: boolean;
+    /** Optional so nodes restored from an older local cache still typecheck. */
+    status?: NodeStatus;
     name: string;
     server_id: string;
     // since_last_heartbeat_secs: number; // unused by frontend

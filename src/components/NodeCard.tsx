@@ -1,5 +1,7 @@
 import { useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { TunnelNode } from '@/types/node';
+import { NodeLocationMap } from './NodeLocationMap';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
 import { Button } from './ui/button';
@@ -34,6 +36,24 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+/**
+ * MapLibre is WebGL and ~250 KB gzipped, and every node card would otherwise
+ * pull it into the initial bundle for a map that is only ever shown on demand.
+ * Loaded client-side only: it touches `window` on construction, so it cannot be
+ * server-rendered.
+ */
+const NodeLocationDetailMap = dynamic(
+    () => import('./NodeLocationDetailMap').then((mod) => mod.NodeLocationDetailMap),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="flex h-full w-full items-center justify-center bg-muted/30">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+        ),
+    }
+);
+
 const MIN_COMPATIBLE_AGENT_VERSION = '0.1.278';
 
 function compareVersions(a: string, b: string): number {
@@ -50,6 +70,22 @@ function compareVersions(a: string, b: string): number {
 }
 
 type ListedService = { id: string; name: string | null; visibility: 'public' | 'private' };
+
+/**
+ * ISO 3166-1 alpha-2 to its flag emoji, by offsetting each letter into the
+ * regional-indicator block. Anything that is not exactly two ASCII letters —
+ * including the providers that return an empty or non-standard code — yields no
+ * flag rather than a pair of stray glyphs.
+ */
+function flagFromCountryCode(code: string | undefined): string {
+    if (!code || !/^[A-Za-z]{2}$/.test(code)) {
+        return '';
+    }
+
+    return String.fromCodePoint(
+        ...[...code.toUpperCase()].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65)
+    );
+}
 
 /**
  * One hue per service kind, so a card can be read at a glance without parsing
@@ -114,6 +150,11 @@ interface NodeCardProps {
     // the first live API response of this page load). Keeps the action buttons from
     // acting on possibly-outdated service state.
     actionsDisabled?: boolean;
+    // True before this page load's first response has landed, so the cached
+    // `is_online` is a guess from a previous visit rather than an observation.
+    // Held separately from `node.status` because it is about our knowledge, not
+    // the node's state — but both render as "still resolving".
+    statusPending?: boolean;
 }
 
 import { useState } from 'react';
@@ -147,6 +188,7 @@ export function NodeCard({
     isShared = false,
     sharedBy,
     actionsDisabled = false,
+    statusPending = false,
 }: NodeCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
 
@@ -170,6 +212,13 @@ export function NodeCard({
     };
 
     const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+    // Unresolved either because this page load has not heard back yet, or because
+    // the server itself has not: an agent that has authenticated but not yet
+    // heartbeated has no metrics to show and is not offline either.
+    const isResolving = statusPending || node.status === 'connecting';
+    // Only an answered "not online" dims the card. While resolving, the card stays
+    // live so it does not flash a veil and then remove it a moment later.
+    const isConfirmedOffline = !isResolving && !node.is_online;
     const showConnectedLoader = node.is_online && node.connected_for_secs < 60;
     const memoryPercent = node.stats.host_mem_total_bytes
         ? clampPercent((node.stats.host_mem_used_bytes / node.stats.host_mem_total_bytes) * 100)
@@ -191,6 +240,17 @@ export function NodeCard({
     const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
         .filter((part) => !!part?.trim())
         .join(', ');
+    // Both must be present and finite before anything is plotted: 0,0 is a real
+    // point in the Gulf of Guinea, so a partial lookup must not put the node there.
+    const hasCoordinates = typeof publicIpInfo?.latitude === 'number'
+        && typeof publicIpInfo?.longitude === 'number'
+        && Number.isFinite(publicIpInfo.latitude)
+        && Number.isFinite(publicIpInfo.longitude);
+    const coordinateLabel = hasCoordinates
+        ? `${publicIpInfo!.latitude!.toFixed(3)}, ${publicIpInfo!.longitude!.toFixed(3)}`
+        : '';
+    const locationLabel = publicLocation || publicIpInfo?.region || publicIpInfo?.continent || '';
+    const countryFlag = flagFromCountryCode(publicIpInfo?.country_code);
     const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
         typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
     );
@@ -207,6 +267,7 @@ export function NodeCard({
         .reduce((sum, kind) => sum + serviceCount(kind), 0);
 
     const [ipBlurred, setIpBlurred] = useState(false);
+    const [locationDialogOpen, setLocationDialogOpen] = useState(false);
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
@@ -284,18 +345,31 @@ export function NodeCard({
                     'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
                     'border-border',
                     'transition-transform duration-300',
-                    (!node.is_online || isIncompatible) && 'select-none'
+                    (isConfirmedOffline || isResolving || isIncompatible) && 'select-none'
                 )}
             >
-                {(!node.is_online || isIncompatible) && (
+                {(isConfirmedOffline || isResolving || isIncompatible) && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
                         <div className={cn(
                             'flex items-center gap-2 rounded-full border bg-card/90 px-3 py-1.5 text-sm font-medium shadow-sm select-none',
                             isIncompatible
                                 ? 'border-orange-400/35 text-orange-500'
-                                : 'border-red-400/35 text-red-500'
+                                : isResolving
+                                    ? 'border-warning/35 text-warning'
+                                    : 'border-red-400/35 text-red-500'
                         )}>
-                            <span>{isIncompatible ? 'Incompatible' : 'Offline'}</span>
+                            {isResolving && !isIncompatible ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            <span>
+                                {isIncompatible
+                                    ? 'Incompatible'
+                                    : statusPending
+                                        ? 'Checking'
+                                        : isResolving
+                                            ? 'Connecting'
+                                            : 'Offline'}
+                            </span>
                         </div>
                     </div>
                 )}
@@ -311,7 +385,7 @@ export function NodeCard({
                 <div className="relative z-30 flex items-start">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                         {/* Selection checkbox removed */}
-                        <StatusIndicator isOnline={node.is_online} size="md" />
+                        <StatusIndicator isOnline={node.is_online} pending={isResolving} size="md" />
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-2 min-w-0">
                                 <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
@@ -340,9 +414,17 @@ export function NodeCard({
                                                         'text-[11px] font-medium',
                                                         isIncompatible
                                                             ? 'text-orange-500'
-                                                            : node.is_online ? 'text-emerald-500' : 'text-red-500'
+                                                            : isResolving
+                                                                ? 'text-warning'
+                                                                : node.is_online ? 'text-emerald-500' : 'text-red-500'
                                                     )}>
-                                                        {isIncompatible ? 'Incompatible' : node.is_online ? 'Online' : 'Offline'}
+                                                        {isIncompatible
+                                                            ? 'Incompatible'
+                                                            : statusPending
+                                                                ? 'Checking'
+                                                                : isResolving
+                                                                    ? 'Connecting'
+                                                                    : node.is_online ? 'Online' : 'Offline'}
                                                     </span>
                                                 </div>
                                             </DropdownMenuLabel>
@@ -491,6 +573,51 @@ export function NodeCard({
                         <span className="ml-auto font-mono text-foreground">{node.stats.host_processes}</span>
                     </div>
                 </div>
+
+                {/* Where the node's public address geolocates to. Only rendered
+                    when the agent's login lookup actually resolved coordinates —
+                    a host with no egress reports none, and an empty map frame
+                    would say less than no map at all. */}
+                {hasCoordinates ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                onClick={() => setLocationDialogOpen(true)}
+                                aria-label={`Show ${locationLabel || 'node location'} on a map`}
+                                className={cn(
+                                    'group/map relative mb-3 block h-20 w-full overflow-hidden rounded-lg border border-border/60',
+                                    'transition-colors hover:border-accent/60 focus-visible:outline-none',
+                                    'focus-visible:ring-2 focus-visible:ring-accent/60'
+                                )}
+                            >
+                                <NodeLocationMap
+                                    latitude={publicIpInfo!.latitude!}
+                                    longitude={publicIpInfo!.longitude!}
+                                    label={locationLabel}
+                                    isOnline={node.is_online}
+                                />
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-card via-card/80 to-transparent px-2 pb-1.5 pt-5">
+                                    <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground">
+                                        {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
+                                        <span className="truncate">{locationLabel || 'Unknown location'}</span>
+                                    </span>
+                                    <span className={cn(
+                                        'shrink-0 font-mono text-[10px] text-muted-foreground',
+                                        ipBlurred && 'blur-sm select-none'
+                                    )}>
+                                        {coordinateLabel}
+                                    </span>
+                                </div>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Open map
+                            {publicIpInfo?.time_zone ? <><br />Timezone: {publicIpInfo.time_zone}</> : null}
+                            {publicIpInfo?.asn_org ? <><br />Network: {publicIpInfo.asn_org}</> : null}
+                        </TooltipContent>
+                    </Tooltip>
+                ) : null}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
                     <Tooltip>
@@ -656,6 +783,65 @@ export function NodeCard({
                             </p>
                         ) : null}
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Mounted only while open, which is what keeps MapLibre to a single
+                WebGL context no matter how many nodes are on screen. */}
+            <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
+                            {locationLabel || 'Node location'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Where {node.name || 'this node'} reported its public address from when it
+                            logged in. Geolocated from that address, so it is accurate to a city at best.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {locationDialogOpen && hasCoordinates ? (
+                        <div className="h-72 w-full overflow-hidden rounded-lg border border-border">
+                            <NodeLocationDetailMap
+                                latitude={publicIpInfo!.latitude!}
+                                longitude={publicIpInfo!.longitude!}
+                                label={locationLabel || node.name}
+                                className="h-full w-full"
+                            />
+                        </div>
+                    ) : null}
+
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        {[
+                            { label: 'Public IP', value: ipBlurred ? '••••••••' : publicIp, mono: true },
+                            { label: 'Coordinates', value: ipBlurred ? '••••••••' : coordinateLabel, mono: true },
+                            { label: 'Region', value: publicIpInfo?.region },
+                            { label: 'Postal code', value: publicIpInfo?.postal_code, mono: true },
+                            { label: 'Continent', value: publicIpInfo?.continent },
+                            { label: 'Timezone', value: publicIpInfo?.time_zone },
+                            { label: 'ASN', value: publicIpInfo?.asn, mono: true },
+                            { label: 'Network', value: publicIpInfo?.asn_org },
+                            { label: 'Reverse DNS', value: publicIpInfo?.hostname, mono: true },
+                        ]
+                            .filter((row) => !!row.value)
+                            .map((row) => (
+                                <div key={row.label} className="min-w-0">
+                                    <dt className="text-muted-foreground">{row.label}</dt>
+                                    <dd className={cn('truncate text-foreground', row.mono && 'font-mono')}>
+                                        {row.value}
+                                    </dd>
+                                </div>
+                            ))}
+                    </dl>
+
+                    {publicIpInfo?.is_proxy ? (
+                        <p className="flex items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
+                            <Globe className="h-3.5 w-3.5 shrink-0" />
+                            This address is flagged as a proxy or VPN, so the location may be the exit
+                            node&apos;s rather than the host&apos;s.
+                        </p>
+                    ) : null}
                 </DialogContent>
             </Dialog>
         </div>

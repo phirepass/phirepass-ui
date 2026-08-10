@@ -195,6 +195,22 @@
     html.dashboard-scroll::-webkit-scrollbar-thumb:hover {
         background-color: hsl(var(--muted-foreground) / 0.75);
     }
+
+    /* Undo the scroll-lock gap compensation on dashboard pages.
+       Opening a Radix dialog locks the page via react-remove-scroll, which
+       injects `body[data-scroll-locked] { margin-right: <scrollbar>px }` on the
+       assumption that locking scroll removes the scrollbar and frees that space.
+       Here it does not: the rule above reserves the gutter permanently, so the
+       scrollbar never goes away and the compensation is pure surplus — the body
+       narrows by the scrollbar width the moment a dialog opens, and every card
+       in the grid visibly reflows (a 3-column grid loses ~3px per card).
+       Scoped to `.dashboard-scroll` because the compensation is *correct* on
+       pages without a reserved gutter, where the scrollbar really does vanish.
+       Both this and the injected rule are `!important`, so this wins on
+       specificity. */
+    html.dashboard-scroll body[data-scroll-locked] {
+        margin-right: 0 !important;
+    }
 }
 
 @layer components {

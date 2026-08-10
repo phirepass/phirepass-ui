@@ -6,7 +6,7 @@
 
 # Runtime base. Override with :debug-nonroot (adds a busybox shell) for
 # `make docker-build-debug`. Must be declared before the first FROM to be global.
-ARG RUNNER_IMAGE=gcr.io/distroless/nodejs22-debian12:nonroot
+ARG RUNNER_IMAGE=gcr.io/distroless/nodejs26-debian13:nonroot
 
 # Stage 1: Dependencies
 FROM oven/bun:1-slim AS deps

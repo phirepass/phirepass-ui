@@ -28,7 +28,7 @@ docker-build:
 # Same image, but on the distroless :debug base so `make shell` works
 docker-build-debug:
 	docker build -t $(IMAGE_NAME) \
-		--build-arg RUNNER_IMAGE=gcr.io/distroless/nodejs22-debian12:debug-nonroot \
+		--build-arg RUNNER_IMAGE=gcr.io/distroless/nodejs26-debian13:debug-nonroot \
 		--progress=plain \
 		.
 
