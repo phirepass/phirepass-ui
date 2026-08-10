@@ -8,6 +8,7 @@ import type {
     MonitorSummary,
     UptimeWindow,
 } from '@/types/uptime';
+import type { PublicIpLocation } from '@/types/geo';
 
 /**
  * Sample data for the uptime dashboard. There is no backend behind this page —
@@ -44,11 +45,46 @@ function hashSeed(value: string): number {
     return hash >>> 0;
 }
 
+/**
+ * Stand-in points of presence for the sample targets, so the location map has
+ * something plausible to plot while the uptime backend is still mock. Real data
+ * would come from resolving the target and geolocating the address the check
+ * connected to.
+ */
+const POPS = {
+    frankfurt: {
+        ip: '138.201.14.72', city: 'Frankfurt', region: 'Hesse', country: 'Germany',
+        country_code: 'DE', continent: 'Europe', latitude: 50.1109, longitude: 8.6821,
+        time_zone: 'Europe/Berlin', asn: 'AS24940', asn_org: 'Hetzner Online GmbH',
+    },
+    amsterdam: {
+        ip: '95.216.44.19', city: 'Amsterdam', region: 'North Holland', country: 'Netherlands',
+        country_code: 'NL', continent: 'Europe', latitude: 52.3676, longitude: 4.9041,
+        time_zone: 'Europe/Amsterdam', asn: 'AS16509', asn_org: 'Amazon Data Services',
+    },
+    ashburn: {
+        ip: '54.85.132.7', city: 'Ashburn', region: 'Virginia', country: 'United States',
+        country_code: 'US', continent: 'North America', latitude: 39.0438, longitude: -77.4874,
+        time_zone: 'America/New_York', asn: 'AS14618', asn_org: 'Amazon.com, Inc.',
+    },
+    singapore: {
+        ip: '13.228.61.144', city: 'Singapore', region: 'Singapore', country: 'Singapore',
+        country_code: 'SG', continent: 'Asia', latitude: 1.3521, longitude: 103.8198,
+        time_zone: 'Asia/Singapore', asn: 'AS16509', asn_org: 'Amazon Data Services',
+    },
+} satisfies Record<string, PublicIpLocation>;
+
 interface MonitorSpec {
     id: string;
     name: string;
     kind: MonitorKind;
     target: string;
+    /**
+     * Omitted where a real probe would have nothing to geolocate: `domain`
+     * monitors never open a connection, and a target on a private range has no
+     * public address.
+     */
+    location?: PublicIpLocation;
     status: MonitorStatus;
     interval_secs: number;
     /** Typical response time in ms; history wobbles around it. */
@@ -86,6 +122,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Marketing site',
         kind: 'http',
         target: 'https://phirepass.com',
+        location: POPS.frankfurt,
         status: 'up',
         interval_secs: 300,
         baseLatency: 184,
@@ -98,6 +135,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Dashboard health',
         kind: 'http',
         target: 'https://app.phirepass.com/healthz',
+        location: POPS.frankfurt,
         status: 'up',
         interval_secs: 60,
         baseLatency: 243,
@@ -114,6 +152,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Relay health',
         kind: 'http',
         target: 'https://relay.phirepass.com/healthz',
+        location: POPS.amsterdam,
         status: 'up',
         interval_secs: 60,
         baseLatency: 61,
@@ -127,6 +166,7 @@ const SPECS: MonitorSpec[] = [
         name: 'API gateway',
         kind: 'http',
         target: 'https://api.phirepass.com/v1/health',
+        location: POPS.amsterdam,
         status: 'degraded',
         interval_secs: 60,
         baseLatency: 2140,
@@ -157,6 +197,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Documentation site',
         kind: 'http',
         target: 'https://docs.phirepass.com',
+        location: POPS.ashburn,
         status: 'up',
         interval_secs: 900,
         baseLatency: 156,
@@ -171,6 +212,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Agent downloads',
         kind: 'http',
         target: 'https://dl.phirepass.com/agent/latest',
+        location: POPS.ashburn,
         status: 'up',
         interval_secs: 900,
         baseLatency: 302,
@@ -185,6 +227,7 @@ const SPECS: MonitorSpec[] = [
         name: 'phirepass.com certificate',
         kind: 'ssl',
         target: 'phirepass.com:443',
+        location: POPS.frankfurt,
         status: 'up',
         interval_secs: 86400,
         baseLatency: 96,
@@ -200,6 +243,7 @@ const SPECS: MonitorSpec[] = [
         name: 'legacy.phirepass.com certificate',
         kind: 'ssl',
         target: 'legacy.phirepass.com:443',
+        location: POPS.ashburn,
         status: 'degraded',
         interval_secs: 86400,
         baseLatency: 132,
@@ -216,6 +260,7 @@ const SPECS: MonitorSpec[] = [
         name: 'staging.phirepass.com certificate',
         kind: 'ssl',
         target: 'staging.phirepass.com:443',
+        location: POPS.singapore,
         status: 'down',
         interval_secs: 86400,
         baseLatency: 118,
@@ -277,6 +322,7 @@ const SPECS: MonitorSpec[] = [
         name: 'Public status page',
         kind: 'http',
         target: 'https://status.phirepass.com',
+        location: POPS.singapore,
         status: 'paused',
         interval_secs: 900,
         baseLatency: 210,
@@ -390,6 +436,8 @@ function specToMonitor(spec: MonitorSpec, now: number): MonitorSummary {
         cert_subject: spec.cert_subject ?? null,
         domain_expires_at: isoOrNull(now, spec.domainExpiresInDays),
         domain_registrar: spec.domain_registrar ?? null,
+
+        location: spec.location ?? null,
 
         window_24h: windowFrom(daily, 1),
         window_7d: windowFrom(daily, 7),
@@ -538,6 +586,9 @@ export function createMockMonitorFromInput(
         cert_subject: null,
         domain_expires_at: null,
         domain_registrar: null,
+        // A monitor that has never run has resolved nothing, so it has no
+        // location until its first check.
+        location: null,
         window_24h: emptyWindow,
         window_7d: emptyWindow,
         window_30d: emptyWindow,

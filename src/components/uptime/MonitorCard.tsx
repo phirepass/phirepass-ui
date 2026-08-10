@@ -23,7 +23,9 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { LocationStrip } from '@/components/LocationStrip';
 import { cn } from '@/lib/utils';
+import { hasCoordinates, locationLabel } from '@/lib/geo';
 import { MONITOR_KIND_LABELS, type MonitorSummary } from '@/types/uptime';
 
 import { UptimeStrip } from './UptimeStrip';
@@ -67,6 +69,12 @@ export function MonitorCard({
 
     const uptime24h = monitor.window_24h.uptime_pct;
     const latency = monitor.last_latency_ms ?? monitor.window_24h.avg_latency_ms;
+
+    // Same locator the node cards use. Absent for `domain` monitors and private
+    // targets, which have nothing public to resolve — the strip renders nothing
+    // in that case rather than an empty frame.
+    const plottable = hasCoordinates(monitor.location);
+    const targetLocation = locationLabel(monitor.location);
 
     // Latency as a share of the degraded threshold, so the bar fills as a target
     // slows toward being unacceptable and changes tone on the way.
@@ -349,6 +357,28 @@ export function MonitorCard({
                         </TooltipContent>
                     </Tooltip>
                 </div>
+
+                {/* Where the target resolves to. Opens the monitor's detail
+                    dialog, which carries the interactive map — same click target
+                    as the monitor name, so the card has one way in. */}
+                {plottable ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <LocationStrip
+                                location={monitor.location}
+                                active={status === 'up' || status === 'degraded'}
+                                subject={`${monitor.name} target`}
+                                onClick={() => onOpen(monitor)}
+                                className="mb-3"
+                            />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Target resolves to {targetLocation || 'an unknown location'}
+                            {monitor.location?.asn_org ? <><br />Network: {monitor.location.asn_org}</> : null}
+                            {monitor.location?.ip ? <><br />Address: {monitor.location.ip}</> : null}
+                        </TooltipContent>
+                    </Tooltip>
+                ) : null}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
                     <span className="truncate text-muted-foreground/60">

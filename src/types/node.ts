@@ -1,24 +1,12 @@
+import type { PublicIpLocation } from './geo';
+
 /**
  * Geolocation of the node's public address, resolved once by the agent at
- * login. Everything past `ip` is optional — coverage differs per provider, and
- * a node with no egress reports no public info at all.
+ * login. An alias of the shared {@link PublicIpLocation}: uptime monitors carry
+ * the same shape for the address they probe, and both render through the same
+ * components.
  */
-export interface NodePublicIpInfo {
-    ip: string;
-    hostname?: string;
-    continent?: string;
-    country?: string;
-    country_code?: string;
-    region?: string;
-    city?: string;
-    postal_code?: string;
-    latitude?: number;
-    longitude?: number;
-    time_zone?: string;
-    asn?: string;
-    asn_org?: string;
-    is_proxy?: boolean;
-}
+export type NodePublicIpInfo = PublicIpLocation;
 
 /**
  * The half of a node's telemetry that cannot change while the agent runs. Sent

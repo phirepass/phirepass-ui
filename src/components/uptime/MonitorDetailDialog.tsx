@@ -10,7 +10,8 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { AlertTriangle, CheckCircle2, Loader2, MapPin, RefreshCw, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +21,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { LocationDetails } from '@/components/LocationDetails';
 import { createMockDetail } from '@/data/mockMonitors';
 import { cn } from '@/lib/utils';
+import { flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { MONITOR_KIND_LABELS, type MonitorDetail, type MonitorSummary } from '@/types/uptime';
 
 import { UptimeStrip } from './UptimeStrip';
@@ -34,6 +37,23 @@ import {
     formatRelativeTime,
     formatUptime,
 } from './monitor-display';
+
+/**
+ * Same OSM map the node cards open, loaded on demand: MapLibre is WebGL and
+ * ~250 KB gzipped, and it must not sit in the bundle for a dialog most visits
+ * never open. Client-side only — it touches `window` on construction.
+ */
+const MonitorLocationMap = dynamic(
+    () => import('@/components/NodeLocationDetailMap').then((mod) => mod.NodeLocationDetailMap),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="flex h-full w-full items-center justify-center bg-muted/30">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+        ),
+    }
+);
 
 interface MonitorDetailDialogProps {
     monitor: MonitorSummary | null;
@@ -94,6 +114,8 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
     const status = effectiveStatus(monitor);
     const statusStyle = STATUS_STYLES[status];
     const current = detail?.monitor ?? monitor;
+    const plottable = hasCoordinates(current.location);
+    const targetLocation = locationLabel(current.location);
 
     const chartData = (detail?.checks ?? [])
         .filter((check) => check.latency_ms !== null)
@@ -226,6 +248,30 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                         </div>
                     )}
                 </div>
+
+                {/* Where the target resolves to. Mounted only while the dialog is
+                    open and only when there is something to plot, so the WebGL
+                    map is never built for a monitor that has no location. */}
+                {plottable ? (
+                    <div>
+                        <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5" />
+                            Target location
+                            <span className="ml-auto normal-case tracking-normal text-muted-foreground/80">
+                                {flagFromCountryCode(current.location?.country_code)} {targetLocation}
+                            </span>
+                        </p>
+                        <div className="h-64 w-full overflow-hidden rounded-lg border border-border">
+                            <MonitorLocationMap
+                                latitude={current.location!.latitude!}
+                                longitude={current.location!.longitude!}
+                                label={targetLocation || current.name}
+                                className="h-full w-full"
+                            />
+                        </div>
+                        <LocationDetails location={current.location} className="mt-3" />
+                    </div>
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
                     {/* Certificate / domain facts */}

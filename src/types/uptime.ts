@@ -3,6 +3,8 @@
  * the dashboard, so the wire shape has exactly one definition.
  */
 
+import type { PublicIpLocation } from './geo';
+
 /** What a monitor actually probes. */
 export type MonitorKind = 'http' | 'ssl' | 'domain';
 
@@ -45,6 +47,16 @@ export interface Monitor {
     cert_subject: string | null;
     domain_expires_at: string | null;
     domain_registrar: string | null;
+
+    /**
+     * Where the probe target resolves to, geolocated from the address the check
+     * actually connected to.
+     *
+     * `null` whenever there is nothing public to place: a target on a private
+     * range, a hostname that does not resolve, or a `domain` monitor, which asks
+     * a registry about a name and never opens a connection at all.
+     */
+    location: PublicIpLocation | null;
 }
 
 export interface UptimeWindow {

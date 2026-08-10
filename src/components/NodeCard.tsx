@@ -1,7 +1,9 @@
 import { useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { TunnelNode } from '@/types/node';
-import { NodeLocationMap } from './NodeLocationMap';
+import { LocationStrip } from './LocationStrip';
+import { LocationDetails } from './LocationDetails';
+import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
 import { Button } from './ui/button';
@@ -70,22 +72,6 @@ function compareVersions(a: string, b: string): number {
 }
 
 type ListedService = { id: string; name: string | null; visibility: 'public' | 'private' };
-
-/**
- * ISO 3166-1 alpha-2 to its flag emoji, by offsetting each letter into the
- * regional-indicator block. Anything that is not exactly two ASCII letters —
- * including the providers that return an empty or non-standard code — yields no
- * flag rather than a pair of stray glyphs.
- */
-function flagFromCountryCode(code: string | undefined): string {
-    if (!code || !/^[A-Za-z]{2}$/.test(code)) {
-        return '';
-    }
-
-    return String.fromCodePoint(
-        ...[...code.toUpperCase()].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65)
-    );
-}
 
 /**
  * One hue per service kind, so a card can be read at a glance without parsing
@@ -240,16 +226,9 @@ export function NodeCard({
     const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
         .filter((part) => !!part?.trim())
         .join(', ');
-    // Both must be present and finite before anything is plotted: 0,0 is a real
-    // point in the Gulf of Guinea, so a partial lookup must not put the node there.
-    const hasCoordinates = typeof publicIpInfo?.latitude === 'number'
-        && typeof publicIpInfo?.longitude === 'number'
-        && Number.isFinite(publicIpInfo.latitude)
-        && Number.isFinite(publicIpInfo.longitude);
-    const coordinateLabel = hasCoordinates
-        ? `${publicIpInfo!.latitude!.toFixed(3)}, ${publicIpInfo!.longitude!.toFixed(3)}`
-        : '';
-    const locationLabel = publicLocation || publicIpInfo?.region || publicIpInfo?.continent || '';
+    const plottable = hasCoordinates(publicIpInfo);
+    const nodeLocationLabel = locationLabel(publicIpInfo);
+    const nodeCoordinateLabel = coordinateLabel(publicIpInfo);
     const countryFlag = flagFromCountryCode(publicIpInfo?.country_code);
     const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
         typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
@@ -578,38 +557,17 @@ export function NodeCard({
                     when the agent's login lookup actually resolved coordinates —
                     a host with no egress reports none, and an empty map frame
                     would say less than no map at all. */}
-                {hasCoordinates ? (
+                {plottable ? (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <button
-                                type="button"
+                            <LocationStrip
+                                location={publicIpInfo}
+                                active={node.is_online}
+                                blurred={ipBlurred}
+                                subject="node location"
                                 onClick={() => setLocationDialogOpen(true)}
-                                aria-label={`Show ${locationLabel || 'node location'} on a map`}
-                                className={cn(
-                                    'group/map relative mb-3 block h-20 w-full overflow-hidden rounded-lg border border-border/60',
-                                    'transition-colors hover:border-accent/60 focus-visible:outline-none',
-                                    'focus-visible:ring-2 focus-visible:ring-accent/60'
-                                )}
-                            >
-                                <NodeLocationMap
-                                    latitude={publicIpInfo!.latitude!}
-                                    longitude={publicIpInfo!.longitude!}
-                                    label={locationLabel}
-                                    isOnline={node.is_online}
-                                />
-                                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-card via-card/80 to-transparent px-2 pb-1.5 pt-5">
-                                    <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-foreground">
-                                        {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
-                                        <span className="truncate">{locationLabel || 'Unknown location'}</span>
-                                    </span>
-                                    <span className={cn(
-                                        'shrink-0 font-mono text-[10px] text-muted-foreground',
-                                        ipBlurred && 'blur-sm select-none'
-                                    )}>
-                                        {coordinateLabel}
-                                    </span>
-                                </div>
-                            </button>
+                                className="mb-3"
+                            />
                         </TooltipTrigger>
                         <TooltipContent>
                             Open map
@@ -793,7 +751,7 @@ export function NodeCard({
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
-                            {locationLabel || 'Node location'}
+                            {nodeLocationLabel || 'Node location'}
                         </DialogTitle>
                         <DialogDescription>
                             Where {node.name || 'this node'} reported its public address from when it
@@ -801,47 +759,18 @@ export function NodeCard({
                         </DialogDescription>
                     </DialogHeader>
 
-                    {locationDialogOpen && hasCoordinates ? (
+                    {locationDialogOpen && plottable ? (
                         <div className="h-72 w-full overflow-hidden rounded-lg border border-border">
                             <NodeLocationDetailMap
-                                latitude={publicIpInfo!.latitude!}
-                                longitude={publicIpInfo!.longitude!}
-                                label={locationLabel || node.name}
+                                latitude={publicIpInfo.latitude}
+                                longitude={publicIpInfo.longitude}
+                                label={nodeLocationLabel || node.name}
                                 className="h-full w-full"
                             />
                         </div>
                     ) : null}
 
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                        {[
-                            { label: 'Public IP', value: ipBlurred ? '••••••••' : publicIp, mono: true },
-                            { label: 'Coordinates', value: ipBlurred ? '••••••••' : coordinateLabel, mono: true },
-                            { label: 'Region', value: publicIpInfo?.region },
-                            { label: 'Postal code', value: publicIpInfo?.postal_code, mono: true },
-                            { label: 'Continent', value: publicIpInfo?.continent },
-                            { label: 'Timezone', value: publicIpInfo?.time_zone },
-                            { label: 'ASN', value: publicIpInfo?.asn, mono: true },
-                            { label: 'Network', value: publicIpInfo?.asn_org },
-                            { label: 'Reverse DNS', value: publicIpInfo?.hostname, mono: true },
-                        ]
-                            .filter((row) => !!row.value)
-                            .map((row) => (
-                                <div key={row.label} className="min-w-0">
-                                    <dt className="text-muted-foreground">{row.label}</dt>
-                                    <dd className={cn('truncate text-foreground', row.mono && 'font-mono')}>
-                                        {row.value}
-                                    </dd>
-                                </div>
-                            ))}
-                    </dl>
-
-                    {publicIpInfo?.is_proxy ? (
-                        <p className="flex items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
-                            <Globe className="h-3.5 w-3.5 shrink-0" />
-                            This address is flagged as a proxy or VPN, so the location may be the exit
-                            node&apos;s rather than the host&apos;s.
-                        </p>
-                    ) : null}
+                    <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
                 </DialogContent>
             </Dialog>
         </div>
