@@ -1,5 +1,5 @@
 import { TunnelNode } from "@/types/node";
-import { AlertTriangle, XCircle, Info, X, Bell } from "lucide-react";
+import { AlertTriangle, XCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 
@@ -111,23 +111,12 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
 export function MonitoringAlerts({ nodes, onDismiss }: MonitoringAlertsProps) {
     const alerts = generateAlerts(nodes);
 
+    // Render nothing at all rather than an empty wrapper: the page lays its
+    // sections out with `space-y-6`, which still spends a gap on a zero-height
+    // child, pushing the search bar below where the same row sits on every other
+    // page.
     if (alerts.length === 0) {
-        /*
-        return (
-            <div className="bg-secondary/30 border border-border rounded-xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bell className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                    <h3 className="font-medium text-foreground">
-                        All Systems Operational
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        No active alerts at this time
-                    </p>
-                </div>
-            </div>
-        );*/
+        return null;
     }
 
     return (

@@ -1,3 +1,50 @@
+/**
+ * Geolocation of the node's public address, resolved once by the agent at
+ * login. Everything past `ip` is optional — coverage differs per provider, and
+ * a node with no egress reports no public info at all.
+ */
+export interface NodePublicIpInfo {
+    ip: string;
+    hostname?: string;
+    continent?: string;
+    country?: string;
+    country_code?: string;
+    region?: string;
+    city?: string;
+    postal_code?: string;
+    latitude?: number;
+    longitude?: number;
+    time_zone?: string;
+    asn?: string;
+    asn_org?: string;
+    is_proxy?: boolean;
+}
+
+/**
+ * The half of a node's telemetry that cannot change while the agent runs. Sent
+ * once with the agent's auth frame, so it is present even between heartbeats.
+ * `null` for a node that has never connected.
+ *
+ * Its static fields are also merged into {@link NodeStats} for the components
+ * that already read them there; use this type when you want the public address
+ * or want to distinguish "never reported" from "reported as empty".
+ */
+export interface NodeInfo {
+    proc_id?: string;
+    version?: string;
+    host_name?: string;
+    host_ip?: string;
+    host_local_ip?: string;
+    host_mac?: string;
+    host_os_info?: string;
+    public?: NodePublicIpInfo | null;
+    created_at?: number;
+}
+
+/**
+ * The flat view the dashboard renders: live metrics from the agent's latest
+ * heartbeat, merged with the static fields from {@link NodeInfo}.
+ */
 export interface NodeStats {
     ip: string;
     // host_connections: number; // unused by frontend
@@ -30,6 +77,7 @@ export interface TunnelNode {
     server_id: string;
     // since_last_heartbeat_secs: number; // unused by frontend
     stats: NodeStats;
+    info?: NodeInfo | null;
     services: Record<string, number | { visibility: 'public' | 'private'; count: number }>;
 }
 

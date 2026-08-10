@@ -64,6 +64,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         load();
     }, [router]);
 
+    // Keep the page scrollbar permanently visible while on /dashboard (styled in
+    // src/index.css), so short pages don't shift horizontally against tall ones.
+    useEffect(() => {
+        document.documentElement.classList.add('dashboard-scroll');
+        return () => document.documentElement.classList.remove('dashboard-scroll');
+    }, []);
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">

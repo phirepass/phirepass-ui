@@ -183,6 +183,14 @@ export function NodeCard({
         && compareVersions(nodeVersion, MIN_COMPATIBLE_AGENT_VERSION) < 0;
     const displayIp = (node.ip || node.stats.ip || node.stats.host_ip || '').trim();
     const displayLocalIp = (node.stats.host_local_ip || '').trim();
+    // Resolved by the agent itself at login, so it is the address the node sees
+    // itself as having — which can differ from `node.ip`, the address the server
+    // observed the connection arriving from (a relay or proxy hop in between).
+    const publicIpInfo = node.info?.public ?? null;
+    const publicIp = (publicIpInfo?.ip ?? '').trim();
+    const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
+        .filter((part) => !!part?.trim())
+        .join(', ');
     const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
         typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
     );
@@ -445,6 +453,24 @@ export function NodeCard({
                             Public: {ipBlurred ? '••••••••' : (displayIp || 'IP unavailable')}
                             <br />
                             Local: {ipBlurred ? '••••••••' : (displayLocalIp || 'IP unavailable')}
+                            {publicIp && publicIp !== displayIp ? (
+                                <>
+                                    <br />
+                                    Reported: {ipBlurred ? '••••••••' : publicIp}
+                                </>
+                            ) : null}
+                            {publicLocation ? (
+                                <>
+                                    <br />
+                                    Location: {publicLocation}
+                                </>
+                            ) : null}
+                            {publicIpInfo?.asn_org ? (
+                                <>
+                                    <br />
+                                    Network: {publicIpInfo.asn_org}
+                                </>
+                            ) : null}
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>

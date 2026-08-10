@@ -1,36 +1,27 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    AlertTriangle,
+    CheckCircle2,
     KeyRound,
     Plus,
-    Copy,
-    Check,
-    Trash2,
-    Eye,
-    EyeOff,
-    Clock,
-    Shield,
-    AlertTriangle,
-    Calendar,
-    CheckCircle2,
-    Server
+    ShieldOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+
+import { AlertStrip, type AlertEntry } from '@/components/AlertStrip';
+import { EmptyState } from '@/components/EmptyState';
+import { PageHeader } from '@/components/PageHeader';
+import { Pager } from '@/components/Pager';
+import { FilterChips, SearchBar } from '@/components/SearchBar';
+import { StatTiles } from '@/components/StatTiles';
+import { TokenCard } from '@/components/TokenCard';
+import { TokenDetailsDialog } from '@/components/TokenDetailsDialog';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -42,128 +33,149 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Pagination,
-    PaginationContent,
-    PaginationEllipsis,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-} from '@/components/ui/pagination';
+import { TOKEN_EXPIRY_WARNING_DAYS, daysUntil } from '@/lib/token-display';
+import { AVAILABLE_SCOPES, EXPIRY_OPTIONS, type PatToken, type PatTokenScope } from '@/types/pat-token';
 
-const TOKENS_PER_PAGE = 6;
+const TOKENS_PER_PAGE = 9;
 
-const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsis')[] => {
-    const range: (number | 'ellipsis')[] = [];
-    const window = new Set([1, pageCount, page - 1, page, page + 1]);
-
-    for (let i = 1; i <= pageCount; i++) {
-        if (window.has(i)) {
-            range.push(i);
-        } else if (range[range.length - 1] !== 'ellipsis') {
-            range.push('ellipsis');
-        }
-    }
-
-    return range;
-};
-
-type PatTokenScope = 'server:register';
-
-interface PatToken {
-    id: string;
-    token_id: string;
-    name: string;
-    scopes: PatTokenScope[];
-    created_at: string;
-    expires_at?: string;
-    node_count: number;
-    status: 'active' | 'expired' | 'revoked';
-}
-
-const AVAILABLE_SCOPES: { value: PatTokenScope; label: string; description: string }[] = [
-    {
-        value: 'server:register',
-        label: 'Login to a server',
-        description: 'Allow an agent to login to a server',
-    },
-];
-
-const EXPIRY_OPTIONS = [
-    { label: 'Never', value: 'never' },
-    { label: '7 days', value: '7' },
-    { label: '30 days', value: '30' },
-    { label: '90 days', value: '90' },
-    { label: '1 year', value: '365' },
-];
+type TokenFilter = 'all' | 'active' | 'expiring' | 'inactive';
 
 const PatTokens = () => {
     const [tokens, setTokens] = useState<PatToken[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [creating, setCreating] = useState(false);
+    const [revoking, setRevoking] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [newTokenName, setNewTokenName] = useState('');
-    const [newTokenScopes, setNewTokenScopes] = useState<PatTokenScope[]>(['server:register']);
+    const [newTokenScopes] = useState<PatTokenScope[]>(['server:register']);
     const [newTokenExpiry, setNewTokenExpiry] = useState<string>('never');
     const [createdToken, setCreatedToken] = useState<string | null>(null);
-    const [tokenCopied, setTokenCopied] = useState(false);
-    const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
-    const [tokenToRevoke, setTokenToRevoke] = useState<PatToken | null>(null);
-    const [activePage, setActivePage] = useState(1);
-    const [inactivePage, setInactivePage] = useState(1);
+    const [createdTokenId, setCreatedTokenId] = useState<string | null>(null);
 
-    const fetchTokens = async () => {
-        setLoading(true);
+    const [tokenToRevoke, setTokenToRevoke] = useState<PatToken | null>(null);
+    const [detailsTokenId, setDetailsTokenId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filter, setFilter] = useState<TokenFilter>('all');
+    const [page, setPage] = useState(1);
+
+    const fetchTokens = useCallback(async () => {
         try {
             const res = await fetch('/api/pat/list', { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setTokens(data.tokens || []);
-            } else {
-                toast.error('Failed to fetch tokens');
+            if (!res.ok) {
+                throw new Error(`Failed to fetch tokens (${res.status})`);
             }
+            const data = await res.json() as { tokens?: PatToken[] };
+            setTokens(data.tokens ?? []);
+            setError(null);
         } catch (err) {
             console.error('Failed to fetch tokens:', err);
+            setError('Failed to fetch tokens');
             toast.error('Failed to fetch tokens');
         } finally {
             setLoading(false);
         }
-    };
-
-    // Fetch existing tokens on mount.
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchTokens();
     }, []);
 
-    const toggleTokenVisibility = (tokenId: string) => {
-        setVisibleTokens(prev => {
-            const next = new Set(prev);
-            if (next.has(tokenId)) {
-                next.delete(tokenId);
-            } else {
-                next.add(tokenId);
-            }
-            return next;
-        });
-    };
+    // `loading` starts true, so nothing is set synchronously here; every
+    // setState inside fetchTokens runs in an async continuation, which the lint
+    // rule cannot see through.
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void fetchTokens();
+    }, [fetchTokens]);
+
+    const detailsToken = detailsTokenId
+        ? tokens.find((token) => token.id === detailsTokenId) ?? null
+        : null;
+
+    const activeTokens = useMemo(() => tokens.filter((t) => t.status === 'active'), [tokens]);
+    const expiredTokens = useMemo(() => tokens.filter((t) => t.status === 'expired'), [tokens]);
+    const revokedTokens = useMemo(() => tokens.filter((t) => t.status === 'revoked'), [tokens]);
+    const expiringTokens = useMemo(
+        () => activeTokens.filter((token) => {
+            const days = daysUntil(token.expires_at);
+            return days !== null && days >= 0 && days <= TOKEN_EXPIRY_WARNING_DAYS;
+        }),
+        [activeTokens]
+    );
+
+    const alerts = useMemo<AlertEntry[]>(() => {
+        const entries: AlertEntry[] = [];
+
+        for (const token of expiringTokens) {
+            const days = daysUntil(token.expires_at) ?? 0;
+            entries.push({
+                id: `expiring-${token.id}`,
+                level: days <= 3 ? 'error' : 'warning',
+                title: days === 0 ? 'Token expires today' : `Token expires in ${days} day${days === 1 ? '' : 's'}`,
+                message: 'Agents authenticating with this token will stop enrolling once it lapses. Issue a replacement before then.',
+                tag: token.name,
+            });
+        }
+
+        return entries;
+    }, [expiringTokens]);
+
+    const filteredTokens = useMemo(() => {
+        const needle = searchQuery.trim().toLowerCase();
+        const expiringIds = new Set(expiringTokens.map((token) => token.id));
+
+        return tokens
+            .filter((token) => {
+                if (filter === 'active') return token.status === 'active';
+                if (filter === 'inactive') return token.status !== 'active';
+                if (filter === 'expiring') return expiringIds.has(token.id);
+                return true;
+            })
+            .filter((token) => {
+                if (!needle) return true;
+                return (
+                    token.name.toLowerCase().includes(needle)
+                    || token.token_id.toLowerCase().includes(needle)
+                    || token.scopes.some((scope) => scope.toLowerCase().includes(needle))
+                );
+            })
+            .sort((a, b) => {
+                // Active first, then most recently created — the same "healthy things
+                // first" ordering the node list uses.
+                if ((a.status === 'active') !== (b.status === 'active')) {
+                    return a.status === 'active' ? -1 : 1;
+                }
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+    }, [tokens, filter, searchQuery, expiringTokens]);
+
+    const pageCount = Math.max(1, Math.ceil(filteredTokens.length / TOKENS_PER_PAGE));
+    const clampedPage = Math.min(page, pageCount);
+    const pagedTokens = filteredTokens.slice((clampedPage - 1) * TOKENS_PER_PAGE, clampedPage * TOKENS_PER_PAGE);
 
     const handleCreateToken = async () => {
         if (!newTokenName.trim()) {
             toast.error('Please enter a name for the token');
             return;
         }
-        setLoading(true);
+
+        setCreating(true);
         try {
             const expiresAt = newTokenExpiry === 'never'
                 ? null
-                : new Date(Date.now() + parseInt(newTokenExpiry) * 24 * 60 * 60 * 1000).toISOString();
+                : new Date(Date.now() + parseInt(newTokenExpiry, 10) * 24 * 60 * 60 * 1000).toISOString();
 
             const res = await fetch('/api/pat', {
                 method: 'POST',
@@ -176,42 +188,45 @@ const PatTokens = () => {
                 }),
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                setCreatedToken(data.token);
-                toast.success('Token created successfully');
-                await fetchTokens();
-            } else {
-                const err = await res.json().catch(() => ({ error: 'Failed to create token' }));
-                toast.error(err.error || 'Failed to create token');
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({ error: 'Failed to create token' }));
+                throw new Error(payload.error ?? 'Failed to create token');
             }
+
+            const data = await res.json() as { token: string; token_id?: string };
+            setCreatedToken(data.token);
+            // The secret is `pat_<token_id>.<secret>`; derive the id when the API
+            // does not return it separately, so the new card can be highlighted.
+            setCreatedTokenId(data.token_id ?? data.token.split('.')[0]?.replace(/^pat_/, '') ?? null);
+            toast.success('Token created');
+            await fetchTokens();
         } catch (err) {
             console.error('Failed to create token:', err);
-            toast.error('Failed to create token');
+            toast.error(err instanceof Error ? err.message : 'Failed to create token');
         } finally {
-            setLoading(false);
+            setCreating(false);
         }
     };
 
     const handleRevokeToken = async (token: PatToken) => {
-        setLoading(true);
+        setRevoking(true);
         try {
             const res = await fetch(`/api/pat/${token.token_id}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
 
-            if (res.ok) {
-                toast.success('Token revoked successfully');
-                await fetchTokens();
-            } else {
-                toast.error('Failed to revoke token');
+            if (!res.ok) {
+                throw new Error('Failed to revoke token');
             }
+
+            toast.success('Token revoked');
+            await fetchTokens();
         } catch (err) {
             console.error('Failed to revoke token:', err);
             toast.error('Failed to revoke token');
         } finally {
-            setLoading(false);
+            setRevoking(false);
             setTokenToRevoke(null);
         }
     };
@@ -219,125 +234,132 @@ const PatTokens = () => {
     const resetCreateDialog = () => {
         setShowCreateDialog(false);
         setNewTokenName('');
-        setNewTokenScopes(['server:register']);
         setNewTokenExpiry('never');
         setCreatedToken(null);
-        setTokenCopied(false);
+        // `createdTokenId` deliberately survives the dialog closing: it keeps the
+        // freshly-issued card revealing its secret for the rest of the session,
+        // which is the only window in which the secret exists client-side.
     };
 
-    const copyCreatedTokenToClipboard = async () => {
-        if (!createdToken) {
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(createdToken);
-            setTokenCopied(true);
-        } catch (_err) {
-            setTokenCopied(false);
-        }
-    };
-
-    const byCreatedAtDesc = (a: PatToken, b: PatToken) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    const activeTokens = tokens.filter(t => t.status === 'active').sort(byCreatedAtDesc);
-    const revokedTokens = tokens.filter(t => t.status === 'revoked');
-    const expiredTokens = tokens.filter(t => t.status === 'expired');
-    const inactiveTokens = [...expiredTokens, ...revokedTokens].sort(byCreatedAtDesc);
-
-    const activePageCount = Math.max(1, Math.ceil(activeTokens.length / TOKENS_PER_PAGE));
-    const inactivePageCount = Math.max(1, Math.ceil(inactiveTokens.length / TOKENS_PER_PAGE));
-    const clampedActivePage = Math.min(activePage, activePageCount);
-    const clampedInactivePage = Math.min(inactivePage, inactivePageCount);
-    const pagedActiveTokens = activeTokens.slice((clampedActivePage - 1) * TOKENS_PER_PAGE, clampedActivePage * TOKENS_PER_PAGE);
-    const pagedInactiveTokens = inactiveTokens.slice((clampedInactivePage - 1) * TOKENS_PER_PAGE, clampedInactivePage * TOKENS_PER_PAGE);
-
-    const renderTokenValue = (token: PatToken, fullToken?: string) => {
-        const isVisible = visibleTokens.has(token.id);
-        const displayValue = fullToken || `pat_${token.token_id}.${'•'.repeat(40)}`;
-
-        if (isVisible || fullToken) {
-            return (
-                <span className="font-mono text-sm break-all">
-                    {displayValue}
-                </span>
-            );
-        }
-
-        return (
-            <span className="font-mono text-sm">
-                pat_{token.token_id}.{'•'.repeat(40)}
-            </span>
-        );
-    };
-
-    const renderPager = (page: number, pageCount: number, onPageChange: (page: number) => void) => {
-        if (pageCount <= 1) {
-            return null;
-        }
-
-        return (
-            <Pagination className="justify-end">
-                <PaginationContent>
-                    <PaginationItem>
-                        <PaginationPrevious
-                            href="#"
-                            aria-disabled={page === 1}
-                            className={page === 1 ? 'pointer-events-none opacity-50' : undefined}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                if (page > 1) onPageChange(page - 1);
-                            }}
-                        />
-                    </PaginationItem>
-                    {getPaginationRange(page, pageCount).map((entry, index) => (
-                        entry === 'ellipsis' ? (
-                            <PaginationItem key={`ellipsis-${index}`}>
-                                <PaginationEllipsis />
-                            </PaginationItem>
-                        ) : (
-                            <PaginationItem key={entry}>
-                                <PaginationLink
-                                    href="#"
-                                    isActive={entry === page}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        onPageChange(entry);
-                                    }}
-                                >
-                                    {entry}
-                                </PaginationLink>
-                            </PaginationItem>
-                        )
-                    ))}
-                    <PaginationItem>
-                        <PaginationNext
-                            href="#"
-                            aria-disabled={page === pageCount}
-                            className={page === pageCount ? 'pointer-events-none opacity-50' : undefined}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                if (page < pageCount) onPageChange(page + 1);
-                            }}
-                        />
-                    </PaginationItem>
-                </PaginationContent>
-            </Pagination>
-        );
-    };
+    const createButton = (
+        <Button size="sm" onClick={() => setShowCreateDialog(true)} className="gap-2 w-fit">
+            <Plus className="h-4 w-4" />
+            Create Token
+        </Button>
+    );
 
     return (
         <div className="container mx-auto px-4 py-6 space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">Personal Access Tokens</h1>
-                    <p className="text-muted-foreground">Create and manage tokens for API authentication</p>
+            <PageHeader
+                title="Personal Access Tokens"
+                description="Bootstrap credentials that let an agent enrol a node with a server"
+                actions={createButton}
+            />
+
+            <StatTiles
+                tiles={[
+                    { label: 'Total Tokens', value: tokens.length, icon: KeyRound, tone: 'accent' },
+                    { label: 'Active', value: activeTokens.length, icon: CheckCircle2, tone: 'success' },
+                    {
+                        label: 'Expiring Soon',
+                        value: expiringTokens.length,
+                        icon: AlertTriangle,
+                        tone: 'warning',
+                        hint: `within ${TOKEN_EXPIRY_WARNING_DAYS} days`,
+                    },
+                    {
+                        label: 'Inactive',
+                        value: expiredTokens.length + revokedTokens.length,
+                        icon: ShieldOff,
+                        tone: 'danger',
+                        hint: `${expiredTokens.length} expired · ${revokedTokens.length} revoked`,
+                    },
+                ]}
+            />
+
+            {loading ? (
+                <div className="text-center py-12 text-muted-foreground">
+                    <p>Loading tokens...</p>
                 </div>
-                <Button size="sm" onClick={() => setShowCreateDialog(true)} className="gap-2 w-fit">
-                    <Plus className="h-4 w-4" />
-                    Create Token
-                </Button>
-            </div>
+            ) : error ? (
+                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-destructive">
+                    <p>Error: {error}</p>
+                </div>
+            ) : (
+                <>
+                    <AlertStrip alerts={alerts} />
+
+                    <SearchBar
+                        value={searchQuery}
+                        onChange={(value) => {
+                            setSearchQuery(value);
+                            setPage(1);
+                        }}
+                        placeholder="Search tokens..."
+                        aria-label="Search tokens by name, ID, or scope"
+                    >
+                        <FilterChips<TokenFilter>
+                            label="Filter tokens by status"
+                            value={filter}
+                            onChange={(value) => {
+                                setFilter(value);
+                                setPage(1);
+                            }}
+                            options={[
+                                { value: 'all', label: 'All', count: tokens.length },
+                                { value: 'active', label: 'Active', count: activeTokens.length },
+                                { value: 'expiring', label: 'Expiring', count: expiringTokens.length },
+                                {
+                                    value: 'inactive',
+                                    label: 'Inactive',
+                                    count: expiredTokens.length + revokedTokens.length,
+                                },
+                            ]}
+                        />
+                    </SearchBar>
+
+                    {filteredTokens.length === 0 ? (
+                        <EmptyState
+                            icon={KeyRound}
+                            title={tokens.length === 0 ? 'No tokens yet' : 'No tokens match this view'}
+                            description={
+                                tokens.length === 0
+                                    ? 'Create a token to let an agent enrol its first node.'
+                                    : 'Try a different search term or clear the status filter.'
+                            }
+                            action={tokens.length === 0 ? createButton : null}
+                        />
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {pagedTokens.map((token) => (
+                                    <TokenCard
+                                        key={token.id}
+                                        token={token}
+                                        onRevoke={setTokenToRevoke}
+                                        onViewDetails={(target) => setDetailsTokenId(target.id)}
+                                        revealedSecret={
+                                            createdTokenId && token.token_id === createdTokenId && createdToken
+                                                ? createdToken
+                                                : undefined
+                                        }
+                                    />
+                                ))}
+                            </div>
+
+                            <Pager page={clampedPage} pageCount={pageCount} onPageChange={setPage} />
+                        </>
+                    )}
+                </>
+            )}
+
+            {detailsToken ? (
+                <TokenDetailsDialog
+                    key={detailsToken.id}
+                    token={detailsToken}
+                    onClose={() => setDetailsTokenId(null)}
+                />
+            ) : null}
 
             {/* Create Token Dialog */}
             <Dialog open={showCreateDialog} onOpenChange={(open) => !open && resetCreateDialog()}>
@@ -345,42 +367,30 @@ const PatTokens = () => {
                     <DialogHeader>
                         <DialogTitle>Create Personal Access Token</DialogTitle>
                         <DialogDescription>
-                            Create a new token to authenticate with the Phirepass API
+                            Issue a token an agent can use to register itself with a server
                         </DialogDescription>
                     </DialogHeader>
 
                     {createdToken ? (
                         <div className="space-y-4">
-                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                            <div className="p-4 bg-success/10 border border-success/30 rounded-lg">
                                 <div className="flex items-start gap-3 mb-3">
-                                    <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
+                                    <CheckCircle2 className="w-5 h-5 text-success mt-0.5 shrink-0" />
                                     <div>
-                                        <h4 className="font-medium text-green-500">Token Created Successfully</h4>
+                                        <h4 className="font-medium text-success">Token created</h4>
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            Make sure to copy your token now. You won't be able to see it again!
+                                            Record it now — this is the only time the secret is shown.
                                         </p>
                                     </div>
                                 </div>
-                                <div className="relative mt-3">
+                                <div className="mt-3">
                                     <Input
                                         value={createdToken}
                                         readOnly
-                                        className="pr-10 font-mono text-sm"
+                                        className="font-mono text-sm"
+                                        aria-label="New personal access token"
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                        aria-label="Copy token to clipboard"
-                                        onClick={() => {
-                                            void copyCreatedTokenToClipboard();
-                                        }}
-                                    >
-                                        {tokenCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                    </Button>
                                 </div>
-                                {tokenCopied ? <p className="text-sm text-green-500 mt-2">Copied to clipboard.</p> : null}
                             </div>
                             <DialogFooter>
                                 <Button onClick={resetCreateDialog}>Done</Button>
@@ -390,10 +400,10 @@ const PatTokens = () => {
                         <>
                             <div className="space-y-4">
                                 <div>
-                                    <Label htmlFor="token-name">Token Name</Label>
+                                    <Label htmlFor="token-name">Token name</Label>
                                     <Input
                                         id="token-name"
-                                        placeholder="e.g., Production API Token"
+                                        placeholder="e.g. Home lab enrolment"
                                         value={newTokenName}
                                         onChange={(e) => setNewTokenName(e.target.value)}
                                         className="mt-1.5"
@@ -410,7 +420,7 @@ const PatTokens = () => {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {EXPIRY_OPTIONS.map(option => (
+                                            {EXPIRY_OPTIONS.map((option) => (
                                                 <SelectItem key={option.value} value={option.value}>
                                                     {option.label}
                                                 </SelectItem>
@@ -418,7 +428,7 @@ const PatTokens = () => {
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        When should this token expire?
+                                        Shorter lifetimes limit the blast radius if a token leaks
                                     </p>
                                 </div>
 
@@ -426,16 +436,20 @@ const PatTokens = () => {
                                     <Label className="mb-3 block">Scopes</Label>
                                     <div className="space-y-3">
                                         {AVAILABLE_SCOPES.map((scope) => (
-                                            <div key={scope.value} className="flex items-start gap-3">
+                                            <div
+                                                key={scope.value}
+                                                className="flex items-start gap-3 rounded-lg border border-accent/35 bg-accent/10 p-3"
+                                            >
                                                 <Checkbox
                                                     id={`scope-${scope.value}`}
                                                     checked={newTokenScopes.includes(scope.value)}
                                                     disabled
+                                                    className="mt-0.5"
                                                 />
                                                 <div className="flex-1">
                                                     <label
                                                         htmlFor={`scope-${scope.value}`}
-                                                        className="text-sm font-medium cursor-pointer"
+                                                        className="text-sm font-medium"
                                                     >
                                                         {scope.label}
                                                     </label>
@@ -443,17 +457,23 @@ const PatTokens = () => {
                                                         {scope.description}
                                                     </p>
                                                 </div>
+                                                <span className="font-mono text-[11px] text-muted-foreground/70">
+                                                    {scope.value}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Only one scope exists today, so it is granted automatically.
+                                    </p>
                                 </div>
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={resetCreateDialog}>
                                     Cancel
                                 </Button>
-                                <Button onClick={handleCreateToken} disabled={loading}>
-                                    {loading ? 'Creating...' : 'Create Token'}
+                                <Button onClick={() => void handleCreateToken()} disabled={creating}>
+                                    {creating ? 'Creating...' : 'Create Token'}
                                 </Button>
                             </DialogFooter>
                         </>
@@ -461,179 +481,32 @@ const PatTokens = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Revoke Confirmation Dialog */}
+            {/* Revoke Confirmation */}
             <AlertDialog open={!!tokenToRevoke} onOpenChange={(open) => !open && setTokenToRevoke(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Revoke Token</AlertDialogTitle>
+                        <AlertDialogTitle>Revoke token</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to revoke "{tokenToRevoke?.name}"? This action cannot be undone,
-                            and any applications using this token will lose access.
+                            Revoke &ldquo;{tokenToRevoke?.name}&rdquo;? This cannot be undone, and any agent still
+                            using it will fail to enrol.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={() => tokenToRevoke && handleRevokeToken(tokenToRevoke)}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                if (tokenToRevoke) void handleRevokeToken(tokenToRevoke);
+                            }}
+                            disabled={revoking}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Delete Token
+                            {revoking ? 'Revoking...' : 'Revoke token'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Stats Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-                            <KeyRound className="h-4 w-4" />
-                            Active Tokens
-                        </div>
-                        <p className="text-3xl font-bold">{activeTokens.length}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-                            <Clock className="h-4 w-4" />
-                            Expired
-                        </div>
-                        <p className="text-3xl font-bold">{expiredTokens.length}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
-                            <AlertTriangle className="h-4 w-4" />
-                            Revoked
-                        </div>
-                        <p className="text-3xl font-bold">{revokedTokens.length}</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Active Tokens */}
-            {loading && tokens.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                    <p>Loading tokens...</p>
-                </div>
-            ) : activeTokens.length === 0 && !loading ? (
-                <Card>
-                    <CardContent className="p-12 text-center">
-                        <h3 className="text-lg font-medium mb-2">No active tokens</h3>
-                        <p className="text-muted-foreground mb-4">
-                            Create your first token to get started with the API
-                        </p>
-                        <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Token
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-2">
-                    {pagedActiveTokens.map((token) => (
-                        <Card key={token.id}>
-                            <CardContent className="p-3">
-                                <div className="flex items-center justify-between gap-3 overflow-hidden">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-medium text-sm truncate">{token.name}</h3>
-                                            <Badge variant="outline" className="text-green-500 border-green-500/30 text-xs px-1.5 py-0">
-                                                Active
-                                            </Badge>
-                                        </div>
-
-                                        <div className="text-xs mb-1">
-                                            {renderTokenValue(token)}
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                            <div className="flex items-center gap-1">
-                                                <Shield className="w-3 h-3" />
-                                                <span>{token.scopes.join(', ')}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="w-3 h-3" />
-                                                <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                <span>
-                                                    Expires {token.expires_at
-                                                        ? formatDistanceToNow(new Date(token.expires_at), { addSuffix: true })
-                                                        : 'Never'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setTokenToRevoke(token)}
-                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
-                    {renderPager(clampedActivePage, activePageCount, setActivePage)}
-                </div>
-            )}
-
-            {/* Expired/Revoked Tokens */}
-            {inactiveTokens.length > 0 && (
-                <div>
-                    <h2 className="text-lg font-semibold mb-4">Inactive Tokens</h2>
-                    <div className="space-y-2">
-                        {pagedInactiveTokens.map((token) => (
-                            <Card key={token.id} className="opacity-60">
-                                <CardContent className="p-3">
-                                    <div className="flex items-center justify-between gap-3 overflow-hidden">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h3 className="font-medium text-sm truncate">{token.name}</h3>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        'text-xs px-1.5 py-0',
-                                                        token.status === 'expired'
-                                                            ? 'text-orange-500 border-orange-500/30'
-                                                            : 'text-red-500 border-red-500/30'
-                                                    )}
-                                                >
-                                                    {token.status === 'expired' ? 'Expired' : 'Revoked'}
-                                                </Badge>
-                                            </div>
-
-                                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="w-3 h-3" />
-                                                    <span>Created {formatDistanceToNow(new Date(token.created_at), { addSuffix: true })}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span>
-                                                        Expires {token.expires_at
-                                                            ? formatDistanceToNow(new Date(token.expires_at), { addSuffix: true })
-                                                            : 'Never'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                        {renderPager(clampedInactivePage, inactivePageCount, setInactivePage)}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

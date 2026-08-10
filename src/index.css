@@ -164,6 +164,37 @@
     .font-mono {
         font-family: var(--font-mono), ui-monospace;
     }
+
+    /* Dashboard pages keep the page scrollbar on screen at all times.
+       `overflow-y: scroll` reserves the gutter so content does not shift
+       sideways when a page grows past one screen; declaring an explicit
+       scrollbar (width in Blink/WebKit, `scrollbar-width` in Firefox) opts the
+       viewport out of overlay scrollbars, which otherwise fade out while
+       reading. The class is toggled by src/app/dashboard/layout.tsx. */
+    html.dashboard-scroll {
+        overflow-y: scroll;
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--muted-foreground) / 0.5) transparent;
+    }
+
+    html.dashboard-scroll::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    html.dashboard-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    html.dashboard-scroll::-webkit-scrollbar-thumb {
+        background-color: hsl(var(--muted-foreground) / 0.5);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        border-radius: 9999px;
+    }
+
+    html.dashboard-scroll::-webkit-scrollbar-thumb:hover {
+        background-color: hsl(var(--muted-foreground) / 0.75);
+    }
 }
 
 @layer components {

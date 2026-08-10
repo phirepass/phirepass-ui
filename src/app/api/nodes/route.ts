@@ -26,6 +26,43 @@ type NodeStats = {
     version: string;
 };
 
+// The agent reports itself in two halves, split by lifetime (see
+// phirepass-rs/CLAUDE.md, "Node telemetry"): `info` is gathered once and sent
+// with the auth frame, `stats` is resampled and sent with every heartbeat. In
+// Redis they are two fields of the node hash — `info` written once at connect,
+// `stats` rewritten per heartbeat — and the heartbeat blob also nests a copy of
+// `info`. The frontend still consumes one flat `stats` object, so this route
+// merges them back together, preferring `info` for the static fields and falling
+// back to the stats payload for hashes written before the split.
+type NodePublicIpInfo = {
+    ip?: string;
+    hostname?: string;
+    continent?: string;
+    country?: string;
+    country_code?: string;
+    region?: string;
+    city?: string;
+    postal_code?: string;
+    latitude?: number;
+    longitude?: number;
+    time_zone?: string;
+    asn?: string;
+    asn_org?: string;
+    is_proxy?: boolean;
+};
+
+type NodeInfoPayload = {
+    proc_id?: string;
+    version?: string;
+    host_name?: string;
+    host_ip?: string;
+    host_local_ip?: string;
+    host_mac?: string;
+    host_os_info?: string;
+    public?: NodePublicIpInfo | null;
+    created_at?: number;
+};
+
 type NodeStatsPayload = {
     id?: string;
     name?: string;
@@ -35,6 +72,7 @@ type NodeStatsPayload = {
     // since_last_heartbeat_secs?: number; // unused by frontend
     services?: unknown;
     stats?: Partial<NodeStats>;
+    info?: NodeInfoPayload | null;
 } & Partial<NodeStats>;
 
 type UserNodeRow = {
@@ -156,34 +194,98 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
     };
 }
 
-function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackName: string): NodeStatsPayload | null {
-    if (!payload) {
+function normalizePublicIpInfo(value: unknown): NodePublicIpInfo | null {
+    if (!value || typeof value !== 'object') {
         return null;
     }
 
-    const statsSource = payload.stats ? payload.stats : payload;
+    const raw = value as NodePublicIpInfo;
+    const ip = toString(raw.ip);
+    if (!ip) {
+        return null;
+    }
 
     return {
-        id: payload.id,
-        name: payload.name,
-        server_id: payload.server_id,
-        ip: payload.ip,
-        connected_for_secs: toNumber(payload.connected_for_secs),
+        ip,
+        hostname: toString(raw.hostname) || undefined,
+        continent: toString(raw.continent) || undefined,
+        country: toString(raw.country) || undefined,
+        country_code: toString(raw.country_code) || undefined,
+        region: toString(raw.region) || undefined,
+        city: toString(raw.city) || undefined,
+        postal_code: toString(raw.postal_code) || undefined,
+        latitude: typeof raw.latitude === 'number' ? raw.latitude : undefined,
+        longitude: typeof raw.longitude === 'number' ? raw.longitude : undefined,
+        time_zone: toString(raw.time_zone) || undefined,
+        asn: toString(raw.asn) || undefined,
+        asn_org: toString(raw.asn_org) || undefined,
+        is_proxy: typeof raw.is_proxy === 'boolean' ? raw.is_proxy : undefined,
+    };
+}
+
+function normalizeInfoPayload(value: unknown): NodeInfoPayload | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const raw = value as NodeInfoPayload;
+
+    return {
+        proc_id: toString(raw.proc_id) || undefined,
+        version: toString(raw.version) || undefined,
+        host_name: toString(raw.host_name) || undefined,
+        host_ip: toString(raw.host_ip) || undefined,
+        host_local_ip: toString(raw.host_local_ip) || undefined,
+        host_mac: toString(raw.host_mac) || undefined,
+        host_os_info: toString(raw.host_os_info) || undefined,
+        public: normalizePublicIpInfo(raw.public),
+        created_at: typeof raw.created_at === 'number' ? raw.created_at : undefined,
+    };
+}
+
+function normalizeStatsPayload(
+    payload: NodeStatsPayload | undefined,
+    fallbackName: string,
+    infoField?: NodeInfoPayload | null,
+): NodeStatsPayload | null {
+    if (!payload && !infoField) {
+        return null;
+    }
+
+    const statsSource = payload?.stats ? payload.stats : (payload ?? {});
+    // The `info` written at connect and the copy nested in the heartbeat blob are
+    // the same value; either will do, and preferring the standalone field means a
+    // node that has connected but not yet heartbeated still has an identity.
+    const info = infoField ?? normalizeInfoPayload(payload?.info) ?? null;
+
+    // Static fields moved out of `stats` and into `info`. Reading info first and
+    // falling back to the old location keeps pre-split payloads rendering — they
+    // survive in Redis for the key's 120s TTL across a server rollout.
+    const staticField = (key: keyof NodeInfoPayload & keyof NodeStats) => {
+        const fromInfo = info ? info[key] : undefined;
+        return toString(fromInfo) || toString(statsSource[key]);
+    };
+
+    return {
+        id: payload?.id,
+        name: payload?.name,
+        server_id: payload?.server_id,
+        ip: payload?.ip,
+        connected_for_secs: toNumber(payload?.connected_for_secs),
         // since_last_heartbeat_secs: toNumber(payload.since_last_heartbeat_secs), // unused by frontend
+        info,
         stats: buildDefaultStats({
-            ip: toString(statsSource.ip ?? payload.ip ?? statsSource.host_ip),
+            ip: toString(statsSource.ip ?? payload?.ip) || staticField('host_ip'),
             // host_connections: toNumber(statsSource.host_connections), // unused by frontend
             host_cpu: toNumber(statsSource.host_cpu),
-            host_ip: toString(statsSource.host_ip),
-            host_local_ip: toString(statsSource.host_local_ip),
+            host_ip: staticField('host_ip'),
+            host_local_ip: staticField('host_local_ip'),
             host_load_average: normalizeLoadAverage(statsSource.host_load_average),
-            host_mac: toString(statsSource.host_mac),
+            host_mac: staticField('host_mac'),
             host_mem_total_bytes: toNumber(statsSource.host_mem_total_bytes),
             host_mem_used_bytes: toNumber(statsSource.host_mem_used_bytes),
-            host_name: typeof statsSource.host_name === 'string' && statsSource.host_name
-                ? statsSource.host_name
-                : fallbackName,
-            host_os_info: toString(statsSource.host_os_info),
+            host_name: staticField('host_name') || fallbackName,
+            host_os_info: staticField('host_os_info'),
             host_processes: toNumber(statsSource.host_processes),
             host_uptime_secs: toNumber(statsSource.host_uptime_secs),
             // last_refreshed_secs: toNumber(statsSource.last_refreshed_secs), // unused by frontend
@@ -192,7 +294,7 @@ function normalizeStatsPayload(payload: NodeStatsPayload | undefined, fallbackNa
             // proc_mem_bytes: toNumber(statsSource.proc_mem_bytes), // unused by frontend
             // proc_threads: toNumber(statsSource.proc_threads), // unused by frontend
             // proc_uptime_secs: toNumber(statsSource.proc_uptime_secs), // unused by frontend
-            version: toString(statsSource.version),
+            version: staticField('version'),
         }),
     };
 }
@@ -209,7 +311,7 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
         keys.push(...(batch as string[]));
     }
 
-    const entries = new Map<string, { stats: NodeStatsPayload }>();
+    const entries = new Map<string, { stats?: NodeStatsPayload; info: NodeInfoPayload | null }>();
     if (keys.length === 0) {
         return entries;
     }
@@ -227,23 +329,42 @@ async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>
         if (!node) continue;
         if (Object.keys(node).length === 0) continue;
 
-        try {
-            const parsedStats = JSON.parse(node.stats) as NodeStatsPayload;
-            const derivedId = typeof parsedStats?.id === 'string'
-                ? parsedStats.id
-                : key.split(':').pop();
+        // The two fields are parsed independently: `stats` is empty between the
+        // agent's auth and its first heartbeat, and losing `info` to that empty
+        // string would drop the node's identity for a whole heartbeat interval.
+        const parsedStats = parseHashField<NodeStatsPayload>(node.stats, key, 'stats');
+        const parsedInfo = normalizeInfoPayload(parseHashField(node.info, key, 'info'));
 
-            if (derivedId) {
-                entries.set(derivedId, {
-                    stats: parsedStats,
-                });
-            }
-        } catch (e) {
-            console.warn(`[getUserNodeStats] Failed to parse stats for key ${key}:`, e);
+        if (!parsedStats && !parsedInfo) {
+            continue;
+        }
+
+        const derivedId = typeof parsedStats?.id === 'string'
+            ? parsedStats.id
+            : key.split(':').pop();
+
+        if (derivedId) {
+            entries.set(derivedId, {
+                stats: parsedStats ?? undefined,
+                info: parsedInfo,
+            });
         }
     }
 
     return entries;
+}
+
+function parseHashField<T>(value: string | undefined, key: string, field: string): T | null {
+    if (!value) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(value) as T;
+    } catch (e) {
+        console.warn(`[getUserNodeStats] Failed to parse ${field} for key ${key}:`, e);
+        return null;
+    }
 }
 
 export async function GET(req: Request) {
@@ -267,12 +388,15 @@ export async function GET(req: Request) {
         const mergedNodes = nodesFromDb.map((node) => {
             const rawPayload = statsById.get(node.id);
             const statsPayload = rawPayload?.stats;
-            const payload = normalizeStatsPayload(statsPayload, node.name ?? '');
+            const payload = normalizeStatsPayload(statsPayload, node.name ?? '', rawPayload?.info);
             const stats = payload?.stats ?? buildDefaultStats({ host_name: node.name ?? '' });
             const ip = payload?.ip
                 ?? payload?.stats?.ip
                 ?? payload?.stats?.host_ip
                 ?? '';
+            // Still keyed off the heartbeat payload, not `info`: `info` only proves
+            // the agent authenticated at some point inside the key's TTL, whereas
+            // stats prove it was alive as of its last heartbeat.
             const isOnline = !!statsPayload;
             const settings = normalizeSettings(node.settings);
             const services = normalizeServices(settings.services ?? payload?.services);
@@ -286,6 +410,7 @@ export async function GET(req: Request) {
                 // since_last_heartbeat_secs: payload?.since_last_heartbeat_secs ?? 0, // unused by frontend
                 is_online: isOnline,
                 stats,
+                info: payload?.info ?? null,
                 services,
             };
         });

@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Menu, X, LogOut, User, Settings, Shield, ChevronDown, Webhook, Key, KeyRound, Gauge, Activity } from 'lucide-react';
+import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { IS_DEV_MODE } from '@/lib/dev-mode';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,6 +22,20 @@ interface HeaderProps {
     onLogout?: () => void;
 }
 
+type NavItem = {
+    href: string;
+    label: string;
+    icon: LucideIcon;
+    /** Hidden outside dev builds; see IS_DEV_MODE. */
+    devOnly?: boolean;
+};
+
+const NAV_ITEMS: NavItem[] = [
+    { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
+    { href: '/dashboard/pat-tokens', label: 'Tokens', icon: KeyRound },
+    { href: '/dashboard/uptime', label: 'Uptime', icon: Activity, devOnly: true },
+];
+
 export function Header({ user, onLogout }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -30,6 +45,8 @@ export function Header({ user, onLogout }: HeaderProps) {
     const router = useRouter();
     const pathname = usePathname();
     const isActivePath = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
+
+    const navItems = NAV_ITEMS.filter((item) => !item.devOnly || IS_DEV_MODE);
 
     // Generate initials from name or email
     const getInitials = () => {
@@ -86,41 +103,61 @@ export function Header({ user, onLogout }: HeaderProps) {
                         <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
                             <Shield className="w-4 h-4 text-white" />
                         </div>
-                        <Link href="/" className="text-xl font-semibold">
+                        <Link href="/" className="text-xl font-semibold tracking-tight">
                             <span className="text-gradient">Phire</span>
                             <span className="text-foreground">pass</span>
                         </Link>
                     </div>
 
-                    {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push('/dashboard/nodes')}
-                            className={cn(isActivePath('/dashboard/nodes') && 'bg-secondary text-foreground')}
-                            aria-current={isActivePath('/dashboard/nodes') ? 'page' : undefined}
-                        >
-                            Nodes
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push('/dashboard/pat-tokens')}
-                            className={cn(isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground')}
-                            aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
-                        >
-                            Tokens
-                        </Button>
-                        <div className="w-px h-6 bg-border" />
+                    {/* Desktop Nav — the active route carries an accent underline
+                        rather than a filled pill, so the bar stays quiet. */}
+                    <div className="hidden md:flex items-center gap-1">
+                        <nav className="flex items-center gap-1" aria-label="Main">
+                            {navItems.map((item) => {
+                                const active = isActivePath(item.href);
+
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        aria-current={active ? 'page' : undefined}
+                                        className={cn(
+                                            'relative flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            active
+                                                ? 'text-foreground'
+                                                : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                                        )}
+                                    >
+                                        <item.icon className="h-4 w-4" />
+                                        {item.label}
+                                        {item.devOnly ? (
+                                            <span className="rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
+                                                dev
+                                            </span>
+                                        ) : null}
+                                        <span
+                                            aria-hidden
+                                            className={cn(
+                                                // Sits on the header's bottom border: 64px bar, 36px link,
+                                                // so 14px of slack below the link reaches the rule.
+                                                'absolute inset-x-2 -bottom-[14px] h-0.5 rounded-full transition-opacity',
+                                                active ? 'bg-accent opacity-100' : 'opacity-0'
+                                            )}
+                                        />
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+                        <div className="mx-3 w-px h-6 bg-border" />
                         <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                                <button className="flex items-center gap-3 rounded-lg px-1 py-1 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                     {user?.avatar ? (
                                         <img
                                             src={user.avatar}
                                             alt={displayName}
-                                            className="w-8 h-8 rounded-full"
+                                            className="w-8 h-8 rounded-full ring-1 ring-border"
                                         />
                                     ) : (
                                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -141,8 +178,8 @@ export function Header({ user, onLogout }: HeaderProps) {
                                             }
                                         }}
                                     >
-                                        <p className="font-medium">{displayName}</p>
-                                        <p className="text-muted-foreground text-xs">{displayEmail}</p>
+                                        <p className="font-medium leading-tight">{displayName}</p>
+                                        <p className="text-muted-foreground text-xs leading-tight">{displayEmail}</p>
                                     </div>
                                 </button>
                             </DropdownMenuTrigger>
@@ -169,6 +206,8 @@ export function Header({ user, onLogout }: HeaderProps) {
                         variant="ghost"
                         size="icon"
                         className="md:hidden h-12 w-12"
+                        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                        aria-expanded={menuOpen}
                         onClick={() => setMenuOpen(!menuOpen)}
                     >
                         {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -199,40 +238,36 @@ export function Header({ user, onLogout }: HeaderProps) {
                 <div className="p-4 space-y-1">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-muted-foreground">Menu</span>
-                        <Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => setMenuOpen(false)}>
+                        <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
                             <X className="w-5 h-5" />
                         </Button>
                     </div>
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                            isActivePath('/dashboard/nodes') && 'bg-secondary text-foreground'
-                        )}
-                        aria-current={isActivePath('/dashboard/nodes') ? 'page' : undefined}
-                        onClick={() => { router.push('/dashboard/nodes'); setMenuOpen(false); }}
-                    >
-                        <Shield className="w-5 h-5 mr-3" />
-                        Nodes
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                            isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground'
-                        )}
-                        aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
-                        onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}
-                    >
-                        <KeyRound className="w-5 h-5 mr-3" />
-                        Tokens
-                    </Button>
+                    {navItems.map((item) => (
+                        <Button
+                            key={item.href}
+                            variant="ghost"
+                            className={cn(
+                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                isActivePath(item.href) && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
+                            )}
+                            aria-current={isActivePath(item.href) ? 'page' : undefined}
+                            onClick={() => { router.push(item.href); setMenuOpen(false); }}
+                        >
+                            <item.icon className="w-5 h-5 mr-3" />
+                            {item.label}
+                            {item.devOnly ? (
+                                <span className="ml-2 rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
+                                    dev
+                                </span>
+                            ) : null}
+                        </Button>
+                    ))}
                     <div className="border-t border-border my-2 pt-2">
                         <Button
                             variant="ghost"
                             className={cn(
                                 'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/profile') && 'bg-secondary text-foreground'
+                                isActivePath('/dashboard/profile') && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
                             )}
                             aria-current={isActivePath('/dashboard/profile') ? 'page' : undefined}
                             onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}
