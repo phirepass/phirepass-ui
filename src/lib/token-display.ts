@@ -18,6 +18,24 @@ export function formatAbsolute(iso: string | null | undefined): string {
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+/**
+ * As `formatAbsolute`, but to the minute. Worth the extra width for a moment
+ * something *happened* — an agent authenticating — where the day alone leaves
+ * the obvious follow-up question unanswered.
+ */
+export function formatAbsoluteTime(iso: string | null | undefined): string {
+    if (!iso) return 'Never';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'Unknown';
+    return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
 export function formatRelative(iso: string | null | undefined, now: number = Date.now()): string {
     const days = daysUntil(iso, now);
     if (days === null) return 'Never';
@@ -36,6 +54,15 @@ export function formatAge(iso: string, now: number = Date.now()): string {
     if (days === 1) return '1d ago';
     if (days < 60) return `${days}d ago`;
     return `${Math.round(days / 30)}mo ago`;
+}
+
+/**
+ * When an agent last authenticated with a token. Absent is a real state rather
+ * than missing data — a token that has been issued and never presented — so it
+ * is spelled out instead of being blanked.
+ */
+export function formatLastUsed(iso: string | null | undefined, now: number = Date.now()): string {
+    return iso ? formatAge(iso, now) : 'Never';
 }
 
 /**

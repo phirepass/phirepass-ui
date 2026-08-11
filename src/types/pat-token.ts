@@ -10,8 +10,13 @@ export interface PatToken {
     scopes: PatTokenScope[];
     created_at: string;
     expires_at?: string | null;
-    node_count: number;
+    /** Last successful agent auth with this token; null when never presented. */
+    last_used_at?: string | null;
     status: PatTokenStatus;
+    // No `node_count`. The list endpoint used to select a hardcoded `0` for it and
+    // the UI printed that as fact. Counting enrolments per token needs the claim
+    // path to record which token enrolled each node, which it does not — so the
+    // field is absent rather than wrong. Add it back with the query that earns it.
 }
 
 export const AVAILABLE_SCOPES: {

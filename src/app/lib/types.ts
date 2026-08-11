@@ -20,6 +20,7 @@ export type PAToken = {
     scopes: string[]; // permissions associated with the token
     created_at: string;
     expires_at?: string;
+    last_used_at?: string | null; // last successful agent auth; null when never used
 };
 
 export type CreatePATInput = {

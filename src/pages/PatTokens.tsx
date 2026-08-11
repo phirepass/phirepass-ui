@@ -152,11 +152,23 @@ const PatTokens = () => {
                 );
             })
             .sort((a, b) => {
-                // Active first, then most recently created — the same "healthy things
-                // first" ordering the node list uses.
+                // Active first, then most recently used — the same "healthy things
+                // first" ordering the node list uses. A token no agent has ever
+                // presented sorts below every one that has, however new it is, and
+                // creation date only breaks ties within that unused group.
                 if ((a.status === 'active') !== (b.status === 'active')) {
                     return a.status === 'active' ? -1 : 1;
                 }
+
+                const usedA = a.last_used_at ? new Date(a.last_used_at).getTime() : null;
+                const usedB = b.last_used_at ? new Date(b.last_used_at).getTime() : null;
+
+                if (usedA !== usedB) {
+                    if (usedA === null) return 1;
+                    if (usedB === null) return -1;
+                    return usedB - usedA;
+                }
+
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             });
     }, [tokens, filter, searchQuery, expiringTokens]);

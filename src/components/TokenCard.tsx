@@ -23,7 +23,9 @@ import {
     TOKEN_EXPIRY_WARNING_DAYS,
     daysUntil,
     formatAbsolute,
+    formatAbsoluteTime,
     formatAge,
+    formatLastUsed,
     formatRelative,
     lifetimeUsedPercent,
 } from '@/lib/token-display';
@@ -166,29 +168,59 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                 </Tooltip>
             ) : null}
 
-            {/* Meta */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="font-mono">{formatAge(token.created_at, now)}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>Created {formatAbsolute(token.created_at)}</TooltipContent>
-                </Tooltip>
-                <span aria-hidden className="text-muted-foreground/40">·</span>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className={cn('flex items-center gap-1 font-mono', expiringSoon && 'text-warning')}>
-                            {expiringSoon ? <AlertTriangle className="h-3 w-3" /> : null}
-                            {token.expires_at ? `expires ${formatRelative(token.expires_at, now)}` : 'no expiry'}
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{formatAbsolute(token.expires_at)}</TooltipContent>
-                </Tooltip>
-                <span aria-hidden className="text-muted-foreground/40">·</span>
-                <span className="font-mono">
-                    {token.node_count} node{token.node_count === 1 ? '' : 's'}
-                </span>
-            </div>
+            {/* The two dates that answer "where is this token in its life?" are
+                labelled and given their own row — unlabelled ages next to an
+                expiry read as three interchangeable timestamps. */}
+            <dl className="grid grid-cols-2 gap-x-3 border-t border-border/40 pt-2 text-[11px]">
+                <div className="min-w-0">
+                    <dt className="text-muted-foreground/70">Created</dt>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <dd className="truncate font-mono text-foreground">
+                                {formatAge(token.created_at, now)}
+                            </dd>
+                        </TooltipTrigger>
+                        <TooltipContent>Created {formatAbsoluteTime(token.created_at)}</TooltipContent>
+                    </Tooltip>
+                </div>
+                <div className="min-w-0">
+                    <dt className="text-muted-foreground/70">Last used</dt>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <dd
+                                className={cn(
+                                    'truncate font-mono',
+                                    token.last_used_at ? 'text-foreground' : 'text-muted-foreground/60'
+                                )}
+                            >
+                                {formatLastUsed(token.last_used_at, now)}
+                            </dd>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {token.last_used_at
+                                ? `An agent last authenticated with this token on ${formatAbsoluteTime(token.last_used_at)}`
+                                : 'No agent has ever authenticated with this token'}
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            </dl>
+
+            {/* Only when there is an expiry to report. A token that never expires
+                has no deadline to announce, and a line saying so is a row of card
+                spent restating the absence of news. */}
+            {token.expires_at ? (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className={cn('flex items-center gap-1 font-mono', expiringSoon && 'text-warning')}>
+                                {expiringSoon ? <AlertTriangle className="h-3 w-3" /> : null}
+                                expires {formatRelative(token.expires_at, now)}
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{formatAbsolute(token.expires_at)}</TooltipContent>
+                    </Tooltip>
+                </div>
+            ) : null}
         </div>
     );
 }

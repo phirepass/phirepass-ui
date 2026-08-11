@@ -12,6 +12,7 @@ import {
     TOKEN_EXPIRY_WARNING_DAYS,
     daysUntil,
     formatAbsolute,
+    formatAbsoluteTime,
     formatRelative,
 } from '@/lib/token-display';
 import { cn } from '@/lib/utils';
@@ -92,13 +93,17 @@ export function TokenDetailsDialog({ token, onClose }: TokenDetailsDialogProps) 
                 <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
                     <Row label="Status" value={token.status} tone={cn('capitalize', statusTone)} />
                     <Row label="Token ID" value={token.token_id} />
-                    <Row label="Created" value={formatAbsolute(token.created_at)} />
+                    <Row label="Created" value={formatAbsoluteTime(token.created_at)} />
+                    <Row
+                        label="Last used"
+                        value={formatAbsoluteTime(token.last_used_at)}
+                        tone={token.last_used_at ? undefined : 'text-muted-foreground'}
+                    />
                     <Row
                         label="Expires"
                         value={token.expires_at ? formatAbsolute(token.expires_at) : 'Never'}
                         tone={expiringSoon ? 'text-warning' : undefined}
                     />
-                    <Row label="Nodes enrolled" value={String(token.node_count)} />
                 </div>
 
                 <div>
