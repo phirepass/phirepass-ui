@@ -1,8 +1,23 @@
 import { Globe } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { coordinateLabel } from '@/lib/geo';
+import { coordinateLabel, flagFromCountryCode } from '@/lib/geo';
 import type { PublicIpLocation } from '@/types/geo';
+
+/**
+ * `Greece (GR)`, or whichever half the provider actually returned — the code
+ * alone is still worth showing, since it is what the flag is derived from.
+ */
+function countryLabel(location: PublicIpLocation): string {
+    const name = location.country?.trim();
+    const code = location.country_code?.trim().toUpperCase();
+
+    if (name && code) {
+        return `${name} (${code})`;
+    }
+
+    return name || code || '';
+}
 
 export interface LocationDetailsProps {
     location: PublicIpLocation | null | undefined;
@@ -21,16 +36,28 @@ export function LocationDetails({ location, blurred = false, className }: Locati
         return null;
     }
 
+    const flag = flagFromCountryCode(location.country_code);
+
+    // Every field the lookup carries, ordered address-first then coarsening
+    // outwards from the city. `is_proxy` is the one row worth printing as "No",
+    // because an explicit negative is an answer — the rest are dropped when the
+    // provider had nothing for them.
     const rows = [
         { label: 'IP address', value: blurred ? '••••••••' : location.ip, mono: true },
+        { label: 'Reverse DNS', value: location.hostname, mono: true },
         { label: 'Coordinates', value: blurred ? '••••••••' : coordinateLabel(location), mono: true },
+        { label: 'City', value: location.city },
         { label: 'Region', value: location.region },
         { label: 'Postal code', value: location.postal_code, mono: true },
+        { label: 'Country', value: countryLabel(location), flag },
         { label: 'Continent', value: location.continent },
         { label: 'Timezone', value: location.time_zone },
         { label: 'ASN', value: location.asn, mono: true },
         { label: 'Network', value: location.asn_org },
-        { label: 'Reverse DNS', value: location.hostname, mono: true },
+        {
+            label: 'Proxy or VPN',
+            value: typeof location.is_proxy === 'boolean' ? (location.is_proxy ? 'Yes' : 'No') : '',
+        },
     ].filter((row) => !!row.value);
 
     return (
@@ -40,6 +67,7 @@ export function LocationDetails({ location, blurred = false, className }: Locati
                     <div key={row.label} className="min-w-0">
                         <dt className="text-muted-foreground">{row.label}</dt>
                         <dd className={cn('truncate text-foreground', row.mono && 'font-mono')}>
+                            {row.flag ? <span aria-hidden="true">{row.flag} </span> : null}
                             {row.value}
                         </dd>
                     </div>
