@@ -412,10 +412,51 @@ export function MonitorCard({
                 {/* 30-day history */}
                 <div className="mt-auto">
                     <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Last 30 days</span>
-                        <span className="font-mono text-[11px] text-muted-foreground/70">
-                            {monitor.window_30d.checks} checks
-                        </span>
+                        {/*
+                          * Both labels are deliberately terse, so each carries
+                          * its own report on hover rather than being widened.
+                          */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="cursor-help text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    Last 30 checks
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <span className="font-medium">Last 30 days</span>
+                                <br />
+                                One bar per day, coloured by that day&apos;s worst result.
+                                <br />
+                                {formatUptime(monitor.window_30d.uptime_pct)} up
+                                {monitor.window_30d.avg_latency_ms !== null
+                                    ? ` · ${formatLatency(monitor.window_30d.avg_latency_ms)} avg`
+                                    : ''}
+                                <br />
+                                Checked every {formatInterval(monitor.interval_secs)}
+                                {monitor.node_name ? ` from ${monitor.node_name}` : ''}
+                            </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="cursor-help font-mono text-[11px] text-muted-foreground/70">
+                                    {monitor.window_30d.checks} checks
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <span className="font-medium">Checks in the last 30 days</span>
+                                <br />
+                                {monitor.window_30d.checks} run
+                                {monitor.window_30d.down_checks > 0
+                                    ? ` · ${monitor.window_30d.down_checks} failed`
+                                    : ' · none failed'}
+                                <br />
+                                24h: {formatUptime(monitor.window_24h.uptime_pct)} up
+                                {' · '}7d: {formatUptime(monitor.window_7d.uptime_pct)} up
+                                <br />
+                                Last checked {formatRelativeTime(monitor.last_checked_at)}
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                     <UptimeStrip daily={monitor.daily} />
                 </div>
