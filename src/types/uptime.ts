@@ -36,6 +36,35 @@ export interface Monitor {
     created_at: string;
     updated_at: string;
 
+    /**
+     * Which vantage point runs the probe. `null` is the server fleet — the
+     * target as the public internet sees it. A node id runs the probe on that
+     * agent instead, which is the only way to watch a service that is not
+     * reachable from outside its own network.
+     *
+     * Only ever one of the caller's own nodes; the API scopes the list by the
+     * authenticated user.
+     */
+    node_id: string | null;
+    /**
+     * Denormalised so a card can name the agent without fetching the node list.
+     * Null when `node_id` is null, or when the node has since been deleted.
+     */
+    node_name: string | null;
+    /**
+     * What an offline agent means for this monitor.
+     *
+     * `false` (the default) records `unknown` and stays quiet — the probe never
+     * ran, so nothing was learned about the target, and an agent restart is not
+     * an outage of the thing it watches. `true` records `down` and alerts,
+     * treating the agent's own availability as part of what is being watched.
+     *
+     * Either way a check is written, so history stays continuous and a gap is
+     * visible on the strip; the flag decides the verdict, not whether one is
+     * recorded.
+     */
+    agent_offline_is_outage: boolean;
+
     last_status: MonitorStatus | null;
     last_checked_at: string | null;
     last_latency_ms: number | null;
@@ -121,6 +150,8 @@ export interface MonitorInput {
     degraded_ms?: number;
     expiry_warn_days?: number;
     paused?: boolean;
+    node_id?: string | null;
+    agent_offline_is_outage?: boolean;
 }
 
 export const MONITOR_KIND_LABELS: Record<MonitorKind, string> = {
@@ -135,8 +166,39 @@ export const MONITOR_KIND_HINTS: Record<MonitorKind, string> = {
     domain: 'Looks the domain up over RDAP and warns before the registration lapses.',
 };
 
+/**
+ * Which kinds can currently be created. `ssl` and `domain` are specified end to
+ * end but have no backend yet, so the form offers them disabled rather than
+ * dropping them: the vocabulary stays whole, existing monitors of those kinds
+ * still render everywhere else, and turning them on is one edit here.
+ */
+export const MONITOR_KIND_ENABLED: Record<MonitorKind, boolean> = {
+    http: true,
+    ssl: false,
+    domain: false,
+};
+
+/**
+ * Vantage only means something where the probe opens a connection. A `domain`
+ * check asks a registry about a name over RDAP and connects to the target not
+ * at all, so "run it from node X" would be a distinction without a difference —
+ * every agent would get the same answer the server does.
+ */
+export const KIND_SUPPORTS_AGENT: Record<MonitorKind, boolean> = {
+    http: true,
+    ssl: true,
+    domain: false,
+};
+
+/**
+ * Five minutes is the floor, not a default. The scheduler polls for due monitors
+ * once a minute, so anything under that cannot be honoured — a 1-minute monitor
+ * would be checked roughly once a minute at best and would drift with the tick,
+ * promising a cadence the backend does not deliver.
+ */
+export const MIN_INTERVAL_SECS = 300;
+
 export const INTERVAL_OPTIONS = [
-    { label: '1 minute', value: 60 },
     { label: '5 minutes', value: 300 },
     { label: '15 minutes', value: 900 },
     { label: '1 hour', value: 3600 },

@@ -25,6 +25,9 @@ import { cn } from '@/lib/utils';
 import {
     DEFAULT_INTERVAL_BY_KIND,
     INTERVAL_OPTIONS,
+    KIND_SUPPORTS_AGENT,
+    MIN_INTERVAL_SECS,
+    MONITOR_KIND_ENABLED,
     MONITOR_KIND_HINTS,
     MONITOR_KIND_LABELS,
     type MonitorInput,
@@ -33,6 +36,7 @@ import {
 } from '@/types/uptime';
 
 import { KIND_ICONS } from './monitor-display';
+import { MonitorVantageField } from './MonitorVantageField';
 
 const KIND_ORDER: MonitorKind[] = ['http', 'ssl', 'domain'];
 
@@ -66,8 +70,11 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
     const [kind, setKind] = useState<MonitorKind>(monitor?.kind ?? 'http');
     const [name, setName] = useState(monitor?.name ?? '');
     const [target, setTarget] = useState(monitor?.target ?? '');
+    // Clamped to the floor on the way in: a monitor stored below it — created
+    // before the floor existed, or written directly — has no matching option, so
+    // the select would seed blank and a save would silently drop the interval.
     const [intervalSecs, setIntervalSecs] = useState(
-        monitor?.interval_secs ?? DEFAULT_INTERVAL_BY_KIND.http
+        Math.max(monitor?.interval_secs ?? DEFAULT_INTERVAL_BY_KIND.http, MIN_INTERVAL_SECS)
     );
     const [timeoutMs, setTimeoutMs] = useState(monitor?.timeout_ms ?? 10_000);
     const [method, setMethod] = useState(monitor?.method ?? 'GET');
@@ -81,20 +88,42 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
     const [followRedirects, setFollowRedirects] = useState(monitor?.follow_redirects ?? true);
     const [degradedMs, setDegradedMs] = useState(monitor?.degraded_ms ?? 1500);
     const [expiryWarnDays, setExpiryWarnDays] = useState(monitor?.expiry_warn_days ?? 21);
+    const [nodeId, setNodeId] = useState<string | null>(monitor?.node_id ?? null);
+    const [agentOfflineIsOutage, setAgentOfflineIsOutage] = useState(
+        monitor?.agent_offline_is_outage ?? false
+    );
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const selectKind = (next: MonitorKind) => {
+        // The buttons are disabled, but guard the handler too so the rule holds
+        // if one is ever triggered by keyboard or by a caller.
+        if (!MONITOR_KIND_ENABLED[next]) return;
+
         setKind(next);
         // Expiry checks answer from a registry once a day; carrying an HTTP
         // monitor's 5-minute cadence over would just hammer it.
         if (!isEdit) {
             setIntervalSecs(DEFAULT_INTERVAL_BY_KIND[next]);
         }
+        // Cleared on the way in rather than only at submit, so the form never
+        // shows a vantage the chosen kind cannot honour. Applies while editing
+        // too: a monitor switched to `domain` genuinely loses its agent.
+        if (!KIND_SUPPORTS_AGENT[next]) {
+            setNodeId(null);
+        }
     };
 
     const handleSubmit = async () => {
+        // Checks run from an agent, so there is no vantage to fall back to when
+        // none is chosen. Caught here rather than by `required` on the trigger,
+        // which a Radix select does not support.
+        if (KIND_SUPPORTS_AGENT[kind] && !nodeId) {
+            setError('Choose the agent this check should run from.');
+            return;
+        }
+
         setSubmitting(true);
         setError(null);
 
@@ -117,6 +146,10 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                 follow_redirects: followRedirects,
                 degraded_ms: degradedMs,
                 expiry_warn_days: expiryWarnDays,
+                node_id: KIND_SUPPORTS_AGENT[kind] ? nodeId : null,
+                // Meaningless without an agent, and sending the toggle's stale
+                // value would resurrect it if the monitor moved back to one.
+                agent_offline_is_outage: nodeId ? agentOfflineIsOutage : false,
             });
 
             if (!ok) {
@@ -154,6 +187,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                             {KIND_ORDER.map((option) => {
                                 const Icon = KIND_ICONS[option];
                                 const active = kind === option;
+                                const enabled = MONITOR_KIND_ENABLED[option];
 
                                 return (
                                     <button
@@ -161,16 +195,25 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                         type="button"
                                         onClick={() => selectKind(option)}
                                         aria-pressed={active}
+                                        disabled={!enabled}
+                                        title={enabled ? undefined : 'Not available yet'}
                                         className={cn(
                                             'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
                                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                            active
-                                                ? 'border-accent/50 bg-accent/10'
-                                                : 'border-border hover:border-border hover:bg-secondary/40'
+                                            !enabled && 'cursor-not-allowed border-border/60 bg-secondary/20 opacity-55',
+                                            enabled && active && 'border-accent/50 bg-accent/10',
+                                            enabled && !active && 'border-border hover:border-border hover:bg-secondary/40'
                                         )}
                                     >
-                                        <Icon className={cn('h-4 w-4', active ? 'text-accent' : 'text-muted-foreground')} />
-                                        <span className="text-xs font-medium">{MONITOR_KIND_LABELS[option]}</span>
+                                        <Icon className={cn('h-4 w-4', active && enabled ? 'text-accent' : 'text-muted-foreground')} />
+                                        <span className="flex items-center gap-1.5 text-xs font-medium">
+                                            {MONITOR_KIND_LABELS[option]}
+                                            {enabled ? null : (
+                                                <span className="rounded border border-border px-1 py-px text-[9px] uppercase tracking-wide text-muted-foreground">
+                                                    soon
+                                                </span>
+                                            )}
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -192,16 +235,41 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                         </div>
                         <div>
                             <Label htmlFor="monitor-target">{TARGET_LABELS[kind]}</Label>
-                            <Input
-                                id="monitor-target"
-                                value={target}
-                                onChange={(event) => setTarget(event.target.value)}
-                                placeholder={TARGET_PLACEHOLDERS[kind]}
-                                className="mt-1.5 font-mono text-sm"
-                                required
-                            />
+                            {/*
+                              * The method is fixed to GET while the advanced
+                              * panel is disabled, so it is shown in the field
+                              * rather than left implicit — the request being
+                              * made is part of what the URL means.
+                              */}
+                            <div className="relative mt-1.5">
+                                {kind === 'http' ? (
+                                    <span
+                                        aria-hidden
+                                        className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                    >
+                                        {method}
+                                    </span>
+                                ) : null}
+                                <Input
+                                    id="monitor-target"
+                                    value={target}
+                                    onChange={(event) => setTarget(event.target.value)}
+                                    placeholder={TARGET_PLACEHOLDERS[kind]}
+                                    className={cn('font-mono text-sm', kind === 'http' && 'pl-12')}
+                                    required
+                                />
+                            </div>
                         </div>
                     </div>
+
+                    <MonitorVantageField
+                        kind={kind}
+                        nodeId={nodeId}
+                        onNodeChange={setNodeId}
+                        agentOfflineIsOutage={agentOfflineIsOutage}
+                        onAgentOfflineIsOutageChange={setAgentOfflineIsOutage}
+                        fallbackNodeName={monitor?.node_name ?? null}
+                    />
 
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -256,12 +324,20 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                     </div>
 
                     <div>
+                        {/*
+                          * Disabled rather than removed: the panel below is
+                          * complete and still typechecked, so re-enabling it is
+                          * a one-line change once the backend honours the
+                          * fields it sets.
+                          */}
                         <button
                             type="button"
+                            disabled
+                            title="Not available yet"
                             onClick={() => setShowAdvanced((value) => !value)}
-                            className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                            className="cursor-not-allowed text-xs font-medium text-muted-foreground/60"
                         >
-                            {showAdvanced ? 'Hide advanced options' : 'Show advanced options'}
+                            Show advanced options
                         </button>
                     </div>
 

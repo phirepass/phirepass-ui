@@ -4,6 +4,7 @@ import {
     CalendarClock,
     Clock,
     Gauge,
+    HardDrive,
     MoreVertical,
     Pause,
     Pencil,
@@ -209,6 +210,27 @@ export function MonitorCard({
                         </TooltipTrigger>
                         <TooltipContent>{monitor.target}</TooltipContent>
                     </Tooltip>
+                    {/*
+                      * Only agent-run monitors are badged. Server vantage is the
+                      * default and marking it too would put a label on every card
+                      * to say nothing.
+                      */}
+                    {monitor.node_id ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex max-w-[9rem] items-center gap-1.5 whitespace-nowrap rounded bg-secondary px-2 py-1 text-xs text-muted-foreground">
+                                    <HardDrive className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{monitor.node_name ?? 'agent'}</span>
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Checked from {monitor.node_name ?? 'an agent'}
+                                {monitor.agent_offline_is_outage
+                                    ? ' — reported down while that agent is offline'
+                                    : ' — recorded as unknown while that agent is offline'}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
                     <span className="flex items-center gap-1.5 whitespace-nowrap rounded bg-secondary px-2 py-1 text-xs text-muted-foreground">
                         <KindIcon className="w-3 h-3" />
                         {MONITOR_KIND_LABELS[monitor.kind]}

@@ -181,13 +181,23 @@ export default function UptimePage() {
             degraded_ms: input.degraded_ms ?? 1500,
             expiry_warn_days: input.expiry_warn_days ?? 21,
             paused: input.paused ?? false,
+            node_id: input.node_id ?? null,
+            agent_offline_is_outage: input.agent_offline_is_outage ?? false,
         };
 
         if (isEdit) {
             const id = editing.id;
             setMonitors((prev) => prev.map((monitor) => (
                 monitor.id === id
-                    ? { ...monitor, ...fields, updated_at: new Date().toISOString() }
+                    ? {
+                        ...monitor,
+                        ...fields,
+                        // The cached agent name belongs to the old node, so it
+                        // has to go when the vantage moves. A real backend
+                        // re-joins it; here the card falls back to a label.
+                        node_name: fields.node_id === monitor.node_id ? monitor.node_name : null,
+                        updated_at: new Date().toISOString(),
+                    }
                     : monitor
             )));
         } else {

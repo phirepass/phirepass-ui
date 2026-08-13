@@ -74,6 +74,19 @@ const POPS = {
     },
 } satisfies Record<string, PublicIpLocation>;
 
+/**
+ * Stand-in agents for samples that do not name one. Every creatable monitor runs
+ * from one of the user's agents, so an HTTP sample left agent-less would display
+ * a state the form can no longer produce. SSL and domain samples stay unassigned
+ * — neither kind is creatable yet, and a domain check never runs on an agent at
+ * all.
+ */
+const MOCK_AGENTS = [
+    { id: 'node-berlin-01', name: 'berlin-01' },
+    { id: 'node-ams-02', name: 'ams-02' },
+    { id: 'node-sfo-03', name: 'sfo-03' },
+];
+
 interface MonitorSpec {
     id: string;
     name: string;
@@ -110,6 +123,10 @@ interface MonitorSpec {
     /** Minutes since the currently-open incident began. */
     openIncidentMinutesAgo?: number;
     createdDaysAgo: number;
+    /** Set for probes run from an agent rather than the server fleet. */
+    node_id?: string;
+    node_name?: string;
+    agent_offline_is_outage?: boolean;
 }
 
 /**
@@ -137,7 +154,7 @@ const SPECS: MonitorSpec[] = [
         target: 'https://app.phirepass.com/healthz',
         location: POPS.frankfurt,
         status: 'up',
-        interval_secs: 60,
+        interval_secs: 300,
         baseLatency: 243,
         degraded_ms: 1200,
         keyword: '"status":"ok"',
@@ -154,7 +171,7 @@ const SPECS: MonitorSpec[] = [
         target: 'https://relay.phirepass.com/healthz',
         location: POPS.amsterdam,
         status: 'up',
-        interval_secs: 60,
+        interval_secs: 300,
         baseLatency: 61,
         degraded_ms: 800,
         expected_status: [200],
@@ -168,7 +185,7 @@ const SPECS: MonitorSpec[] = [
         target: 'https://api.phirepass.com/v1/health',
         location: POPS.amsterdam,
         status: 'degraded',
-        interval_secs: 60,
+        interval_secs: 300,
         baseLatency: 2140,
         degraded_ms: 1500,
         last_status_code: 200,
@@ -191,6 +208,31 @@ const SPECS: MonitorSpec[] = [
         outageSeverity: 1,
         openIncidentMinutesAgo: 158,
         createdDaysAgo: 64,
+        // A private address is only reachable from inside that network, which is
+        // the whole case for agent vantage — no server-run probe could ever
+        // reach it, and its location is correspondingly unplottable.
+        node_id: 'node-berlin-01',
+        node_name: 'berlin-01',
+    },
+    {
+        id: 'mon-vault-tls',
+        name: 'Vault certificate (internal)',
+        kind: 'ssl',
+        target: 'vault.internal.corp:8200',
+        status: 'up',
+        interval_secs: 86400,
+        baseLatency: 41,
+        degraded_ms: 2000,
+        certExpiresInDays: 12,
+        cert_issuer: 'Corp Internal CA',
+        cert_subject: 'vault.internal.corp',
+        expiry_warn_days: 21,
+        createdDaysAgo: 130,
+        // The opposite toggle: this agent is expected to stay up, so losing it
+        // is itself worth paging about rather than quietly recording unknown.
+        node_id: 'node-berlin-01',
+        node_name: 'berlin-01',
+        agent_offline_is_outage: true,
     },
     {
         id: 'mon-docs',
@@ -439,6 +481,17 @@ function specToMonitor(spec: MonitorSpec, now: number): MonitorSummary {
 
         location: spec.location ?? null,
 
+        ...(() => {
+            const agent = spec.node_id
+                ? { id: spec.node_id, name: spec.node_name ?? null }
+                : spec.kind === 'http'
+                    ? MOCK_AGENTS[hashSeed(spec.id) % MOCK_AGENTS.length]
+                    : null;
+
+            return { node_id: agent?.id ?? null, node_name: agent?.name ?? null };
+        })(),
+        agent_offline_is_outage: spec.agent_offline_is_outage ?? false,
+
         window_24h: windowFrom(daily, 1),
         window_7d: windowFrom(daily, 7),
         window_30d: windowFrom(daily, 30),
@@ -550,7 +603,8 @@ export function createMockMonitorFromInput(
     input: Pick<MonitorSummary,
         'name' | 'kind' | 'target' | 'interval_secs' | 'timeout_ms' | 'method'
         | 'expected_status' | 'keyword' | 'keyword_mode' | 'follow_redirects'
-        | 'degraded_ms' | 'expiry_warn_days' | 'paused'>,
+        | 'degraded_ms' | 'expiry_warn_days' | 'paused'
+        | 'node_id' | 'agent_offline_is_outage'>,
     now: number = Date.now()
 ): MonitorSummary {
     const emptyWindow: UptimeWindow = {
@@ -589,6 +643,9 @@ export function createMockMonitorFromInput(
         // A monitor that has never run has resolved nothing, so it has no
         // location until its first check.
         location: null,
+        // The form submits only `node_id`; a real backend joins the node row to
+        // fill this in, so the card falls back to a generic label until then.
+        node_name: null,
         window_24h: emptyWindow,
         window_7d: emptyWindow,
         window_30d: emptyWindow,
