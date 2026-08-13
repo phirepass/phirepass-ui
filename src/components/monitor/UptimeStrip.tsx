@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { DailyBucket } from '@/types/uptime';
+import type { DailyBucket } from '@/types/monitor';
 
 /**
  * The 30-day bar every status page has. One bar per day, coloured by that day's

@@ -33,7 +33,7 @@ import {
     type MonitorInput,
     type MonitorKind,
     type MonitorSummary,
-} from '@/types/uptime';
+} from '@/types/monitor';
 
 import { KIND_ICONS } from './monitor-display';
 import { MonitorVantageField } from './MonitorVantageField';

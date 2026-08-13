@@ -27,7 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { LocationStrip } from '@/components/LocationStrip';
 import { cn } from '@/lib/utils';
 import { hasCoordinates, locationLabel } from '@/lib/geo';
-import { MONITOR_KIND_LABELS, type MonitorSummary } from '@/types/uptime';
+import { MONITOR_KIND_LABELS, type MonitorSummary } from '@/types/monitor';
 
 import { UptimeStrip } from './UptimeStrip';
 import {

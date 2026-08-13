@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 // ...existing code...
 import { DashboardStats } from '@/components/DashboardStats';
+import { PageHeader } from '@/components/PageHeader';
 import { NodeCard } from '@/components/NodeCard';
 import { FilePanel } from '@/components/FilePanel';
 import { RdpPanel } from '@/components/RDPPanel';
@@ -1550,18 +1551,16 @@ export default function Nodes() {
 
     return (
         <div className="container mx-auto px-4 py-6 space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">Nodes</h1>
-                    <p className="text-muted-foreground">Manage your connected servers and infrastructure</p>
-                </div>
-
-                <Button size="sm" onClick={handleAddNode} className="gap-2" disabled>
-                    <Plus className="h-4 w-4" />
-                    Add Node
-                </Button>
-            </div>
+            <PageHeader
+                title="Nodes"
+                description="Manage your connected servers and infrastructure"
+                actions={(
+                    <Button size="sm" onClick={handleAddNode} className="gap-2" disabled>
+                        <Plus className="h-4 w-4" />
+                        Add Node
+                    </Button>
+                )}
+            />
 
             {/* Stats Section */}
             <DashboardStats nodes={nodes} />

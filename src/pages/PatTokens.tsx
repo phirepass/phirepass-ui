@@ -9,6 +9,7 @@ import {
     ShieldOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePolledResource } from '@/hooks/use-polled-resource';
 
 import { AlertStrip, type AlertEntry } from '@/components/AlertStrip';
 import { EmptyState } from '@/components/EmptyState';
@@ -55,11 +56,8 @@ const TOKENS_PER_PAGE = 9;
 type TokenFilter = 'all' | 'active' | 'expiring' | 'inactive';
 
 const PatTokens = () => {
-    const [tokens, setTokens] = useState<PatToken[]>([]);
-    const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [revoking, setRevoking] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [newTokenName, setNewTokenName] = useState('');
@@ -74,31 +72,26 @@ const PatTokens = () => {
     const [filter, setFilter] = useState<TokenFilter>('all');
     const [page, setPage] = useState(1);
 
-    const fetchTokens = useCallback(async () => {
-        try {
-            const res = await fetch('/api/pat/list', { credentials: 'include' });
-            if (!res.ok) {
-                throw new Error(`Failed to fetch tokens (${res.status})`);
-            }
-            const data = await res.json() as { tokens?: PatToken[] };
-            setTokens(data.tokens ?? []);
-            setError(null);
-        } catch (err) {
-            console.error('Failed to fetch tokens:', err);
-            setError('Failed to fetch tokens');
-            toast.error('Failed to fetch tokens');
-        } finally {
-            setLoading(false);
+    const loadTokens = useCallback(async () => {
+        const res = await fetch('/api/pat/list', { credentials: 'include' });
+        if (!res.ok) {
+            throw new Error(`Failed to fetch tokens (${res.status})`);
         }
+        const data = await res.json() as { tokens?: PatToken[] };
+        return data.tokens ?? [];
     }, []);
 
-    // `loading` starts true, so nothing is set synchronously here; every
-    // setState inside fetchTokens runs in an async continuation, which the lint
-    // rule cannot see through.
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        void fetchTokens();
-    }, [fetchTokens]);
+    // Polled on the same cadence as the nodes list: `last_used_at` moves
+    // whenever an agent authenticates, so a token page left open should show
+    // that without a manual reload.
+    const {
+        data: tokensData,
+        loading,
+        error,
+        refresh: fetchTokens,
+    } = usePolledResource(loadTokens, { errorMessage: 'Failed to fetch tokens' });
+
+    const tokens = useMemo(() => tokensData ?? [], [tokensData]);
 
     const detailsToken = detailsTokenId
         ? tokens.find((token) => token.id === detailsTokenId) ?? null

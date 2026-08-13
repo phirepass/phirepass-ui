@@ -14,7 +14,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useUserNodes } from '@/hooks/use-user-nodes';
 import { cn } from '@/lib/utils';
-import { KIND_SUPPORTS_AGENT, type MonitorKind } from '@/types/uptime';
+import { KIND_SUPPORTS_AGENT, type MonitorKind } from '@/types/monitor';
 
 interface MonitorVantageFieldProps {
     kind: MonitorKind;

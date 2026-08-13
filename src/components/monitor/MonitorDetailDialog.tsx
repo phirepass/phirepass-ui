@@ -22,10 +22,10 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { LocationDetails } from '@/components/LocationDetails';
-import { createMockDetail } from '@/data/mockMonitors';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
-import { MONITOR_KIND_LABELS, type MonitorDetail, type MonitorSummary } from '@/types/uptime';
+import { MONITOR_KIND_LABELS, type MonitorDetail, type MonitorSummary } from '@/types/monitor';
 
 import { UptimeStrip } from './UptimeStrip';
 import {
@@ -90,22 +90,39 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Sample history is generated from the monitor rather than fetched — there is
-    // no backend behind this page. The short delay stands in for the round trip
-    // so the loading state is visible.
+    // `refreshing` is a dependency, not just a flag: flipping it after a queued
+    // check re-runs this fetch so the history below reflects it.
     useEffect(() => {
         if (!monitor) return;
 
         let disposed = false;
-        const timer = setTimeout(() => {
-            if (disposed) return;
-            setDetail(createMockDetail(monitor));
-            setLoading(false);
-        }, 260);
+        const controller = new AbortController();
+
+        const load = async () => {
+            try {
+                const response = await fetch(`/api/monitors/${monitor.id}`, {
+                    signal: controller.signal,
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to load monitor history');
+                }
+                const data = await response.json() as MonitorDetail;
+                if (disposed) return;
+                setDetail(data);
+            } catch (err) {
+                // An abort is the dialog closing, not a failure worth reporting.
+                if (disposed || (err instanceof DOMException && err.name === 'AbortError')) return;
+                toast.error(err instanceof Error ? err.message : 'Failed to load monitor history');
+            } finally {
+                if (!disposed) setLoading(false);
+            }
+        };
+
+        void load();
 
         return () => {
             disposed = true;
-            clearTimeout(timer);
+            controller.abort();
         };
     }, [monitor, refreshing]);
 

@@ -1,6 +1,6 @@
 import { Globe, Lock, ShieldCheck, type LucideIcon } from 'lucide-react';
 
-import type { MonitorKind, MonitorStatus, MonitorSummary } from '@/types/uptime';
+import type { MonitorKind, MonitorStatus, MonitorSummary } from '@/types/monitor';
 
 /** One icon per probe kind, so a card announces what it watches before you read it. */
 export const KIND_ICONS: Record<MonitorKind, LucideIcon> = {

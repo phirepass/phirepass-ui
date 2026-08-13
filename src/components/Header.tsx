@@ -32,8 +32,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
     { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
-    { href: '/dashboard/pat-tokens', label: 'Tokens', icon: KeyRound },
-    { href: '/dashboard/uptime', label: 'Uptime', icon: Activity, devOnly: true },
+    { href: '/dashboard/monitor', label: 'Monitor', icon: Activity },
     // Administrative surfaces. Dev-only until RBAC can restrict them to the
     // roles that should see them at all — see src/lib/rbac.ts.
     { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },
@@ -192,6 +191,10 @@ export function Header({ user, onLogout }: HeaderProps) {
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/pat-tokens')}>
+                                    <KeyRound className="w-4 h-4 mr-2" />
+                                    Tokens
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
                                     <Settings className="w-4 h-4 mr-2" />
                                     Settings
@@ -278,6 +281,18 @@ export function Header({ user, onLogout }: HeaderProps) {
                         >
                             <User className="w-5 h-5 mr-3" />
                             Profile
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
+                            )}
+                            aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
+                            onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}
+                        >
+                            <KeyRound className="w-5 h-5 mr-3" />
+                            Tokens
                         </Button>
                     </div>
                     <Button variant="ghost" className="w-full justify-start h-12 text-base text-destructive transition-transform duration-150 active:scale-[0.98]" onClick={onLogout}>

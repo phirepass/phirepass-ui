@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     Activity,
     AlertTriangle,
@@ -33,25 +33,22 @@ import { MonitorCard } from './MonitorCard';
 import { MonitorDetailDialog } from './MonitorDetailDialog';
 import { MonitorFormDialog } from './MonitorFormDialog';
 import { effectiveStatus, expiryFor } from './monitor-display';
-import { createMockMonitorFromInput, createMockMonitors } from '@/data/mockMonitors';
-import { MONITOR_KIND_LABELS, type MonitorInput, type MonitorSummary } from '@/types/uptime';
+import { usePolledResource } from '@/hooks/use-polled-resource';
+import { MONITOR_KIND_LABELS, type MonitorInput, type MonitorSummary } from '@/types/monitor';
 
 const MONITORS_PER_PAGE = 6;
 
-/**
- * Stands in for the round trip a real backend would cost, so the loading and
- * saving states are actually visible while the page is being reviewed.
- */
-const FAKE_LATENCY_MS = 420;
-
-const sleep = (ms: number) => new Promise((resolve) => { setTimeout(resolve, ms); });
-
 type StatusFilter = 'all' | 'up' | 'degraded' | 'down' | 'paused';
 
-export default function UptimePage() {
-    const [monitors, setMonitors] = useState<MonitorSummary[]>([]);
-    const [loading, setLoading] = useState(true);
+/** The API answers failures as `{ error }`; fall back if the body is not JSON. */
+async function readError(response: Response, fallback: string): Promise<string> {
+    const payload = await response
+        .json()
+        .catch(() => ({ error: fallback })) as { error?: string };
+    return payload.error ?? fallback;
+}
 
+export default function MonitorPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState<StatusFilter>('all');
     const [page, setPage] = useState(1);
@@ -63,24 +60,26 @@ export default function UptimePage() {
     const [deleting, setDeleting] = useState(false);
     const [checkingId, setCheckingId] = useState<string | null>(null);
 
-    // Seeded after mount rather than in the initial state: the sample history is
-    // built relative to the current time, and generating it during render would
-    // produce different timestamps on the server than in the browser.
-    useEffect(() => {
-        let disposed = false;
-
-        const seed = async () => {
-            await sleep(FAKE_LATENCY_MS);
-            if (disposed) return;
-            setMonitors(createMockMonitors());
-            setLoading(false);
-        };
-
-        void seed();
-        return () => {
-            disposed = true;
-        };
+    const loadMonitors = useCallback(async () => {
+        const response = await fetch('/api/monitors');
+        if (!response.ok) {
+            throw new Error(await readError(response, 'Failed to load monitors'));
+        }
+        const data = await response.json() as { monitors?: MonitorSummary[] };
+        return data.monitors ?? [];
     }, []);
+
+    // Results only change as fast as the shortest interval allows (five
+    // minutes), so this is about noticing a check that has just landed rather
+    // than about live status.
+    const {
+        data: monitorsData,
+        loading,
+        error,
+        refresh,
+    } = usePolledResource(loadMonitors, { errorMessage: 'Failed to load monitors' });
+
+    const monitors = useMemo(() => monitorsData ?? [], [monitorsData]);
 
     const detailMonitor = detailMonitorId
         ? monitors.find((monitor) => monitor.id === detailMonitorId) ?? null
@@ -163,49 +162,29 @@ export default function UptimePage() {
         clampedPage * MONITORS_PER_PAGE
     );
 
+    /**
+     * Throws on failure so `MonitorFormDialog` can surface the API's own message
+     * inside the form, next to the fields that caused it.
+     */
     const submitMonitor = async (input: MonitorInput): Promise<boolean> => {
         const isEdit = !!editing;
-        await sleep(FAKE_LATENCY_MS);
+        const response = await fetch(
+            isEdit ? `/api/monitors/${editing.id}` : '/api/monitors',
+            {
+                method: isEdit ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+            },
+        );
 
-        const fields = {
-            name: input.name,
-            kind: input.kind,
-            target: input.target,
-            interval_secs: input.interval_secs ?? 300,
-            timeout_ms: input.timeout_ms ?? 10_000,
-            method: input.method ?? 'GET',
-            expected_status: input.expected_status ?? [],
-            keyword: input.keyword ?? null,
-            keyword_mode: input.keyword_mode ?? ('contains' as const),
-            follow_redirects: input.follow_redirects ?? true,
-            degraded_ms: input.degraded_ms ?? 1500,
-            expiry_warn_days: input.expiry_warn_days ?? 21,
-            paused: input.paused ?? false,
-            node_id: input.node_id ?? null,
-            agent_offline_is_outage: input.agent_offline_is_outage ?? false,
-        };
-
-        if (isEdit) {
-            const id = editing.id;
-            setMonitors((prev) => prev.map((monitor) => (
-                monitor.id === id
-                    ? {
-                        ...monitor,
-                        ...fields,
-                        // The cached agent name belongs to the old node, so it
-                        // has to go when the vantage moves. A real backend
-                        // re-joins it; here the card falls back to a label.
-                        node_name: fields.node_id === monitor.node_id ? monitor.node_name : null,
-                        updated_at: new Date().toISOString(),
-                    }
-                    : monitor
-            )));
-        } else {
-            // A brand-new monitor has no history, which is what the empty strip
-            // and the em-dashes in its stats are meant to convey.
-            setMonitors((prev) => [createMockMonitorFromInput(fields), ...prev]);
+        if (!response.ok) {
+            throw new Error(await readError(
+                response,
+                isEdit ? 'Failed to update monitor' : 'Failed to create monitor',
+            ));
         }
 
+        await refresh();
         toast.success(isEdit ? 'Monitor updated' : 'Monitor created');
         setFormOpen(false);
         setEditing(null);
@@ -213,44 +192,63 @@ export default function UptimePage() {
     };
 
     /**
-     * Simulates a probe: nudges the recorded latency and stamps the check time,
-     * keeping the monitor's status as-is. Nothing leaves the browser.
+     * Brings the next check forward. Only a server holding that agent's socket
+     * can dispatch a probe, so this returns once the monitor is marked due — the
+     * result lands on a later poll, which is why the toast says "queued".
      */
     const checkNow = useCallback(async (monitor: MonitorSummary) => {
         setCheckingId(monitor.id);
-        await sleep(FAKE_LATENCY_MS);
+        try {
+            const response = await fetch(`/api/monitors/${monitor.id}/check`, {
+                method: 'POST',
+            });
+            if (!response.ok) {
+                throw new Error(await readError(response, 'Failed to queue check'));
+            }
+            await refresh();
+            toast.success(`Check queued for ${monitor.name}`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to queue check');
+        } finally {
+            setCheckingId(null);
+        }
+    }, [refresh]);
 
-        setMonitors((prev) => prev.map((entry) => {
-            if (entry.id !== monitor.id) return entry;
-
-            const base = entry.last_latency_ms ?? entry.window_24h.avg_latency_ms;
-            return {
-                ...entry,
-                last_checked_at: new Date().toISOString(),
-                last_latency_ms: base === null
-                    ? null
-                    : Math.max(1, Math.round(base * (0.85 + Math.random() * 0.3))),
-            };
-        }));
-
-        setCheckingId(null);
-        toast.success(`Checked ${monitor.name}`);
-    }, []);
-
-    const togglePause = (monitor: MonitorSummary) => {
-        setMonitors((prev) => prev.map((entry) => (
-            entry.id === monitor.id ? { ...entry, paused: !entry.paused } : entry
-        )));
-        toast.success(monitor.paused ? 'Monitor resumed' : 'Monitor paused');
+    const togglePause = async (monitor: MonitorSummary) => {
+        const paused = !monitor.paused;
+        try {
+            const response = await fetch(`/api/monitors/${monitor.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paused }),
+            });
+            if (!response.ok) {
+                throw new Error(await readError(response, 'Failed to update monitor'));
+            }
+            await refresh();
+            toast.success(paused ? 'Monitor paused' : 'Monitor resumed');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to update monitor');
+        }
     };
 
     const deleteMonitor = async (monitor: MonitorSummary) => {
         setDeleting(true);
-        await sleep(FAKE_LATENCY_MS);
-        setMonitors((prev) => prev.filter((entry) => entry.id !== monitor.id));
-        setDeleting(false);
-        setMonitorToDelete(null);
-        toast.success('Monitor deleted');
+        try {
+            const response = await fetch(`/api/monitors/${monitor.id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error(await readError(response, 'Failed to delete monitor'));
+            }
+            await refresh();
+            setMonitorToDelete(null);
+            toast.success('Monitor deleted');
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to delete monitor');
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const addButton = (
@@ -270,13 +268,8 @@ export default function UptimePage() {
     return (
         <div className="container mx-auto px-4 py-6 space-y-6">
             <PageHeader
-                title="Uptime"
-                description="Watch HTTP endpoints, TCP ports, TLS certificates, and domain registrations"
-                badge={
-                    <span className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-warning">
-                        dev preview
-                    </span>
-                }
+                title="Monitor"
+                description="Watch HTTP endpoints from your own agents — including services nothing outside your network can reach"
                 actions={addButton}
             />
 
@@ -292,6 +285,12 @@ export default function UptimePage() {
             {loading ? (
                 <div className="text-center py-12 text-muted-foreground">
                     <p>Loading monitors...</p>
+                </div>
+            ) : error ? (
+                // Only reached before anything has loaded; a failed poll after
+                // that toasts instead, leaving the last good list on screen.
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-6 text-center">
+                    <p className="text-sm text-destructive">{error}</p>
                 </div>
             ) : (
                 <>
