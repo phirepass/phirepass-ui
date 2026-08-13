@@ -108,21 +108,27 @@ export function MonitorCard({
                 )}
             >
                 {/* Header */}
-                <div className="relative z-30 flex items-start">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <span
-                            aria-hidden
-                            className={cn(
-                                // Nudged down to sit on the baseline of the title
-                                // rather than centring against the whole header.
-                                'w-3 h-3 rounded-full shrink-0 mt-[7px]',
-                                statusStyle.dot,
-                                status === 'up' && 'animate-pulse-glow text-success',
-                                status === 'down' && 'animate-pulse-glow text-destructive'
-                            )}
-                        />
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2 min-w-0">
+                <div className="relative z-30">
+                    <div className="min-w-0 flex-1">
+                        {/*
+                          * The dot sits *inside* the title row rather than beside
+                          * the whole header block, so `items-center` aligns it to
+                          * the title itself. Positioning it from the outside meant
+                          * a hand-tuned top margin that drifted the moment the
+                          * row's height changed — and the row's height is set by
+                          * the 32px action button, not by the title.
+                          */}
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'w-3 h-3 rounded-full shrink-0',
+                                        statusStyle.dot,
+                                        status === 'up' && 'animate-pulse-glow text-success',
+                                        status === 'down' && 'animate-pulse-glow text-destructive'
+                                    )}
+                                />
                                 <button
                                     type="button"
                                     onClick={() => onOpen(monitor)}
@@ -130,73 +136,74 @@ export function MonitorCard({
                                 >
                                     {monitor.name}
                                 </button>
-                                <div className="relative z-30 flex items-center gap-2 flex-shrink-0">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
-                                                aria-label={`Open actions for ${monitor.name}`}
-                                            >
-                                                <MoreVertical className="w-4 h-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="end"
-                                            className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
-                                        >
-                                            <DropdownMenuLabel className="px-2 py-1">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                                                        Monitor
-                                                    </span>
-                                                    <span className={cn('text-[11px] font-medium', statusStyle.text)}>
-                                                        {statusStyle.label}
-                                                    </span>
-                                                </div>
-                                            </DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => onCheckNow(monitor)} disabled={checking}>
-                                                <RefreshCw className={cn('mr-2 w-4 h-4', checking && 'animate-spin')} />
-                                                {checking ? 'Checking...' : 'Check now'}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onTogglePause(monitor)}>
-                                                {monitor.paused ? (
-                                                    <Play className="mr-2 w-4 h-4" />
-                                                ) : (
-                                                    <Pause className="mr-2 w-4 h-4" />
-                                                )}
-                                                {monitor.paused ? 'Resume checks' : 'Pause checks'}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onEdit(monitor)}>
-                                                <Pencil className="mr-2 w-4 h-4" />
-                                                Edit monitor
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                onClick={() => onDelete(monitor)}
-                                                className="text-destructive focus:text-destructive"
-                                            >
-                                                <Trash2 className="mr-2 w-4 h-4" />
-                                                Delete monitor
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
                             </div>
-                            {monitor.open_incident_since ? (
-                                <p className="flex items-center gap-1.5 text-xs text-destructive">
-                                    <AlertTriangle className="w-3 h-3 shrink-0" />
-                                    Down since {formatRelativeTime(monitor.open_incident_since)}
-                                </p>
-                            ) : expirySoon && expiry ? (
-                                <p className="flex items-center gap-1.5 text-xs text-warning">
-                                    <AlertTriangle className="w-3 h-3 shrink-0" />
-                                    {expiry.kind === 'certificate' ? 'Certificate' : 'Domain'} expires in {expiry.days}d
-                                </p>
-                            ) : null}
+                            <div className="relative z-30 flex items-center gap-2 flex-shrink-0">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                                            aria-label={`Open actions for ${monitor.name}`}
+                                        >
+                                            <MoreVertical className="w-4 h-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        align="end"
+                                        className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                                    >
+                                        <DropdownMenuLabel className="px-2 py-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                                                    Monitor
+                                                </span>
+                                                <span className={cn('text-[11px] font-medium', statusStyle.text)}>
+                                                    {statusStyle.label}
+                                                </span>
+                                            </div>
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => onCheckNow(monitor)} disabled={checking}>
+                                            <RefreshCw className={cn('mr-2 w-4 h-4', checking && 'animate-spin')} />
+                                            {checking ? 'Checking...' : 'Check now'}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onTogglePause(monitor)}>
+                                            {monitor.paused ? (
+                                                <Play className="mr-2 w-4 h-4" />
+                                            ) : (
+                                                <Pause className="mr-2 w-4 h-4" />
+                                            )}
+                                            {monitor.paused ? 'Resume checks' : 'Pause checks'}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onEdit(monitor)}>
+                                            <Pencil className="mr-2 w-4 h-4" />
+                                            Edit monitor
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() => onDelete(monitor)}
+                                            className="text-destructive focus:text-destructive"
+                                        >
+                                            <Trash2 className="mr-2 w-4 h-4" />
+                                            Delete monitor
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
+                        {/* pl-6 keeps this level with the title: dot (w-3) + gap-3. */}
+                        {monitor.open_incident_since ? (
+                            <p className="flex items-center gap-1.5 pl-6 text-xs text-destructive">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                Down since {formatRelativeTime(monitor.open_incident_since)}
+                            </p>
+                        ) : expirySoon && expiry ? (
+                            <p className="flex items-center gap-1.5 pl-6 text-xs text-warning">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                {expiry.kind === 'certificate' ? 'Certificate' : 'Domain'} expires in {expiry.days}d
+                            </p>
+                        ) : null}
                     </div>
                 </div>
 
@@ -450,6 +457,9 @@ export function MonitorCard({
                                 {monitor.window_30d.down_checks > 0
                                     ? ` · ${monitor.window_30d.down_checks} failed`
                                     : ' · none failed'}
+                                {monitor.window_30d.unknown_checks > 0
+                                    ? ` · ${monitor.window_30d.unknown_checks} did not complete`
+                                    : ''}
                                 <br />
                                 24h: {formatUptime(monitor.window_24h.uptime_pct)} up
                                 {' · '}7d: {formatUptime(monitor.window_7d.uptime_pct)} up

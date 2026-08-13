@@ -389,7 +389,20 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                                             {new Date(check.checked_at).toLocaleTimeString()}
                                         </td>
                                         <td className={cn('px-3 py-1.5 font-medium', STATUS_STYLES[check.status].text)}>
-                                            {STATUS_STYLES[check.status].label}
+                                            <span className="flex items-center gap-1.5">
+                                                {STATUS_STYLES[check.status].label}
+                                                {/*
+                                                  * `unknown` on its own does not say whether the
+                                                  * agent timed out, dropped, or shed the probe —
+                                                  * which is the first thing anyone reading this
+                                                  * table wants to know.
+                                                  */}
+                                                {check.reason ? (
+                                                    <span className="rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
+                                                        {check.reason.replace(/_/g, ' ')}
+                                                    </span>
+                                                ) : null}
+                                            </span>
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-1.5 font-mono">
                                             {formatLatency(check.latency_ms)}

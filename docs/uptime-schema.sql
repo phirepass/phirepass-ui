@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS monitors (
     last_latency_ms  integer,
     last_status_code integer,
     last_error       text,
+    -- Why the last check reached the verdict it did, machine-readable. `error`
+    -- carries the prose; this carries the category, so the UI can tell an agent
+    -- timeout from an agent disconnect without matching on wording.
+    last_reason      text,
 
     -- kind-specific findings, refreshed by each successful check
     cert_expires_at   timestamptz,
@@ -88,7 +92,8 @@ CREATE TABLE IF NOT EXISTS monitor_checks (
     status      text NOT NULL CHECK (status IN ('up','degraded','down','unknown')),
     latency_ms  integer,
     status_code integer,
-    error       text
+    error       text,
+    reason      text
 );
 
 -- INCLUDE lets the 30-day aggregate run index-only rather than fetching every
@@ -197,3 +202,15 @@ SELECT cron.schedule('uptime-prune-checks', '17 3 * * *', $job$
 DELETE FROM monitor_checks
 WHERE checked_at < now() - interval '30 days';
 $job$);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Added after the initial schema; safe to re-run.
+--
+-- `unknown` is too coarse on its own: it covers an agent that timed out, one
+-- that disconnected mid-probe, one that shed the check at its capacity cap, and
+-- a kind this build cannot run. The free-text `error` distinguishes them to a
+-- human but not to code, which is what a filter or a coloured strip needs.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE monitors       ADD COLUMN IF NOT EXISTS last_reason text;
+ALTER TABLE monitor_checks ADD COLUMN IF NOT EXISTS reason      text;

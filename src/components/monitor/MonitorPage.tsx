@@ -32,7 +32,7 @@ import {
 import { MonitorCard } from './MonitorCard';
 import { MonitorDetailDialog } from './MonitorDetailDialog';
 import { MonitorFormDialog } from './MonitorFormDialog';
-import { effectiveStatus, expiryFor } from './monitor-display';
+import { effectiveStatus, expiryFor, formatLatency } from './monitor-display';
 import { usePolledResource } from '@/hooks/use-polled-resource';
 import { MONITOR_KIND_LABELS, type MonitorInput, type MonitorSummary } from '@/types/monitor';
 
@@ -104,12 +104,26 @@ export default function MonitorPage() {
         const entries: AlertEntry[] = [];
 
         for (const monitor of monitors) {
-            if (effectiveStatus(monitor) === 'down') {
+            const status = effectiveStatus(monitor);
+
+            if (status === 'down') {
                 entries.push({
                     id: `down-${monitor.id}`,
                     level: 'error',
                     title: `${monitor.name} is down`,
                     message: monitor.last_error ?? 'The last check did not succeed.',
+                    tag: monitor.target,
+                });
+            } else if (status === 'degraded') {
+                // Listed, but at warning rather than error: the service is
+                // answering correctly and only slowly, which is worth seeing on
+                // the page and not worth waking anyone for.
+                entries.push({
+                    id: `degraded-${monitor.id}`,
+                    level: 'warning',
+                    title: `${monitor.name} is slow`,
+                    message: monitor.last_error
+                        ?? `Responding above the ${formatLatency(monitor.degraded_ms)} threshold.`,
                     tag: monitor.target,
                 });
             }

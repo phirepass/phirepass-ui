@@ -64,6 +64,8 @@ interface DailyRow {
     day: string;
     checks: number;
     down_checks: number;
+    unknown_checks: number;
+    degraded_checks: number;
     avg_latency_ms: number | null;
 }
 
@@ -87,14 +89,23 @@ function buildDaily(rows: DailyRow[], now: Date): DailyBucket[] {
         const day = date.toISOString().slice(0, 10);
         const row = byDay.get(day);
 
+        const checks = row?.checks ?? 0;
+        const downChecks = row?.down_checks ?? 0;
+        const unknownChecks = row?.unknown_checks ?? 0;
+        const degradedChecks = row?.degraded_checks ?? 0;
+        // Only checks that reached a verdict can score. A day of agent timeouts
+        // has checks > 0 and verdicts === 0, which is `null` uptime rather than
+        // a perfect day.
+        const verdicts = checks - unknownChecks;
+
         buckets.push({
             day,
-            checks: row?.checks ?? 0,
-            down_checks: row?.down_checks ?? 0,
+            checks,
+            down_checks: downChecks,
+            unknown_checks: unknownChecks,
+            degraded_checks: degradedChecks,
             avg_latency_ms: row?.avg_latency_ms ?? null,
-            uptime_pct: row && row.checks > 0
-                ? ((row.checks - row.down_checks) / row.checks) * 100
-                : null,
+            uptime_pct: verdicts > 0 ? ((verdicts - downChecks) / verdicts) * 100 : null,
         });
     }
 
@@ -104,27 +115,31 @@ function buildDaily(rows: DailyRow[], now: Date): DailyBucket[] {
 /**
  * Sums the trailing `days` buckets.
  *
- * `checks` deliberately counts only checks that reached a verdict — the SQL
- * excludes `unknown` — so this arithmetic never credits "we could not tell" as
- * uptime. The consequence is that a day where the agent was offline throughout
- * reports `checks: 0` and renders as no-data, which is honest: nothing was
- * learned about the target that day.
+ * `checks` counts everything that ran, so a timeout still shows up as a check —
+ * but `unknown` is subtracted before the percentage is worked out, so "we could
+ * not tell" is never credited as uptime. A day of nothing but timeouts reports
+ * `checks: N`, `unknown_checks: N`, and `uptime_pct: null`.
  */
 function windowFrom(daily: DailyBucket[], days: number): UptimeWindow {
     const slice = daily.slice(-days);
     const checks = slice.reduce((sum, day) => sum + day.checks, 0);
     const down = slice.reduce((sum, day) => sum + day.down_checks, 0);
+    const unknown = slice.reduce((sum, day) => sum + day.unknown_checks, 0);
+    const degraded = slice.reduce((sum, day) => sum + day.degraded_checks, 0);
+    const verdicts = checks - unknown;
     const latencies = slice
         .map((day) => day.avg_latency_ms)
         .filter((value): value is number => value !== null);
 
     return {
-        uptime_pct: checks === 0 ? null : ((checks - down) / checks) * 100,
+        uptime_pct: verdicts === 0 ? null : ((verdicts - down) / verdicts) * 100,
         avg_latency_ms: latencies.length === 0
             ? null
             : Math.round(latencies.reduce((sum, value) => sum + value, 0) / latencies.length),
         checks,
         down_checks: down,
+        unknown_checks: unknown,
+        degraded_checks: degraded,
     };
 }
 
@@ -213,8 +228,10 @@ export async function loadMonitors(
     const daily = await query(
         `SELECT c.monitor_id,
                 to_char(date_trunc('day', c.checked_at), 'YYYY-MM-DD') AS day,
-                count(*) FILTER (WHERE c.status <> 'unknown')::int AS checks,
+                count(*)::int                                       AS checks,
                 count(*) FILTER (WHERE c.status = 'down')::int       AS down_checks,
+                count(*) FILTER (WHERE c.status = 'unknown')::int    AS unknown_checks,
+                count(*) FILTER (WHERE c.status = 'degraded')::int   AS degraded_checks,
                 round(avg(c.latency_ms))::int                        AS avg_latency_ms
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
@@ -264,7 +281,7 @@ export async function loadMonitorDetail(
     }
 
     const checks = await query(
-        `SELECT checked_at, status, latency_ms, status_code, error
+        `SELECT checked_at, status, latency_ms, status_code, error, reason
         FROM monitor_checks
         WHERE monitor_id = $1
         ORDER BY checked_at DESC
@@ -287,12 +304,14 @@ export async function loadMonitorDetail(
         latency_ms: number | null;
         status_code: number | null;
         error: string | null;
+        reason: string | null;
     }[]).map((row): CheckPoint => ({
         checked_at: row.checked_at.toISOString(),
         status: row.status,
         latency_ms: row.latency_ms,
         status_code: row.status_code,
         error: row.error,
+        reason: row.reason,
     }));
 
     return {

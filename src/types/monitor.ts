@@ -92,16 +92,41 @@ export interface UptimeWindow {
     /** Percentage of non-down checks in the window, or null with no data. */
     uptime_pct: number | null;
     avg_latency_ms: number | null;
+    /** Every check performed, including ones that reached no verdict. */
     checks: number;
     down_checks: number;
+    /**
+     * Checks that reached no verdict — an agent that timed out, disconnected,
+     * or shed the probe.
+     *
+     * A subset of `checks`, so a timeout still increments the count: it did
+     * happen, and hiding it makes a broken agent look like an idle one. It is
+     * subtracted out of the `uptime_pct` denominator instead, so "we could not
+     * tell" is never scored as uptime.
+     */
+    unknown_checks: number;
+    /**
+     * Checks that answered correctly but too slowly.
+     *
+     * Not subtracted from uptime — a slow success is still a success — but
+     * counted so the strip can show it. Without this a monitor that has been
+     * degraded all day computes to 100% and draws solid green, which is the
+     * whole reason `degraded` exists as a state.
+     */
+    degraded_checks: number;
 }
 
 /** One calendar day of history, used by the 30-day bar strip. */
 export interface DailyBucket {
     day: string;
     uptime_pct: number | null;
+    /** Every check performed that day, including ones with no verdict. */
     checks: number;
     down_checks: number;
+    /** Checks that reached no verdict; see `UptimeWindow.unknown_checks`. */
+    unknown_checks: number;
+    /** Checks that were slow but correct; see `UptimeWindow.degraded_checks`. */
+    degraded_checks: number;
     avg_latency_ms: number | null;
 }
 
@@ -119,6 +144,11 @@ export interface CheckPoint {
     latency_ms: number | null;
     status_code: number | null;
     error: string | null;
+    /**
+     * Machine-readable category behind the verdict, e.g. `agent_timeout`,
+     * `agent_disconnected`, `target_unreachable`. Null for an ordinary result.
+     */
+    reason: string | null;
 }
 
 export interface Incident {
