@@ -285,9 +285,9 @@ const Landing = () => {
             <div className="relative z-10">
                 {/* Hero Section */}
                 <section className="min-h-screen flex items-center py-20">
-                    <div className={`w-full ${SECTION_SHELL} grid lg:grid-cols-2 gap-16 lg:gap-12 items-center`}>
+                    <div className={`w-full ${SECTION_SHELL} grid lg:grid-cols-2 gap-12 lg:gap-8 items-center`}>
                         {/* Copy */}
-                        <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in">
+                        <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in lg:max-w-xl lg:justify-self-end">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8">
                                 <Wifi className="w-4 h-4 text-accent" />
                                 <span className="text-sm text-accent font-medium">
@@ -364,7 +364,7 @@ const Landing = () => {
                             overlap and the tilts only exist where there is room for
                             them, so nothing lands on top of anything on a phone. */}
                         <div
-                            className="relative flex flex-col gap-5 lg:block animate-fade-in"
+                            className="relative flex flex-col gap-5 lg:block animate-fade-in lg:w-full lg:max-w-xl lg:justify-self-start"
                             aria-hidden="true"
                         >
                             <div className="rounded-2xl border border-border bg-card/90 backdrop-blur-sm shadow-2xl shadow-accent/10 overflow-hidden lg:rotate-1 hover:rotate-0 transition-transform duration-500">
