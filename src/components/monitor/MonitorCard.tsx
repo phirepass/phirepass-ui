@@ -410,7 +410,7 @@ export function MonitorCard({
                 ) : null}
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
-                    <span className="truncate text-muted-foreground/60">
+                    <span className="truncate text-muted-foreground/60 first-letter:uppercase">
                         {monitor.last_error ?? (monitor.last_checked_at ? 'No errors reported' : 'Awaiting first check')}
                     </span>
                     <span className={cn('ml-2 shrink-0 font-medium', statusStyle.text)}>{statusStyle.label}</span>

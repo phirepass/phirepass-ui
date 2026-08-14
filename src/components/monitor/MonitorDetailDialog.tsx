@@ -360,7 +360,7 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                                             {new Date(incident.started_at).toLocaleString()}
                                         </p>
                                         {incident.cause ? (
-                                            <p className="mt-1 break-words text-xs text-foreground/80">{incident.cause}</p>
+                                            <p className="mt-1 break-words text-xs text-foreground/80 first-letter:uppercase">{incident.cause}</p>
                                         ) : null}
                                     </div>
                                 ))
@@ -407,7 +407,7 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                                         <td className="whitespace-nowrap px-3 py-1.5 font-mono">
                                             {formatLatency(check.latency_ms)}
                                         </td>
-                                        <td className="px-3 py-1.5 text-muted-foreground">
+                                        <td className="px-3 py-1.5 text-muted-foreground first-letter:uppercase">
                                             {check.error ?? (check.status_code ? `HTTP ${check.status_code}` : '—')}
                                         </td>
                                     </tr>

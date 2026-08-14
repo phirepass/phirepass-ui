@@ -81,7 +81,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                                     </span>
                                 ) : null}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{alert.message}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 first-letter:uppercase">{alert.message}</p>
                         </div>
                     </div>
                 );

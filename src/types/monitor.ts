@@ -221,15 +221,14 @@ export const KIND_SUPPORTS_AGENT: Record<MonitorKind, boolean> = {
 };
 
 /**
- * Five minutes is the floor, not a default. The scheduler polls for due monitors
- * once a minute, so anything under that cannot be honoured — a 1-minute monitor
- * would be checked roughly once a minute at best and would drift with the tick,
- * promising a cadence the backend does not deliver.
+ * Fifteen minutes is the floor, not a default. The scheduler polls for due
+ * monitors once a minute, so anything near that cannot be honoured — a short
+ * monitor would drift with the tick, promising a cadence the backend does not
+ * deliver, and every extra check is load on the agent that runs it.
  */
-export const MIN_INTERVAL_SECS = 300;
+export const MIN_INTERVAL_SECS = 900;
 
 export const INTERVAL_OPTIONS = [
-    { label: '5 minutes', value: 300 },
     { label: '15 minutes', value: 900 },
     { label: '1 hour', value: 3600 },
     { label: '6 hours', value: 21600 },
@@ -242,7 +241,7 @@ export const INTERVAL_OPTIONS = [
  * limited. Both default to daily.
  */
 export const DEFAULT_INTERVAL_BY_KIND: Record<MonitorKind, number> = {
-    http: 300,
+    http: 900,
     ssl: 86400,
     domain: 86400,
 };
