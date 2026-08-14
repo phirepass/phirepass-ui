@@ -1,6 +1,6 @@
 # PhirePass
 
-> PhirePass is a remote-access and uptime-monitoring tool. A lightweight Rust agent runs on a private or NATed machine and dials out (outbound-only, over WebSocket) to a PhirePass server, exposing SSH, SFTP, and arbitrary local HTTP services on that machine to an authenticated browser session — no inbound firewall rules or port forwarding required. The same agent also runs uptime checks against services it can reach, so targets that are not publicly reachable can still be monitored.
+> PhirePass is a remote-access and uptime-monitoring tool. A lightweight Rust agent runs on a private or NATed machine and dials out (outbound-only, over WebSocket) to a PhirePass server, exposing SSH, SFTP, and arbitrary local HTTP services on that machine to an authenticated browser session — no inbound firewall rules or port forwarding required. The same agent also runs uptime checks. Monitoring covers both internal and external targets: an external check runs from the PhirePass server fleet and sees a public URL as the internet does, while an internal check runs on the user's own agent inside the private network and can reach targets no public status-page provider can — a private API, an admin panel bound to localhost, a LAN-only health endpoint. Internal checks are the differentiator; external checks exist so both kinds of service live in one dashboard with one history.
 
 This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, personal access tokens (PATs), users, and uptime monitors. It talks directly to its own database for CRUD (nodes, tokens, users, monitors), and connects over WebSocket to the PhirePass server/relay for live SSH/SFTP/terminal sessions and HTTP proxying, rendered via embedded terminal and SFTP web components.
 
@@ -22,6 +22,7 @@ This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, person
 
 ## Uptime monitoring
 
+- Covers internal and external targets. An **external** check runs from the server fleet against a public address. An **internal** check runs on one of the user's own agents, so the target never has to be publicly reachable to be monitored — this is the case other uptime providers cannot serve at all.
 - Check intervals run from every 15 minutes to once a day.
 - Per-monitor settings: HTTP method, expected status codes, keyword match (`contains` or `absent`), redirect following, request timeout, and a response-time threshold above which a check counts as degraded.
 - An agent-run monitor can treat its agent being offline either as `unknown` (default — the check never ran, so nothing was learned) or as a genuine outage.

@@ -5,8 +5,9 @@ import ClientProviders from "./providers";
 import "@/index.css";
 
 export const metadata: Metadata = {
-    title: "Phirepass",
-    description: "Phirepass — secure access management",
+    title: "Phirepass — Remote Access & Uptime Monitoring",
+    description:
+        "Reach any machine behind NAT or a firewall from your browser — SSH, SFTP, and internal HTTP services — and monitor uptime internally and externally: external checks from our fleet, internal checks on your own agent, reaching services no public monitor can. Outbound-only agent, no open ports.",
 };
 
 export default function RootLayout({

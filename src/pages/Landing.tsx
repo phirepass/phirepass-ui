@@ -35,6 +35,25 @@ import {
     History,
 } from "lucide-react";
 
+/**
+ * The illustrated monitor card on the landing page draws its 30-day strip from
+ * this string — one character per day, oldest first — using the same four tones
+ * as the real `UptimeStrip`: a clean day, a slow-but-correct day, a day with a
+ * failure, and a day the checks reached no verdict.
+ */
+const SAMPLE_UPTIME_TONES = {
+    up: "bg-success/80",
+    unknown: "bg-warning/50",
+    degraded: "bg-warning/80",
+    down: "bg-destructive/80",
+} as const;
+
+const SAMPLE_UPTIME_MONTH = [
+    "up", "up", "up", "up", "up", "up", "up", "degraded", "up", "up",
+    "up", "up", "unknown", "up", "up", "up", "up", "down", "degraded", "up",
+    "up", "up", "up", "up", "up", "up", "degraded", "up", "up", "up",
+] as const satisfies readonly (keyof typeof SAMPLE_UPTIME_TONES)[];
+
 // Green stays the dominant brand color; info (blue) and warning (gold) are
 // used sparingly on a minority of items so the palette doesn't read as flat.
 const colorStyles = {
@@ -156,18 +175,18 @@ const Landing = () => {
     // others answer "reach the machine", this one answers "is it healthy".
     const monitoringPoints = [
         {
-            icon: Activity,
+            icon: MapPin,
             color: "accent",
+            title: "Pick where the check runs from",
+            description:
+                "External, from our server fleet, for anything with a public address. Internal, on an agent you already installed, for everything else — nothing has to be published to be watched, and there is nothing extra to deploy. Same monitor, same history, either way.",
+        },
+        {
+            icon: Activity,
+            color: "info",
             title: "Checks that know the difference",
             description:
                 "Every check tests the status code, an optional keyword in the response body, and how long the answer took. A slow but correct response is marked degraded, not down — so a red monitor still means something at 3am.",
-        },
-        {
-            icon: MapPin,
-            color: "info",
-            title: "Watch what the internet can't see",
-            description:
-                "Run a check from the public internet, or from one of your own agents. Running it on the agent is the only way to watch an internal dashboard, a private API, or a service bound to localhost — same agent you already installed, nothing extra to deploy.",
         },
         {
             icon: History,
@@ -179,6 +198,8 @@ const Landing = () => {
     ] as const;
 
     const monitoringFacts = [
+        "Internal & external targets",
+        "Runs on your own agent",
         "HTTP & HTTPS",
         "Every 15 minutes to once a day",
         "Keyword match",
@@ -246,8 +267,8 @@ const Landing = () => {
         "Browser-based SSH terminal",
         "Visual SFTP file browser",
         "Browser access to internal HTTP services",
-        "Uptime monitoring with 30-day history",
-        "Checks that run from inside the private network",
+        "Uptime monitoring, internal and external",
+        "Internal checks run on your own agent",
         "Outbound-only agent — works behind NAT/CG-NAT",
         "Ed25519 node identity + short-lived JWTs",
         "Home Assistant add-on available",
@@ -269,7 +290,7 @@ const Landing = () => {
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8 animate-fade-in">
                         <Wifi className="w-4 h-4 text-accent" />
                         <span className="text-sm text-accent font-medium">
-                            Outbound-Only Agent • No Open Ports
+                            Remote Access + Uptime Monitoring • No Open Ports
                         </span>
                     </div>
 
@@ -281,7 +302,7 @@ const Landing = () => {
                     {/* Tagline */}
                     <p className="text-xl md:text-2xl lg:text-3xl text-center mb-6 animate-fade-in font-medium">
                         <span className="text-primary">
-                            Access any machine securely, without opening a port.
+                            Access and monitor any machine securely, without opening a port.
                         </span>
                     </p>
 
@@ -291,11 +312,12 @@ const Landing = () => {
                     </p>
 
                     <p className="text-base text-muted-foreground text-center max-w-2xl mb-12 animate-fade-in leading-relaxed">
-                        Install a lightweight agent on any machine — behind NAT, a
-                        home router, or CG-NAT — and get a full SSH terminal, an SFTP
-                        file browser, browser access to its local HTTP services, and
-                        uptime monitoring for what runs on it, relayed securely to any
-                        web browser. The agent only ever dials out.
+                        Install a lightweight agent on any machine — behind NAT, a home
+                        router, or CG-NAT — and get a full SSH terminal, an SFTP file
+                        browser, and browser access to its local HTTP services, relayed
+                        securely to any web browser. That same agent also runs your uptime
+                        checks from inside the network, so internal services get watched
+                        alongside the external ones. It only ever dials out.
                     </p>
 
                     {/* CTA Buttons */}
@@ -329,6 +351,7 @@ const Landing = () => {
                     <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground animate-fade-in">
                         {[
                             "Browser-Based",
+                            "Uptime Monitoring",
                             "Zero-Install for Clients",
                             "Outbound-Only Agent",
                             "WebSocket-Powered",
@@ -463,28 +486,104 @@ const Landing = () => {
                             <span className="text-sm text-accent font-medium">New</span>
                         </div>
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                            Know it&apos;s up.{" "}
-                            <span className="text-accent">Before anyone tells you.</span>
+                            Uptime monitoring,{" "}
+                            <span className="text-accent">internal and external</span>
                         </h2>
-                        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                            Uptime monitoring built into the dashboard you already use — and
-                            able to run from inside the network, where public monitors can&apos;t reach
+                        <p className="text-muted-foreground text-lg max-w-3xl mx-auto">
+                            External checks run from our servers and see your public URL the way
+                            the internet does. Internal checks run on your own agent, inside the
+                            network — on the private API, the admin panel bound to localhost, the
+                            health endpoint behind the firewall. Plenty of services do the first
+                            one well. The second is the one they can&apos;t reach at all.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {monitoringPoints.map((point) => (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                        {/* Illustration: a monitor card built from the same tokens the
+                            real dashboard uses, so it can't drift out of theme. Sample
+                            data, so it is hidden from screen readers — the points
+                            beside it carry the same meaning in words. */}
+                        <div>
                             <div
-                                key={point.title}
-                                className="group p-8 rounded-2xl border border-border bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all duration-300"
+                                aria-hidden="true"
+                                className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 p-6"
                             >
-                                <div className={`w-14 h-14 rounded-xl ${colorStyles[point.color].bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                                    <point.icon className={`w-7 h-7 ${colorStyles[point.color].text}`} />
+                                <div className="flex items-start gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
+                                        <Globe className="w-5 h-5 text-accent" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-foreground truncate">Internal API</p>
+                                        <p className="text-xs text-muted-foreground font-mono truncate">
+                                            http://10.0.4.12:8080/health
+                                        </p>
+                                    </div>
+                                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                                        <span className="px-2 py-1 rounded-full border border-border bg-secondary/60 text-[11px] text-muted-foreground">
+                                            Internal
+                                        </span>
+                                        <span className="flex items-center gap-2 px-2.5 py-1 rounded-full border border-success/35 bg-success/10">
+                                            <span className="w-2 h-2 rounded-full bg-success" />
+                                            <span className="text-xs font-medium text-success">Up</span>
+                                        </span>
+                                    </div>
                                 </div>
-                                <h3 className="font-bold text-xl text-foreground mb-3">{point.title}</h3>
-                                <p className="text-muted-foreground leading-relaxed">{point.description}</p>
+
+                                <div className="mb-6">
+                                    <div className="flex items-center justify-between text-xs mb-2">
+                                        <span className="text-muted-foreground">Latency</span>
+                                        <span className="font-mono font-medium text-success">142 ms</span>
+                                    </div>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                                        <div className="h-full w-[28%] rounded-full bg-success" />
+                                    </div>
+                                </div>
+
+                                <div className="mb-2 flex items-end gap-[2px]">
+                                    {SAMPLE_UPTIME_MONTH.map((tone, index) => (
+                                        <div
+                                            key={index}
+                                            className={`h-8 min-w-[3px] flex-1 rounded-[2px] ${SAMPLE_UPTIME_TONES[tone]}`}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-6">
+                                    <span>30 days ago</span>
+                                    <span>Today</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-4">
+                                    {[
+                                        ["Checked", "2m ago"],
+                                        ["Every", "15 minutes"],
+                                        ["30d uptime", "99.94%"],
+                                        ["Runs on", "agent edge-01"],
+                                    ].map(([label, value]) => (
+                                        <div key={label} className="flex items-center gap-2">
+                                            <span className="text-muted-foreground">{label}</span>
+                                            <span className="ml-auto font-mono text-foreground">{value}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        ))}
+                            <p className="text-center text-xs text-muted-foreground mt-4">
+                                An example monitor: one card per service, 30 days at a glance
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-8">
+                            {monitoringPoints.map((point) => (
+                                <div key={point.title} className="flex gap-5">
+                                    <div className={`w-12 h-12 rounded-xl ${colorStyles[point.color].bg} flex items-center justify-center shrink-0`}>
+                                        <point.icon className={`w-6 h-6 ${colorStyles[point.color].text}`} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-foreground mb-2">{point.title}</h3>
+                                        <p className="text-muted-foreground leading-relaxed">{point.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap justify-center gap-3 mt-10">
@@ -554,7 +653,7 @@ const Landing = () => {
                 {/* Feature summary */}
                 <section className="px-6 py-24 bg-secondary/20">
                     <div className="max-w-8xl mx-auto">
-                        <div className="grid md:grid-cols-2 gap-12 items-center">
+                        <div className="grid md:grid-cols-2 gap-12 items-start">
                             <div>
                                 <h2 className="text-3xl md:text-4xl font-bold mb-6">
                                     Everything You Need,<br />
@@ -577,17 +676,22 @@ const Landing = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Offset so the tiles start below the heading on two-column
+                                layouts, level with the paragraph rather than the title.
+                                auto-rows-fr keeps every tile the same height now that
+                                they size to their content rather than to a square. */}
+                            <div className="grid grid-cols-2 auto-rows-fr gap-3 md:mt-24">
                                 {[
                                     { icon: Terminal, label: "SSH Terminal", desc: "Full xterm.js", color: "accent" },
                                     { icon: FolderSync, label: "SFTP Browser", desc: "Chunked transfer", color: "info" },
                                     { icon: Globe, label: "HTTP Proxy", desc: "Internal dashboards", color: "accent" },
                                     { icon: Building2, label: "Node Dashboard", desc: "One view, every node", color: "warning" },
+                                    { icon: Activity, label: "Uptime Monitor", desc: "Internal & external", color: "accent" },
                                 ].map((item) => (
-                                    <div key={item.label} className="aspect-square rounded-2xl border border-border bg-card/50 p-6 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
-                                        <item.icon className={`w-10 h-10 ${colorStyles[item.color as keyof typeof colorStyles].text}`} />
+                                    <div key={item.label} className="min-h-32 rounded-xl border border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
+                                        <item.icon className={`w-8 h-8 ${colorStyles[item.color as keyof typeof colorStyles].text}`} />
                                         <div className="text-center">
-                                            <span className="text-sm font-medium block">{item.label}</span>
+                                            <span className="text-sm font-medium block leading-tight">{item.label}</span>
                                             <span className="text-xs text-muted-foreground">{item.desc}</span>
                                         </div>
                                     </div>
@@ -605,10 +709,11 @@ const Landing = () => {
 
                             <div className="relative">
                                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                    Ready to Simplify Server Access?
+                                    Ready to Reach — and Watch — Your Machines?
                                 </h2>
                                 <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-                                    Install the agent, connect your node, and access it from any browser in minutes.
+                                    Install the agent once. Access your node from any browser, and
+                                    put its services under monitoring, in minutes.
                                 </p>
 
                                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -646,8 +751,8 @@ const Landing = () => {
                             <span className="font-semibold">Phirepass</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            © 2026 Phirepass. Secure remote access without the
-                            complexity.
+                            © 2026 Phirepass. Secure remote access and uptime
+                            monitoring, without the complexity.
                         </p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span className="px-2 py-1 rounded bg-secondary">
