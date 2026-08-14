@@ -1,19 +1,17 @@
 import { notFound } from "next/navigation";
 
-import { IS_DEV_MODE } from "@/lib/dev-mode";
 import Profile from "@/pages/Profile";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Gated off in production alongside its menu entries. 404 rather than a
- * redirect, matching `devModeGate`, so the route is indistinguishable from one
- * that was never deployed.
+ * Withdrawn for now: the route always 404s and the header no longer links to
+ * it — src/middleware.ts turns the request away first, and this is the
+ * backstop. The page component below is kept intact so re-enabling is a matter
+ * of undoing both plus the menu entry in Header.tsx.
  */
 export default function ProfilePage() {
-    if (!IS_DEV_MODE) {
-        notFound();
-    }
+    notFound();
 
     return <Profile />;
 }
