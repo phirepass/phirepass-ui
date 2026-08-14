@@ -309,3 +309,86 @@
         display: none;
     }
 }
+
+@layer utilities {
+    /*
+     * The logo mark: lifted off the page, and alive.
+     *
+     * `pp-logo` is the lift — a coloured drop shadow rather than a box shadow,
+     * so it follows the rounded silhouette instead of a square. `pp-flow` sends
+     * a short dash travelling out along the path, from the node to the relay,
+     * which is the direction the agent actually dials. `pp-pulse` breathes the
+     * relay ring so the destination reads as listening.
+     *
+     * All of it stops under prefers-reduced-motion; the mark is fully legible
+     * static, so nothing is lost.
+     */
+    .pp-logo {
+        filter: drop-shadow(0 8px 22px hsl(160 92% 46% / 0.42));
+        transition: filter 0.4s ease, transform 0.4s ease;
+    }
+
+    .pp-logo:hover {
+        filter: drop-shadow(0 8px 22px hsl(165 92% 50% / 0.45));
+        transform: translateY(-1px);
+    }
+
+    @keyframes pp-flow {
+        from {
+            stroke-dashoffset: 26;
+        }
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+
+    @keyframes pp-pulse {
+        0%,
+        100% {
+            opacity: 0.55;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.14);
+        }
+    }
+
+    @keyframes pp-breathe {
+        0%,
+        100% {
+            opacity: 0.75;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+
+    .pp-flow {
+        stroke-dasharray: 9 17;
+        animation: pp-flow 2.4s linear infinite;
+    }
+
+    .pp-pulse {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: pp-pulse 2.4s ease-in-out infinite;
+    }
+
+    .pp-breathe {
+        animation: pp-breathe 2.4s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .pp-flow,
+        .pp-pulse,
+        .pp-breathe {
+            animation: none;
+        }
+
+        .pp-flow {
+            stroke-dasharray: none;
+            opacity: 0;
+        }
+    }
+}

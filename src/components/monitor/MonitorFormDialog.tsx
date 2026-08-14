@@ -35,7 +35,7 @@ import {
     type MonitorSummary,
 } from '@/types/monitor';
 
-import { KIND_ICONS } from './monitor-display';
+import { KIND_ICONS, KIND_STYLES } from './monitor-display';
 import { MonitorVantageField } from './MonitorVantageField';
 
 const KIND_ORDER: MonitorKind[] = ['http', 'ssl', 'domain'];
@@ -205,7 +205,13 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                             enabled && !active && 'border-border hover:border-border hover:bg-secondary/40'
                                         )}
                                     >
-                                        <Icon className={cn('h-4 w-4', active && enabled ? 'text-accent' : 'text-muted-foreground')} />
+                                        <Icon
+                                            className={cn(
+                                                'h-4 w-4',
+                                                enabled ? KIND_STYLES[option].text : 'text-muted-foreground',
+                                                !enabled && 'opacity-70'
+                                            )}
+                                        />
                                         <span className="flex items-center gap-1.5 text-xs font-medium">
                                             {MONITOR_KIND_LABELS[option]}
                                             {enabled ? null : (

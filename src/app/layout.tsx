@@ -2,12 +2,43 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 import Script from "next/script";
 import ClientProviders from "./providers";
+import { OG_IMAGE, SITE_URL } from "@/lib/site";
 import "@/index.css";
 
+const TITLE = "Phirepass — Remote Access & Uptime Monitoring";
+// Kept under ~160 characters so search results show the whole line, with the
+// differentiator (internal checks) inside the visible window rather than past
+// the truncation point.
+const DESCRIPTION =
+    "Browser-based SSH, SFTP and internal web access to any machine behind NAT — plus uptime monitoring for the private services public monitors can't reach.";
+
 export const metadata: Metadata = {
-    title: "Phirepass — Remote Access & Uptime Monitoring",
-    description:
-        "Reach any machine behind NAT or a firewall from your browser — SSH, SFTP, and internal HTTP services — and monitor uptime internally and externally: external checks from our fleet, internal checks on your own agent, reaching services no public monitor can. Outbound-only agent, no open ports.",
+    metadataBase: new URL(SITE_URL),
+    title: {
+        default: TITLE,
+        // Per-page titles read "Sign in · Phirepass" rather than repeating the
+        // full landing title on every route.
+        template: "%s · Phirepass",
+    },
+    description: DESCRIPTION,
+    applicationName: "Phirepass",
+    alternates: {
+        canonical: "/",
+    },
+    openGraph: {
+        type: "website",
+        siteName: "Phirepass",
+        url: SITE_URL,
+        title: TITLE,
+        description: DESCRIPTION,
+        images: [OG_IMAGE],
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: TITLE,
+        description: DESCRIPTION,
+        images: ["/listing.png"],
+    },
 };
 
 export default function RootLayout({

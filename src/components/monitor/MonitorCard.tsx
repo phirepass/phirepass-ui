@@ -32,6 +32,7 @@ import { MONITOR_KIND_LABELS, type MonitorSummary } from '@/types/monitor';
 import { UptimeStrip } from './UptimeStrip';
 import {
     KIND_ICONS,
+    KIND_STYLES,
     STATUS_STYLES,
     effectiveStatus,
     expiryFor,
@@ -65,6 +66,7 @@ export function MonitorCard({
     const status = effectiveStatus(monitor);
     const statusStyle = STATUS_STYLES[status];
     const KindIcon = KIND_ICONS[monitor.kind];
+    const kindStyle = KIND_STYLES[monitor.kind];
     const expiry = expiryFor(monitor);
     const expirySoon = expiry !== null && expiry.days <= monitor.expiry_warn_days;
 
@@ -238,8 +240,15 @@ export function MonitorCard({
                             </TooltipContent>
                         </Tooltip>
                     ) : null}
-                    <span className="flex items-center gap-1.5 whitespace-nowrap rounded bg-secondary px-2 py-1 text-xs text-muted-foreground">
-                        <KindIcon className="w-3 h-3" />
+                    {/* Carries the kind's own colour and icon: it sits beside the
+                        agent badge, and two identical grey chips read as one. */}
+                    <span
+                        className={cn(
+                            'flex items-center gap-1.5 whitespace-nowrap rounded border px-2 py-1 text-xs font-medium',
+                            kindStyle.chip
+                        )}
+                    >
+                        <KindIcon className="w-3.5 h-3.5 shrink-0" />
                         {MONITOR_KIND_LABELS[monitor.kind]}
                     </span>
                 </div>
@@ -426,7 +435,7 @@ export function MonitorCard({
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <span className="cursor-help text-[11px] uppercase tracking-wider text-muted-foreground">
-                                    Last 30 checks
+                                    Last 30 days
                                 </span>
                             </TooltipTrigger>
                             <TooltipContent>

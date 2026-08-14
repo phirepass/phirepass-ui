@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { PhirepassLogo } from '@/components/PhirepassLogo';
 import { useRouter } from 'next/navigation'
 import Link from 'next/link';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import { Button } from '@/components/ui/button';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { toast } from '@/components/ui/sonner';
-import { Eye, EyeOff, Shield, Terminal, Lock, Zap } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { AuthShowcase } from '@/components/AuthShowcase';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -59,81 +61,7 @@ export default function Login() {
 
                     {/* Content */}
                     <div className="relative z-10 flex flex-col justify-center px-16 py-12">
-                        {/* Logo */}
-                        <div className="flex items-center gap-4 mb-12">
-                            <div className="w-14 h-14 rounded-xl gradient-accent flex items-center justify-center glow-primary">
-                                <Shield className="w-7 h-7 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-bold">
-                                    <span className="text-gradient">Phire</span>
-                                    <span className="text-foreground">pass</span>
-                                </h1>
-                                <p className="text-sm text-muted-foreground">Secure SSH Access</p>
-                            </div>
-                        </div>
-
-                        {/* Terminal mockup */}
-                        <div className="gradient-card border border-border rounded-xl p-1 mb-12 max-w-md">
-                            <div className="bg-secondary/50 rounded-lg overflow-hidden">
-                                <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-                                    <div className="w-3 h-3 rounded-full bg-destructive/60" />
-                                    <div className="w-3 h-3 rounded-full bg-warning/60" />
-                                    <div className="w-3 h-3 rounded-full bg-success/60" />
-                                    <span className="text-xs text-muted-foreground ml-2 font-mono">phirepass ~ ssh</span>
-                                </div>
-                                <div className="p-4 font-mono text-sm space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-success">$</span>
-                                        <span className="text-foreground">phirepass connect prod-server</span>
-                                    </div>
-                                    <div className="text-muted-foreground text-xs">
-                                        → Establishing secure tunnel...
-                                    </div>
-                                    <div className="text-success text-xs flex items-center gap-2">
-                                        <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                                        Connected via CGNAT bypass
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Features */}
-                        <div className="space-y-6 max-w-md">
-                            <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                                    <Terminal className="w-5 h-5 text-primary" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-foreground mb-1">CGNAT Bypass</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Connect to devices behind carrier-grade NAT without port forwarding
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center flex-shrink-0">
-                                    <Lock className="w-5 h-5 text-success" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-foreground mb-1">End-to-End Encryption</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Military-grade encryption for all your SSH connections
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
-                                    <Zap className="w-5 h-5 text-accent" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-foreground mb-1">Lightning Fast</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Sub-millisecond latency with our global edge network
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                        <AuthShowcase />
                     </div>
                 </div>
 
@@ -142,20 +70,18 @@ export default function Login() {
                     <div className="w-full max-w-md animate-fade-in">
                         {/* Mobile Logo */}
                         <div className="flex flex-col items-center mb-8 lg:hidden">
-                            <div className="w-16 h-16 rounded-2xl gradient-accent flex items-center justify-center mb-4 glow-primary">
-                                <Shield className="w-8 h-8 text-white" />
-                            </div>
+                            <PhirepassLogo className="w-16 h-16 rounded-2xl mb-4 glow-primary" />
                             <h1 className="text-3xl font-bold">
                                 <span className="text-gradient">Phire</span>
                                 <span className="text-foreground">pass</span>
                             </h1>
-                            <p className="text-muted-foreground mt-2">Secure SSH access anywhere</p>
+                            <p className="text-muted-foreground mt-2">Remote access &amp; uptime monitoring</p>
                         </div>
 
                         {/* Welcome Text */}
                         <div className="mb-8 hidden lg:block">
                             <h2 className="text-3xl font-bold text-foreground mb-2">Welcome back</h2>
-                            <p className="text-muted-foreground">Sign in to access your secure tunnels</p>
+                            <p className="text-muted-foreground">Sign in to your nodes, tunnels, and monitors</p>
                         </div>
 
                         {/* Login Form */}
@@ -275,13 +201,13 @@ export default function Login() {
                         {/* Footer */}
                         <p className="text-center text-xs text-muted-foreground mt-8">
                             By signing in, you agree to our{' '}
-                            <a href="#" className="hover:text-foreground transition-colors underline underline-offset-2">
+                            <Link href="/terms" className="hover:text-foreground transition-colors underline underline-offset-2">
                                 Terms
-                            </a>{' '}
+                            </Link>{' '}
                             and{' '}
-                            <a href="#" className="hover:text-foreground transition-colors underline underline-offset-2">
+                            <Link href="/privacy" className="hover:text-foreground transition-colors underline underline-offset-2">
                                 Privacy Policy
-                            </a>
+                            </Link>
                         </p>
                     </div>
                 </div>

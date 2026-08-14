@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IS_DEV_MODE } from '@/lib/dev-mode';
+import { PhirepassLogo } from '@/components/PhirepassLogo';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -103,9 +104,7 @@ export function Header({ user, onLogout }: HeaderProps) {
             <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-white" />
-                        </div>
+                        <PhirepassLogo className="w-8 h-8" />
                         <Link href="/" className="text-xl font-semibold tracking-tight">
                             <span className="text-gradient">Phire</span>
                             <span className="text-foreground">pass</span>
@@ -187,18 +186,24 @@ export function Header({ user, onLogout }: HeaderProps) {
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
-                                    <User className="w-4 h-4 mr-2" />
-                                    Profile
-                                </DropdownMenuItem>
+                                {/* Profile and Settings are gated with their routes,
+                                    which 404 outside dev builds. */}
+                                {IS_DEV_MODE ? (
+                                    <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+                                        <User className="w-4 h-4 mr-2" />
+                                        Profile
+                                    </DropdownMenuItem>
+                                ) : null}
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/pat-tokens')}>
                                     <KeyRound className="w-4 h-4 mr-2" />
                                     Tokens
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    Settings
-                                </DropdownMenuItem>
+                                {IS_DEV_MODE ? (
+                                    <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+                                        <Settings className="w-4 h-4 mr-2" />
+                                        Settings
+                                    </DropdownMenuItem>
+                                ) : null}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
                                     <LogOut className="w-4 h-4 mr-2" />
@@ -270,18 +275,20 @@ export function Header({ user, onLogout }: HeaderProps) {
                         </Button>
                     ))}
                     <div className="border-t border-border my-2 pt-2">
-                        <Button
-                            variant="ghost"
-                            className={cn(
-                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/profile') && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
-                            )}
-                            aria-current={isActivePath('/dashboard/profile') ? 'page' : undefined}
-                            onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}
-                        >
-                            <User className="w-5 h-5 mr-3" />
-                            Profile
-                        </Button>
+                        {IS_DEV_MODE ? (
+                            <Button
+                                variant="ghost"
+                                className={cn(
+                                    'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                    isActivePath('/dashboard/profile') && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
+                                )}
+                                aria-current={isActivePath('/dashboard/profile') ? 'page' : undefined}
+                                onClick={() => { router.push('/dashboard/profile'); setMenuOpen(false); }}
+                            >
+                                <User className="w-5 h-5 mr-3" />
+                                Profile
+                            </Button>
+                        ) : null}
                         <Button
                             variant="ghost"
                             className={cn(

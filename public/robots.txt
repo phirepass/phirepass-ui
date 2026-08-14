@@ -12,3 +12,12 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Authenticated surfaces and JSON endpoints. These redirect or 401 for a
+# crawler anyway; keeping them out of the crawl budget is the point.
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /device-auth
+
+Sitemap: https://phirepass.com/sitemap.xml

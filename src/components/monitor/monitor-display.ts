@@ -1,12 +1,30 @@
-import { Globe, Lock, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Globe, Lock, Tag, type LucideIcon } from 'lucide-react';
 
 import type { MonitorKind, MonitorStatus, MonitorSummary } from '@/types/monitor';
 
-/** One icon per probe kind, so a card announces what it watches before you read it. */
+/**
+ * One icon per probe kind, so a card announces what it watches before you read
+ * it. Silhouettes are deliberately unalike — a ruled circle, a padlock, an
+ * angled tag — because these render at 14px beside a label and the previous
+ * lock/shield pair was indistinguishable at that size.
+ */
 export const KIND_ICONS: Record<MonitorKind, LucideIcon> = {
     http: Globe,
     ssl: Lock,
-    domain: ShieldCheck,
+    domain: Tag,
+};
+
+/**
+ * Colour per kind, so the badge is separable at a glance rather than being a
+ * third grey chip in a row of grey chips. These are hues the status scale does
+ * not lead with — status is carried by the dot and the status word, and the
+ * kind badge is always a bordered pill with its label attached, so the two
+ * never have to be told apart on colour alone.
+ */
+export const KIND_STYLES: Record<MonitorKind, { text: string; chip: string }> = {
+    http: { text: 'text-info', chip: 'border-info/30 bg-info/10 text-info' },
+    ssl: { text: 'text-violet', chip: 'border-violet/30 bg-violet/10 text-violet' },
+    domain: { text: 'text-warning', chip: 'border-warning/30 bg-warning/10 text-warning' },
 };
 
 /**

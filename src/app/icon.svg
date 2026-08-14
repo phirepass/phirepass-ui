@@ -1,19 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="hsl(155 70% 32%)" />
-      <stop offset="100%" stop-color="hsl(165 60% 28%)" />
+    <linearGradient id="mark" gradientUnits="userSpaceOnUse" x1="8" y1="41" x2="40" y2="9">
+      <stop offset="0%" stop-color="hsl(122 88% 52%)" />
+      <stop offset="35%" stop-color="hsl(150 92% 56%)" />
+      <stop offset="70%" stop-color="hsl(172 92% 58%)" />
+      <stop offset="100%" stop-color="hsl(196 96% 66%)" />
+    </linearGradient>
+    <linearGradient id="body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="hsl(152 32% 13%)" />
+      <stop offset="50%" stop-color="hsl(172 34% 9%)" />
+      <stop offset="100%" stop-color="hsl(196 38% 8%)" />
+    </linearGradient>
+    <radialGradient id="bloom" cx="62%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="hsl(172 92% 58%)" stop-opacity="0.40" />
+      <stop offset="100%" stop-color="hsl(172 92% 58%)" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="edge" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="hsl(122 88% 52%)" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="hsl(196 96% 66%)" stop-opacity="0.55" />
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="7" fill="url(#g)" />
-  <g transform="translate(7.2, 7.2) scale(0.74)">
-    <path
-      d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
-      fill="none"
-      stroke="#ffffff"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-  </g>
+
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#body)" />
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#bloom)" />
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="none" stroke="url(#edge)" stroke-width="1.8" />
+
+  <!-- Boundary, node, and the one path out — see PhirepassLogo.tsx. Favicon
+       weights are slightly heavier so the mark survives 16px. -->
+  <path d="M18.5 19.5 L27 24.4 L27 34.2 L18.5 39.1 L10 34.2 L10 24.4 Z"
+        fill="none" stroke="url(#mark)" stroke-width="2.4" stroke-linejoin="round" opacity="0.82" />
+  <path d="M18.5 29.3 C 21.2 22.6, 26.4 18.6, 32.4 17.1"
+        fill="none" stroke="url(#mark)" stroke-width="3" stroke-linecap="round" />
+  <circle cx="18.5" cy="29.3" r="3.6" fill="url(#mark)" />
+  <circle cx="37.2" cy="13.6" r="4.1" fill="none" stroke="url(#mark)" stroke-width="2.6" />
 </svg>

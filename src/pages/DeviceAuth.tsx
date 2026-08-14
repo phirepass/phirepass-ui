@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Loader2, Shield, Terminal } from 'lucide-react';
+import { PhirepassLogo } from '@/components/PhirepassLogo';
+import { CheckCircle, XCircle, Loader2, Terminal } from 'lucide-react';
 import type { PublicRuntimeConfig } from '@/lib/runtime-config';
 
 type AuthStatus = 'pending' | 'verifying' | 'success' | 'error' | 'expired';
@@ -200,9 +201,7 @@ export default function DeviceAuth() {
             <div className="w-full max-w-md animate-fade-in">
                 {/* Logo */}
                 <div className="flex flex-col items-center mb-8">
-                    <div className="w-16 h-16 rounded-2xl gradient-accent flex items-center justify-center mb-4 glow-primary">
-                        <Shield className="w-8 h-8 text-white" />
-                    </div>
+                    <PhirepassLogo className="w-16 h-16 rounded-2xl mb-4 glow-primary" />
                     <h1 className="text-3xl font-bold">
                         <span className="text-gradient">Phire</span>
                         <span className="text-foreground">pass</span>

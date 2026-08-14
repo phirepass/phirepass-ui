@@ -9,6 +9,7 @@ import {
     type CarouselApi,
 } from "@/components/ui/carousel";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     Terminal,
@@ -33,33 +34,27 @@ import {
     Activity,
     MapPin,
     History,
+    MonitorPlay,
 } from "lucide-react";
+import {
+    AGENT_TERMINAL_LINES,
+    SSH_SESSION_LINES,
+    SAMPLE_UPTIME_MONTH,
+    SAMPLE_UPTIME_TONES,
+    TERMINAL_LINE_TONES,
+} from "@/lib/marketing-demo";
+import { PhirepassLogo } from "@/components/PhirepassLogo";
 
-/**
- * The illustrated monitor card on the landing page draws its 30-day strip from
- * this string — one character per day, oldest first — using the same four tones
- * as the real `UptimeStrip`: a clean day, a slow-but-correct day, a day with a
- * failure, and a day the checks reached no verdict.
- */
-const SAMPLE_UPTIME_TONES = {
-    up: "bg-success/80",
-    unknown: "bg-warning/50",
-    degraded: "bg-warning/80",
-    down: "bg-destructive/80",
-} as const;
-
-const SAMPLE_UPTIME_MONTH = [
-    "up", "up", "up", "up", "up", "up", "up", "degraded", "up", "up",
-    "up", "up", "unknown", "up", "up", "up", "up", "down", "degraded", "up",
-    "up", "up", "up", "up", "up", "up", "degraded", "up", "up", "up",
-] as const satisfies readonly (keyof typeof SAMPLE_UPTIME_TONES)[];
-
-// Green stays the dominant brand color; info (blue) and warning (gold) are
-// used sparingly on a minority of items so the palette doesn't read as flat.
+// Every icon within a section gets its own hue, so no two cards in a grid read
+// as the same category. Green stays the brand colour and leads each section.
+// `success` and `accent` share a hue, so they are never used in one section.
 const colorStyles = {
     accent: { bg: "bg-accent/20", text: "text-accent" },
     info: { bg: "bg-info/20", text: "text-info" },
     warning: { bg: "bg-warning/20", text: "text-warning" },
+    success: { bg: "bg-success/20", text: "text-success" },
+    violet: { bg: "bg-violet/20", text: "text-violet" },
+    destructive: { bg: "bg-destructive/20", text: "text-destructive" },
 } as const;
 
 const productShots = [
@@ -157,14 +152,14 @@ const Landing = () => {
         },
         {
             icon: Globe,
-            color: "accent",
+            color: "violet",
             title: "Reach internal HTTP services",
             description:
                 "Open a dashboard, admin panel, or internal API running on a node directly in your browser — streamed through the relay, with no extra reverse proxy and no public DNS record pointing at it.",
         },
         {
             icon: Server,
-            color: "accent",
+            color: "warning",
             title: "One dashboard, every node",
             description:
                 "See every connected node, its last-seen heartbeat, and its status in one place. Revoke a node's access instantly — it can't reconnect without re-enrolling.",
@@ -190,7 +185,7 @@ const Landing = () => {
         },
         {
             icon: History,
-            color: "accent",
+            color: "violet",
             title: "Thirty days of honest history",
             description:
                 "Uptime across 24 hours, 7 days, and 30 days, a daily bar strip, average latency, and a timeline of every incident. Checks that reached no verdict are shown as gaps and left out of the percentage — never quietly counted as uptime.",
@@ -229,7 +224,7 @@ const Landing = () => {
         },
         {
             icon: Shield,
-            color: "accent",
+            color: "violet",
             title: "Short-lived session tokens",
             description: "Every reconnect goes through a fresh challenge-sign-verify exchange and gets a JWT that expires in minutes, not days.",
         },
@@ -285,82 +280,175 @@ const Landing = () => {
 
             <div className="relative z-10">
                 {/* Hero Section */}
-                <section className="flex flex-col items-center justify-center min-h-screen px-6 py-20">
-                    {/* Badge */}
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8 animate-fade-in">
-                        <Wifi className="w-4 h-4 text-accent" />
-                        <span className="text-sm text-accent font-medium">
-                            Remote Access + Uptime Monitoring • No Open Ports
-                        </span>
-                    </div>
-
-                    {/* Main title */}
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-center mb-6 animate-fade-in tracking-tight">
-                        <span className="text-foreground">Phirepass</span>
-                    </h1>
-
-                    {/* Tagline */}
-                    <p className="text-xl md:text-2xl lg:text-3xl text-center mb-6 animate-fade-in font-medium">
-                        <span className="text-primary">
-                            Access and monitor any machine securely, without opening a port.
-                        </span>
-                    </p>
-
-                    {/* Subtitle */}
-                    <p className="text-lg md:text-xl text-muted-foreground text-center max-w-3xl mb-4 animate-fade-in">
-                        No VPN. No inbound firewall rules. No client software.
-                    </p>
-
-                    <p className="text-base text-muted-foreground text-center max-w-2xl mb-12 animate-fade-in leading-relaxed">
-                        Install a lightweight agent on any machine — behind NAT, a home
-                        router, or CG-NAT — and get a full SSH terminal, an SFTP file
-                        browser, and browser access to its local HTTP services, relayed
-                        securely to any web browser. That same agent also runs your uptime
-                        checks from inside the network, so internal services get watched
-                        alongside the external ones. It only ever dials out.
-                    </p>
-
-                    {/* CTA Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 mb-16 animate-fade-in">
-                        <Button
-                            variant="glow"
-                            size="lg"
-                            className="text-lg px-8 py-6 group"
-                            onClick={() => router.push("/login")}
-                        >
-                            <Terminal className="w-5 h-5 mr-2" />
-                            Get Started
-                            <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            className="text-lg px-8 py-6 border-border hover:border-accent/50 hover:bg-accent/5"
-                            onClick={() =>
-                                document
-                                    .getElementById("how-it-works")
-                                    ?.scrollIntoView({ behavior: "smooth" })
-                            }
-                        >
-                            <Network className="w-5 h-5 mr-2" />
-                            See How It Works
-                        </Button>
-                    </div>
-
-                    {/* Quick features */}
-                    <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground animate-fade-in">
-                        {[
-                            "Browser-Based",
-                            "Uptime Monitoring",
-                            "Zero-Install for Clients",
-                            "Outbound-Only Agent",
-                            "WebSocket-Powered",
-                        ].map((item) => (
-                            <div key={item} className="flex items-center gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-accent" />
-                                <span>{item}</span>
+                <section className="min-h-screen flex items-center px-6 py-20">
+                    <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 lg:gap-12 items-center">
+                        {/* Copy */}
+                        <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8">
+                                <Wifi className="w-4 h-4 text-accent" />
+                                <span className="text-sm text-accent font-medium">
+                                    Remote Access + Uptime Monitoring • No Open Ports
+                                </span>
                             </div>
-                        ))}
+
+                            <h1 className="flex items-center gap-4 md:gap-5 text-5xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight">
+                                <PhirepassLogo className="w-14 h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 shrink-0" />
+                                <span className="text-foreground">Phirepass</span>
+                            </h1>
+
+                            <p className="text-xl md:text-2xl lg:text-3xl font-medium text-primary mb-6">
+                                Reach it. Watch it.{" "}
+                                <span className="text-accent">Never expose it.</span>
+                            </p>
+
+                            {/* The punchline above is for memory; this line is for
+                                meaning — and it is the sentence the title and meta
+                                description are built from, so it stays. */}
+                            <p className="text-lg text-muted-foreground max-w-xl mb-10 leading-relaxed">
+                                Access and monitor any machine securely, without opening a
+                                port. One agent, dialling out — no VPN, no inbound firewall
+                                rules, nothing for your users to install.
+                            </p>
+
+                            {/* CTA Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-4 mb-10">
+                                <Button
+                                    variant="glow"
+                                    size="lg"
+                                    className="text-lg px-8 py-6 group"
+                                    onClick={() => router.push("/login")}
+                                >
+                                    <Terminal className="w-5 h-5 mr-2" />
+                                    Get Started
+                                    <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    className="text-lg px-8 py-6 border-border hover:border-accent/50 hover:bg-accent/5"
+                                    onClick={() =>
+                                        document
+                                            .getElementById("how-it-works")
+                                            ?.scrollIntoView({ behavior: "smooth" })
+                                    }
+                                >
+                                    <Network className="w-5 h-5 mr-2" />
+                                    See How It Works
+                                </Button>
+                            </div>
+
+                            {/* Quick features */}
+                            <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                                {[
+                                    "Browser-Based",
+                                    "Uptime Monitoring",
+                                    "Outbound-Only Agent",
+                                    "Zero-Install for Clients",
+                                ].map((item) => (
+                                    <div key={item} className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-accent" />
+                                        <span>{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Illustration: a session and a monitor, side by side, drawn from
+                            the same tokens the product uses. Decorative — the copy beside
+                            it says the same thing in words. */}
+                        {/* Below lg the three cards are a plain vertical stack: the
+                            overlap and the tilts only exist where there is room for
+                            them, so nothing lands on top of anything on a phone. */}
+                        <div
+                            className="relative flex flex-col gap-5 lg:block animate-fade-in"
+                            aria-hidden="true"
+                        >
+                            <div className="rounded-2xl border border-border bg-card/90 backdrop-blur-sm shadow-2xl shadow-accent/10 overflow-hidden lg:rotate-1 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/40">
+                                    <span className="w-3 h-3 rounded-full bg-destructive/60" />
+                                    <span className="w-3 h-3 rounded-full bg-warning/60" />
+                                    <span className="w-3 h-3 rounded-full bg-success/60" />
+                                    <span className="ml-2 font-mono text-xs text-muted-foreground">
+                                        edge-01 — behind CG-NAT
+                                    </span>
+                                </div>
+
+                                <div className="p-4 sm:p-5 font-mono text-[11px] sm:text-[13px] leading-5 sm:leading-6 whitespace-nowrap overflow-x-auto scrollbar-hide">
+                                    {AGENT_TERMINAL_LINES.map((line, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <span className={TERMINAL_LINE_TONES[line.tone]}>{line.mark}</span>
+                                            <span
+                                                className={
+                                                    line.tone === "prompt"
+                                                        ? "text-foreground"
+                                                        : "text-muted-foreground"
+                                                }
+                                            >
+                                                {line.text}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    <div className="flex gap-2">
+                                        <span className="text-accent">$</span>
+                                        <span className="w-2 h-[18px] bg-accent animate-terminal-blink" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* A live SSH session over the top corner: the agent below
+                                connects, this is what you get for it. */}
+                            <div className="w-full lg:absolute lg:-top-14 lg:-right-4 lg:w-72 rounded-xl border border-border bg-card shadow-2xl shadow-accent/10 overflow-hidden lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border bg-secondary/50">
+                                    <span className="w-2 h-2 rounded-full bg-destructive/60" />
+                                    <span className="w-2 h-2 rounded-full bg-warning/60" />
+                                    <span className="w-2 h-2 rounded-full bg-success/60" />
+                                    <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">ssh · edge-01</span>
+                                </div>
+                                {/* whitespace-pre: top's columns are aligned with spaces
+                                    and HTML would otherwise collapse them. */}
+                                <div className="p-3 font-mono text-[10px] leading-4 whitespace-pre overflow-x-auto scrollbar-hide">
+                                    {SSH_SESSION_LINES.map((line, index) => (
+                                        <div key={index} className="flex gap-1.5">
+                                            <span className={TERMINAL_LINE_TONES[line.tone]}>{line.mark}</span>
+                                            <span
+                                                className={
+                                                    line.tone === "prompt"
+                                                        ? "text-foreground"
+                                                        : TERMINAL_LINE_TONES[line.tone]
+                                                }
+                                            >
+                                                {line.text}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* A monitor card riding along the corner: the second half of
+                                the product, visible without another paragraph about it. */}
+                            <div className="w-full lg:absolute lg:-bottom-8 lg:-left-8 lg:w-64 rounded-xl border border-border bg-card shadow-2xl shadow-accent/10 p-4 lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Globe className="w-4 h-4 text-accent shrink-0" />
+                                    <span className="text-xs font-medium truncate">Internal API</span>
+                                    <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                                        <span className="w-2 h-2 rounded-full bg-success text-success animate-pulse-glow" />
+                                        <span className="text-xs font-medium text-success">Up</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-end gap-[2px] mb-2">
+                                    {SAMPLE_UPTIME_MONTH.slice(-18).map((tone, index) => (
+                                        <div
+                                            key={index}
+                                            className={`h-5 min-w-[3px] flex-1 rounded-[2px] ${SAMPLE_UPTIME_TONES[tone]}`}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                                    <span>142 ms</span>
+                                    <span>99.94% · 30d</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -410,16 +498,23 @@ const Landing = () => {
 
                         <Carousel setApi={setCarouselApi} opts={{ loop: true }} className="group">
                             <CarouselContent>
-                                {productShots.map((shot) => (
+                                {productShots.map((shot, index) => (
                                     <CarouselItem key={shot.src}>
                                         <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 overflow-hidden">
+                                            {/* Only the first slide preloads. `priority` on
+                                                all three preloaded ~2.9MB of PNG for a
+                                                section below the fold, competing with the
+                                                hero for the LCP. `sizes` stops phones
+                                                being served the 3840px variant. */}
                                             <Image
                                                 src={shot.src}
                                                 alt={shot.alt}
                                                 width={shot.width}
                                                 height={shot.height}
                                                 className="w-full h-auto"
-                                                priority
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1152px"
+                                                priority={index === 0}
+                                                loading={index === 0 ? undefined : "lazy"}
                                             />
                                         </div>
                                         <div className="text-center mt-6">
@@ -684,9 +779,10 @@ const Landing = () => {
                                 {[
                                     { icon: Terminal, label: "SSH Terminal", desc: "Full xterm.js", color: "accent" },
                                     { icon: FolderSync, label: "SFTP Browser", desc: "Chunked transfer", color: "info" },
-                                    { icon: Globe, label: "HTTP Proxy", desc: "Internal dashboards", color: "accent" },
+                                    { icon: Globe, label: "HTTP Proxy", desc: "Internal dashboards", color: "violet" },
                                     { icon: Building2, label: "Node Dashboard", desc: "One view, every node", color: "warning" },
-                                    { icon: Activity, label: "Uptime Monitor", desc: "Internal & external", color: "accent" },
+                                    { icon: Activity, label: "Uptime Monitor", desc: "Internal & external", color: "success" },
+                                    { icon: MonitorPlay, label: "RDP Desktop", desc: "Windows, in-browser", color: "destructive" },
                                 ].map((item) => (
                                     <div key={item.label} className="min-h-32 rounded-xl border border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
                                         <item.icon className={`w-8 h-8 ${colorStyles[item.color as keyof typeof colorStyles].text}`} />
@@ -708,8 +804,11 @@ const Landing = () => {
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--accent)/0.1),transparent_60%)]" />
 
                             <div className="relative">
+                                {/* Bookends the hero: the same three beats, closing the
+                                    page on the line it opened with. */}
                                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                    Ready to Reach — and Watch — Your Machines?
+                                    Reach it. Watch it.{" "}
+                                    <span className="text-accent">Never expose it.</span>
                                 </h2>
                                 <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
                                     Install the agent once. Access your node from any browser, and
@@ -750,10 +849,20 @@ const Landing = () => {
                             <Terminal className="w-5 h-5 text-accent" />
                             <span className="font-semibold">Phirepass</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            © 2026 Phirepass. Secure remote access and uptime
-                            monitoring, without the complexity.
-                        </p>
+                        <div className="flex flex-col items-center gap-2 md:items-start">
+                            <p className="text-sm text-muted-foreground">
+                                © 2026 Phirepass. Secure remote access and uptime
+                                monitoring, without the complexity.
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <Link href="/terms" className="hover:text-foreground transition-colors">
+                                    Terms
+                                </Link>
+                                <Link href="/privacy" className="hover:text-foreground transition-colors">
+                                    Privacy
+                                </Link>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span className="px-2 py-1 rounded bg-secondary">
                                 WebSockets
