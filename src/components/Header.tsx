@@ -101,7 +101,7 @@ export function Header({ user, onLogout }: HeaderProps) {
 
     return (
         <>
-            <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
+            <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md pt-[env(safe-area-inset-top)]">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <PhirepassLogo className="w-8 h-8" />
@@ -230,7 +230,7 @@ export function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Overlay/Backdrop */}
             <div
                 className={cn(
-                    "md:hidden fixed inset-0 top-16 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300",
+                    "md:hidden fixed inset-0 top-[calc(4rem_+_env(safe-area-inset-top))] bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300",
                     menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={() => setMenuOpen(false)}
@@ -239,15 +239,15 @@ export function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Dropdown */}
             <div
                 className={cn(
-                    'md:hidden fixed left-0 right-0 top-16 z-[60] border-t border-border bg-card overflow-y-auto transition-all duration-300 ease-out',
+                    'md:hidden fixed left-0 right-0 top-[calc(4rem_+_env(safe-area-inset-top))] z-[60] border-t border-border bg-card overflow-y-auto transition-all duration-300 ease-out',
                     menuOpen
-                        ? 'max-h-[calc(100vh-4rem)] opacity-100 translate-y-0'
+                        ? 'max-h-[calc(100dvh_-_4rem_-_env(safe-area-inset-top))] opacity-100 translate-y-0'
                         : 'max-h-0 opacity-0 -translate-y-4 pointer-events-none'
                 )}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
-                <div className="p-4 space-y-1">
+                <div className="p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] space-y-1">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-muted-foreground">Menu</span>
                         <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Close menu" onClick={() => setMenuOpen(false)}>

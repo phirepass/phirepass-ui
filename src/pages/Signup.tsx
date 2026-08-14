@@ -10,6 +10,7 @@ import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicato
 import { toast } from '@/components/ui/sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { AuthShowcase } from '@/components/AuthShowcase';
+import { LegalLinks } from '@/components/LegalLinks';
 
 export default function Signup() {
     const [email, setEmail] = useState('');
@@ -235,16 +236,12 @@ export default function Signup() {
                         </div>
 
                         {/* Footer */}
-                        <p className="text-center text-xs text-muted-foreground mt-8">
-                            By signing up, you agree to our{' '}
-                            <Link href="/terms" className="hover:text-foreground transition-colors underline underline-offset-2">
-                                Terms
-                            </Link>{' '}
-                            and{' '}
-                            <Link href="/privacy" className="hover:text-foreground transition-colors underline underline-offset-2">
-                                Privacy Policy
-                            </Link>
-                        </p>
+                        <div className="mt-8 flex flex-col items-center gap-3">
+                            <p className="text-center text-xs text-muted-foreground">
+                                By signing up, you agree to our
+                            </p>
+                            <LegalLinks termsLabel="Terms" privacyLabel="Privacy Policy" className="text-xs" />
+                        </div>
                     </div>
                 </div>
             </div>

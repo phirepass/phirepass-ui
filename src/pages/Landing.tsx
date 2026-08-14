@@ -44,10 +44,14 @@ import {
     TERMINAL_LINE_TONES,
 } from "@/lib/marketing-demo";
 import { PhirepassLogo } from "@/components/PhirepassLogo";
+import { LegalLinks } from "@/components/LegalLinks";
 
 // Every icon within a section gets its own hue, so no two cards in a grid read
 // as the same category. Green stays the brand colour and leads each section.
 // `success` and `accent` share a hue, so they are never used in one section.
+/** One shell for every section, matching the dashboard's own container. */
+const SECTION_SHELL = "container mx-auto px-4";
+
 const colorStyles = {
     accent: { bg: "bg-accent/20", text: "text-accent" },
     info: { bg: "bg-info/20", text: "text-info" },
@@ -131,7 +135,7 @@ const Landing = () => {
         {
             icon: Lock,
             title: "Local service",
-            description: "SSH, SFTP, or a local HTTP service (Grafana, an admin panel, an API) — never exposed publicly.",
+            description: "SSH, SFTP, RDP, or a local HTTP service (Grafana, an admin panel, an API) — never exposed publicly.",
         },
     ];
 
@@ -280,8 +284,8 @@ const Landing = () => {
 
             <div className="relative z-10">
                 {/* Hero Section */}
-                <section className="min-h-screen flex items-center px-6 py-20">
-                    <div className="w-full max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 lg:gap-12 items-center">
+                <section className="min-h-screen flex items-center py-20">
+                    <div className={`w-full ${SECTION_SHELL} grid lg:grid-cols-2 gap-16 lg:gap-12 items-center`}>
                         {/* Copy */}
                         <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8">
@@ -453,7 +457,7 @@ const Landing = () => {
                 </section>
 
                 {/* How it works */}
-                <section id="how-it-works" className="px-6 py-24 max-w-8xl mx-auto scroll-mt-16">
+                <section id="how-it-works" className={`${SECTION_SHELL} py-24 scroll-mt-16`}>
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">
                             One outbound connection.{" "}
@@ -483,10 +487,10 @@ const Landing = () => {
                 </section>
 
                 {/* Product carousel */}
-                <section id="dashboard-preview" className="px-6 py-24 relative overflow-hidden">
+                <section id="dashboard-preview" className="py-24 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
 
-                    <div className="max-w-6xl mx-auto relative">
+                    <div className={`${SECTION_SHELL} relative`}>
                         <div className="text-center mb-12">
                             <h2 className="text-3xl md:text-5xl font-bold mb-4">
                                 See it <span className="text-accent">in action</span>
@@ -545,7 +549,7 @@ const Landing = () => {
                 </section>
 
                 {/* Core capabilities */}
-                <section className="px-6 py-24 max-w-8xl mx-auto">
+                <section className={`${SECTION_SHELL} py-24`}>
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">
                             Everything you need to{" "}
@@ -574,7 +578,7 @@ const Landing = () => {
                 </section>
 
                 {/* Uptime monitoring */}
-                <section id="monitoring" className="px-6 py-24 max-w-8xl mx-auto scroll-mt-16">
+                <section id="monitoring" className={`${SECTION_SHELL} py-24 scroll-mt-16`}>
                     <div className="text-center mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-6">
                             <Activity className="w-4 h-4 text-accent" />
@@ -694,8 +698,8 @@ const Landing = () => {
                 </section>
 
                 {/* Security */}
-                <section className="px-6 py-24 bg-secondary/20">
-                    <div className="max-w-8xl mx-auto">
+                <section className="py-24 bg-secondary/20">
+                    <div className={SECTION_SHELL}>
                         <div className="text-center mb-16">
                             <h2 className="text-3xl md:text-5xl font-bold mb-4">
                                 No static secrets. <span className="text-accent">Ever.</span>
@@ -721,7 +725,7 @@ const Landing = () => {
                 </section>
 
                 {/* Target markets */}
-                <section className="px-6 py-24 max-w-8xl mx-auto">
+                <section className={`${SECTION_SHELL} py-24`}>
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">
                             Built for <span className="text-accent">Your Team</span>
@@ -746,8 +750,8 @@ const Landing = () => {
                 </section>
 
                 {/* Feature summary */}
-                <section className="px-6 py-24 bg-secondary/20">
-                    <div className="max-w-8xl mx-auto">
+                <section className="py-24 bg-secondary/20">
+                    <div className={SECTION_SHELL}>
                         <div className="grid md:grid-cols-2 gap-12 items-start">
                             <div>
                                 <h2 className="text-3xl md:text-4xl font-bold mb-6">
@@ -798,81 +802,93 @@ const Landing = () => {
                 </section>
 
                 {/* CTA */}
-                <section className="px-6 py-24">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <div className="rounded-3xl border border-accent/30 bg-gradient-to-b from-accent/10 to-transparent p-12 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--accent)/0.1),transparent_60%)]" />
+                <section id="get-started" className="py-24 px-4 scroll-mt-16">
+                    <div className="container mx-auto max-w-5xl">
+                        <div className="relative overflow-hidden rounded-[2rem] border border-accent/25 bg-[hsl(222_28%_4%)] px-6 py-16 sm:px-12 text-center">
+                            {/* Layered light: a spotlight from above, a fine grid that
+                                fades out, and a lit top edge — depth without a heavy
+                                filled panel. */}
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.18),transparent_60%)]" />
+                            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(hsl(var(--border)/0.35)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--border)/0.35)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_65%)]" />
+                            <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
 
-                            <div className="relative">
+                            <div className="relative flex flex-col items-center">
+                                <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-border bg-card/70 px-3 py-1.5 backdrop-blur-sm">
+                                    <PhirepassLogo className="h-5 w-5" />
+                                    <span className="text-xs font-medium tracking-wide text-muted-foreground">
+                                        Install the agent once
+                                    </span>
+                                </div>
+
                                 {/* Bookends the hero: the same three beats, closing the
                                     page on the line it opened with. */}
-                                <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                                <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-5">
                                     Reach it. Watch it.{" "}
                                     <span className="text-accent">Never expose it.</span>
                                 </h2>
-                                <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-                                    Install the agent once. Access your node from any browser, and
-                                    put its services under monitoring, in minutes.
+                                <p className="text-muted-foreground text-lg mb-10 max-w-xl">
+                                    Access your node from any browser, and put its services under
+                                    monitoring, in minutes.
                                 </p>
 
-                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <div className="flex w-full flex-col sm:w-auto sm:flex-row gap-3">
                                     <Button
                                         variant="glow"
                                         size="lg"
-                                        className="text-lg px-10 py-6 group"
+                                        className="group h-14 px-9 text-base font-semibold"
                                         onClick={() => router.push("/login")}
                                     >
                                         Get Started
-                                        <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+                                        <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                                     </Button>
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="lg"
-                                        className="text-lg px-10 py-6"
+                                        className="group h-14 px-9 text-base font-medium border border-border bg-card/50 backdrop-blur-sm hover:border-accent/40 hover:bg-accent/5"
                                         onClick={() =>
                                             document
                                                 .getElementById("how-it-works")
                                                 ?.scrollIntoView({ behavior: "smooth" })
                                         }
                                     >
+                                        <Network className="mr-2 h-5 w-5 text-accent" />
                                         See How It Works
                                     </Button>
+                                </div>
+
+                                <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                                    {["Outbound-only agent", "No inbound ports", "Works behind CG-NAT"].map((fact) => (
+                                        <span key={fact} className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-accent" />
+                                            {fact}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <footer className="px-6 py-12 border-t border-border">
-                    <div className="max-w-8xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <Terminal className="w-5 h-5 text-accent" />
-                            <span className="font-semibold">Phirepass</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-2 md:items-start">
+                {/* Darker than the page it closes, so the footer reads as a
+                    separate band rather than more page. The background gradients
+                    stop at its solid fill. */}
+                <footer className="py-12 border-t border-border bg-[hsl(222_28%_3%)]">
+                    {/* `container mx-auto px-4` — the same shell the dashboard uses
+                        (Header.tsx, Nodes.tsx), so the footer lines up with the
+                        signed-in pages. */}
+                    <div className="container mx-auto px-4 flex flex-col gap-6">
+                        <LegalLinks withGithub />
+
+                        {/* Name and copyright close the page, on their own last line. */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-border/60 pt-6 text-center">
+                            <div className="flex items-center gap-3">
+                                <PhirepassLogo className="w-8 h-8" />
+                                <span className="font-semibold">Phirepass</span>
+                            </div>
                             <p className="text-sm text-muted-foreground">
                                 © 2026 Phirepass. Secure remote access and uptime
                                 monitoring, without the complexity.
                             </p>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <Link href="/terms" className="hover:text-foreground transition-colors">
-                                    Terms
-                                </Link>
-                                <Link href="/privacy" className="hover:text-foreground transition-colors">
-                                    Privacy
-                                </Link>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="px-2 py-1 rounded bg-secondary">
-                                WebSockets
-                            </span>
-                            <span className="px-2 py-1 rounded bg-secondary">
-                                xterm.js
-                            </span>
-                            <span className="px-2 py-1 rounded bg-secondary">
-                                Ed25519
-                            </span>
                         </div>
                     </div>
                 </footer>
