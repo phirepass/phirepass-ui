@@ -30,6 +30,9 @@ import {
     Fingerprint,
     Home,
     Radio,
+    Activity,
+    MapPin,
+    History,
 } from "lucide-react";
 
 // Green stays the dominant brand color; info (blue) and warning (gold) are
@@ -149,6 +152,41 @@ const Landing = () => {
         },
     ] as const;
 
+    // Monitoring gets its own section rather than a fifth capability card: the
+    // others answer "reach the machine", this one answers "is it healthy".
+    const monitoringPoints = [
+        {
+            icon: Activity,
+            color: "accent",
+            title: "Checks that know the difference",
+            description:
+                "Every check tests the status code, an optional keyword in the response body, and how long the answer took. A slow but correct response is marked degraded, not down — so a red monitor still means something at 3am.",
+        },
+        {
+            icon: MapPin,
+            color: "info",
+            title: "Watch what the internet can't see",
+            description:
+                "Run a check from the public internet, or from one of your own agents. Running it on the agent is the only way to watch an internal dashboard, a private API, or a service bound to localhost — same agent you already installed, nothing extra to deploy.",
+        },
+        {
+            icon: History,
+            color: "accent",
+            title: "Thirty days of honest history",
+            description:
+                "Uptime across 24 hours, 7 days, and 30 days, a daily bar strip, average latency, and a timeline of every incident. Checks that reached no verdict are shown as gaps and left out of the percentage — never quietly counted as uptime.",
+        },
+    ] as const;
+
+    const monitoringFacts = [
+        "HTTP & HTTPS",
+        "Every 15 minutes to once a day",
+        "Keyword match",
+        "Custom status codes",
+        "Latency thresholds",
+        "Incident log",
+    ];
+
     const securityPoints = [
         {
             icon: Wifi,
@@ -208,6 +246,8 @@ const Landing = () => {
         "Browser-based SSH terminal",
         "Visual SFTP file browser",
         "Browser access to internal HTTP services",
+        "Uptime monitoring with 30-day history",
+        "Checks that run from inside the private network",
         "Outbound-only agent — works behind NAT/CG-NAT",
         "Ed25519 node identity + short-lived JWTs",
         "Home Assistant add-on available",
@@ -253,9 +293,9 @@ const Landing = () => {
                     <p className="text-base text-muted-foreground text-center max-w-2xl mb-12 animate-fade-in leading-relaxed">
                         Install a lightweight agent on any machine — behind NAT, a
                         home router, or CG-NAT — and get a full SSH terminal, an SFTP
-                        file browser, and browser access to its local HTTP services,
-                        relayed securely to any web browser. The agent only ever
-                        dials out.
+                        file browser, browser access to its local HTTP services, and
+                        uptime monitoring for what runs on it, relayed securely to any
+                        web browser. The agent only ever dials out.
                     </p>
 
                     {/* CTA Buttons */}
@@ -415,6 +455,50 @@ const Landing = () => {
                     </div>
                 </section>
 
+                {/* Uptime monitoring */}
+                <section id="monitoring" className="px-6 py-24 max-w-8xl mx-auto scroll-mt-16">
+                    <div className="text-center mb-16">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-6">
+                            <Activity className="w-4 h-4 text-accent" />
+                            <span className="text-sm text-accent font-medium">New</span>
+                        </div>
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">
+                            Know it&apos;s up.{" "}
+                            <span className="text-accent">Before anyone tells you.</span>
+                        </h2>
+                        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                            Uptime monitoring built into the dashboard you already use — and
+                            able to run from inside the network, where public monitors can&apos;t reach
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {monitoringPoints.map((point) => (
+                            <div
+                                key={point.title}
+                                className="group p-8 rounded-2xl border border-border bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all duration-300"
+                            >
+                                <div className={`w-14 h-14 rounded-xl ${colorStyles[point.color].bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                                    <point.icon className={`w-7 h-7 ${colorStyles[point.color].text}`} />
+                                </div>
+                                <h3 className="font-bold text-xl text-foreground mb-3">{point.title}</h3>
+                                <p className="text-muted-foreground leading-relaxed">{point.description}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-wrap justify-center gap-3 mt-10">
+                        {monitoringFacts.map((fact) => (
+                            <span
+                                key={fact}
+                                className="px-3 py-1.5 rounded-full border border-border bg-card/30 text-xs text-muted-foreground"
+                            >
+                                {fact}
+                            </span>
+                        ))}
+                    </div>
+                </section>
+
                 {/* Security */}
                 <section className="px-6 py-24 bg-secondary/20">
                     <div className="max-w-8xl mx-auto">
@@ -479,7 +563,8 @@ const Landing = () => {
                                 <p className="text-muted-foreground text-lg mb-8">
                                     Phirepass is purpose-built for reaching private machines.
                                     No bloated features, no complex identity management —
-                                    just fast, secure access to SSH, SFTP, and local HTTP services.
+                                    just fast, secure access to SSH, SFTP, and local HTTP
+                                    services, and uptime monitoring for the services on them.
                                 </p>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,8 +1,8 @@
 # PhirePass
 
-> PhirePass is a remote-access tool. A lightweight Rust agent runs on a private or NATed machine and dials out (outbound-only, over WebSocket) to a PhirePass server, exposing SSH, SFTP, and arbitrary local HTTP services on that machine to an authenticated browser session — no inbound firewall rules or port forwarding required.
+> PhirePass is a remote-access and uptime-monitoring tool. A lightweight Rust agent runs on a private or NATed machine and dials out (outbound-only, over WebSocket) to a PhirePass server, exposing SSH, SFTP, and arbitrary local HTTP services on that machine to an authenticated browser session — no inbound firewall rules or port forwarding required. The same agent also runs uptime checks against services it can reach, so targets that are not publicly reachable can still be monitored.
 
-This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, personal access tokens (PATs), and users. It talks directly to its own database for CRUD (nodes, tokens, users), and connects over WebSocket to the PhirePass server/relay for live SSH/SFTP/terminal sessions and HTTP proxying, rendered via embedded terminal and SFTP web components.
+This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, personal access tokens (PATs), users, and uptime monitors. It talks directly to its own database for CRUD (nodes, tokens, users, monitors), and connects over WebSocket to the PhirePass server/relay for live SSH/SFTP/terminal sessions and HTTP proxying, rendered via embedded terminal and SFTP web components.
 
 ## How it works
 
@@ -16,6 +16,17 @@ This dashboard (phirepass.com) is the web UI for managing nodes, tunnels, person
 - **Node**: an installation of the agent on a machine you want remote access to.
 - **PAT (Personal Access Token)**: a scoped, revocable token used by an agent to authenticate and bootstrap a session with the server.
 - **Tunnel**: a live SSH, SFTP, or HTTP proxy session routed through the server/relay to a specific node.
+- **Monitor**: a recurring uptime check on a URL. HTTP(S) checks test the status code, an optional response-body keyword, and response time; a correct but slow answer is recorded as `degraded` rather than `down`, and a check that reached no verdict is recorded as `unknown`.
+- **Vantage**: where a monitor's check runs from — the server fleet (the target as the public internet sees it) or one of your own agents (the only way to watch a service that is not reachable from outside its network).
+- **Incident**: an open or resolved period of downtime for a monitor, recorded automatically from consecutive failing checks.
+
+## Uptime monitoring
+
+- Check intervals run from every 15 minutes to once a day.
+- Per-monitor settings: HTTP method, expected status codes, keyword match (`contains` or `absent`), redirect following, request timeout, and a response-time threshold above which a check counts as degraded.
+- An agent-run monitor can treat its agent being offline either as `unknown` (default — the check never ran, so nothing was learned) or as a genuine outage.
+- History is kept as 24-hour, 7-day, and 30-day uptime windows plus a per-day strip, with average latency and an incident timeline. `unknown` checks are excluded from the uptime percentage rather than counted as uptime.
+- Monitors are viewed and managed in the dashboard; PhirePass does not currently send outbound alert notifications.
 
 ## Notes
 
