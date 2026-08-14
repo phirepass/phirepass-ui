@@ -229,10 +229,10 @@ export default function UsersPage() {
 
             <StatTiles
                 tiles={[
-                    { label: 'Users', value: users.length, icon: Users, tone: 'accent' },
+                    { label: 'Total users', value: users.length, icon: Users, tone: 'primary' },
                     { label: 'Active', value: counts.active, icon: ShieldCheck, tone: 'success' },
-                    { label: 'Invited', value: counts.invited, icon: Clock, tone: 'info', hint: 'Not accepted yet' },
                     { label: 'Suspended', value: counts.suspended, icon: ShieldAlert, tone: 'danger' },
+                    { label: 'Invited', value: counts.invited, icon: Clock, tone: 'info', hint: 'Not accepted yet' },
                 ]}
             />
 

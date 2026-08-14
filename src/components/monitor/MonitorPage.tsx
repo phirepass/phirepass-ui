@@ -288,10 +288,10 @@ export default function MonitorPage() {
 
             <StatTiles
                 tiles={[
-                    { label: 'Monitors', value: monitors.length, icon: Activity, tone: 'accent' },
+                    { label: 'Total monitors', value: monitors.length, icon: Activity, tone: 'primary' },
                     { label: 'Up', value: counts.up, icon: CheckCircle2, tone: 'success' },
-                    { label: 'Degraded', value: counts.degraded, icon: AlertTriangle, tone: 'warning' },
                     { label: 'Down', value: counts.down, icon: XCircle, tone: 'danger' },
+                    { label: 'Degraded', value: counts.degraded, icon: AlertTriangle, tone: 'warning' },
                 ]}
             />
 

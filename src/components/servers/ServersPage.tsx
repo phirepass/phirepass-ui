@@ -187,10 +187,10 @@ export default function ServersPage() {
 
             <StatTiles
                 tiles={[
-                    { label: 'Instances', value: servers.length, icon: Server, tone: 'accent' },
+                    { label: 'Total servers', value: servers.length, icon: Server, tone: 'primary' },
                     { label: 'Online', value: counts.online, icon: Radio, tone: 'success', hint: `${counts.draining} draining` },
-                    { label: 'Nodes', value: totals.nodes, icon: Network, tone: 'info', hint: 'Across serving instances' },
                     { label: 'Sessions', value: totals.sessions, icon: Users, tone: 'violet', hint: `${totals.connections} browser clients` },
+                    { label: 'Nodes', value: totals.nodes, icon: Network, tone: 'info', hint: 'Across serving instances' },
                 ]}
             />
 
