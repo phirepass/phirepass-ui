@@ -251,7 +251,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                 {kind === 'http' ? (
                                     <span
                                         aria-hidden
-                                        className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                        className="ml-5 pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
                                     >
                                         {method}
                                     </span>

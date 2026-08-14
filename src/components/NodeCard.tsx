@@ -24,7 +24,9 @@ import {
     Pencil,
     Trash2,
     Plus,
-    Loader2
+    Loader2,
+    Gauge,
+    Network
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -234,6 +236,8 @@ export function NodeCard({
         typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
     );
     const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
+    const monitorCount = node.monitor_count;
+
     const matchingServices = (kind: string) => Object.entries(node.services ?? {})
         .filter(([service]) => normalizeServiceName(service) === kind)
         .map(([, summary]) => toServiceSummary(summary));
@@ -488,7 +492,7 @@ export function NodeCard({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-2 px-1 py-1">
-                                <Clock className="w-3.5 h-3.5 shrink-0 text-info/80" />
+                                <Clock className="w-3.5 h-3.5 shrink-0 text-accent/80" />
                                 <span className="text-muted-foreground">Uptime</span>
                                 <span className="ml-auto font-mono text-foreground">{formatDuration(node.stats.host_uptime_secs)}</span>
                             </div>
@@ -503,7 +507,7 @@ export function NodeCard({
                                 className="flex items-center gap-2 px-1 py-1 cursor-pointer"
                                 onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
                             >
-                                <Globe className="w-3.5 h-3.5 shrink-0 text-accent/80" />
+                                <Globe className="w-3.5 h-3.5 shrink-0 text-info/80" />
                                 <span className="text-muted-foreground shrink-0">IP</span>
                                 <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
                                     {displayIp || 'unknown'}
@@ -537,7 +541,7 @@ export function NodeCard({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-2 px-1 py-1">
-                                <Activity className="w-3.5 h-3.5 shrink-0 text-warning/80" />
+                                <Gauge className="w-3.5 h-3.5 shrink-0 text-warning/80" />
                                 <span className="text-muted-foreground">Load</span>
                                 <span className="ml-auto font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</span>
                             </div>
@@ -551,6 +555,41 @@ export function NodeCard({
                         <span className="text-muted-foreground">Procs</span>
                         <span className="ml-auto font-mono text-foreground">{node.stats.host_processes}</span>
                     </div>
+                    {/* Open sockets on the host — reported by the agent every
+                        heartbeat and, until now, the one metric the dashboard
+                        never showed. */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex items-center gap-2 px-1 py-1">
+                                <Network className="w-3.5 h-3.5 shrink-0 text-primary/70" />
+                                <span className="text-muted-foreground">Connections</span>
+                                <span className="ml-auto font-mono text-foreground">{node.stats.host_connections}</span>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            Network connections open on the host
+                        </TooltipContent>
+                    </Tooltip>
+                    {/* Uptime monitors whose checks run from this node. Absent
+                        (rather than 0) for a node restored from an older cache,
+                        which is why the row is conditional on the field
+                        existing rather than on it being non-zero. */}
+                    {monitorCount !== undefined ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 px-1 py-1">
+                                    <Activity className="w-3.5 h-3.5 shrink-0 text-success/80" />
+                                    <span className="text-muted-foreground">Monitors</span>
+                                    <span className="ml-auto font-mono text-foreground">{monitorCount}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {monitorCount === 0
+                                    ? 'No uptime checks run from this node'
+                                    : `${monitorCount} uptime ${monitorCount === 1 ? 'check runs' : 'checks run'} from this node`}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
                 </div>
 
                 {/* Where the node's public address geolocates to. Only rendered

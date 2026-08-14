@@ -7,7 +7,6 @@ import {
     CalendarClock,
     CheckCircle2,
     Plus,
-    RadioTower,
     XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -289,7 +288,7 @@ export default function MonitorPage() {
 
             <StatTiles
                 tiles={[
-                    { label: 'Monitors', value: monitors.length, icon: RadioTower, tone: 'accent' },
+                    { label: 'Monitors', value: monitors.length, icon: Activity, tone: 'accent' },
                     { label: 'Up', value: counts.up, icon: CheckCircle2, tone: 'success' },
                     { label: 'Degraded', value: counts.degraded, icon: AlertTriangle, tone: 'warning' },
                     { label: 'Down', value: counts.down, icon: XCircle, tone: 'danger' },

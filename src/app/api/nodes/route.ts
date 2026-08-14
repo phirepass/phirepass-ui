@@ -6,7 +6,7 @@ import type { NodeStatus } from '@/types/node';
 
 type NodeStats = {
     ip: string;
-    // host_connections: number; // unused by frontend
+    host_connections: number;
     host_cpu: number;
     host_ip: string;
     host_local_ip: string;
@@ -172,7 +172,7 @@ function normalizeSettings(value: unknown): NodeSettings {
 function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
     return {
         ip: '',
-        // host_connections: 0, // unused by frontend
+        host_connections: 0,
         host_cpu: 0,
         host_ip: '',
         host_local_ip: '',
@@ -277,7 +277,7 @@ function normalizeStatsPayload(
         info,
         stats: buildDefaultStats({
             ip: toString(statsSource.ip ?? payload?.ip) || staticField('host_ip'),
-            // host_connections: toNumber(statsSource.host_connections), // unused by frontend
+            host_connections: toNumber(statsSource.host_connections),
             host_cpu: toNumber(statsSource.host_cpu),
             host_ip: staticField('host_ip'),
             host_local_ip: staticField('host_local_ip'),
@@ -384,6 +384,33 @@ export async function GET(req: Request) {
         );
 
         const nodesFromDb = result.rows as UserNodeRow[];
+
+        // One grouped query rather than a count per card. Monitors with a null
+        // node_id run from the server fleet rather than an agent, so they belong
+        // to no node and are excluded.
+        //
+        // Non-fatal by design: the uptime schema is applied by hand (see
+        // docs/uptime-schema.sql — there is no migration runner), so a database
+        // without a `monitors` table must still be able to list nodes. On
+        // failure the counts are simply absent.
+        let monitorCountByNode = new Map<string, number>();
+        let monitorCountsAvailable = true;
+        try {
+            const monitorCounts = await query(
+                `SELECT node_id, count(*)::int AS total
+                 FROM monitors
+                 WHERE user_id = $1 AND node_id IS NOT NULL
+                 GROUP BY node_id`,
+                [user.id]
+            );
+            monitorCountByNode = new Map<string, number>(
+                (monitorCounts.rows as { node_id: string; total: number }[]).map((row) => [row.node_id, row.total])
+            );
+        } catch (error) {
+            console.warn('[nodes] monitor counts unavailable:', error);
+            monitorCountsAvailable = false;
+        }
+
         const statsById = await getUserNodeStats(redis, user.id);
 
         const mergedNodes = nodesFromDb.map((node) => {
@@ -422,6 +449,7 @@ export async function GET(req: Request) {
                 stats,
                 info: payload?.info ?? null,
                 services,
+                monitor_count: monitorCountsAvailable ? monitorCountByNode.get(node.id) ?? 0 : undefined,
             };
         });
 

@@ -35,7 +35,8 @@ export interface NodeInfo {
  */
 export interface NodeStats {
     ip: string;
-    // host_connections: number; // unused by frontend
+    /** Open network connections on the host, sampled per heartbeat. */
+    host_connections: number;
     host_cpu: number;
     host_ip: string;
     host_local_ip: string;
@@ -83,6 +84,12 @@ export interface TunnelNode {
     stats: NodeStats;
     info?: NodeInfo | null;
     services: Record<string, number | { visibility: 'public' | 'private'; count: number }>;
+    /**
+     * Uptime monitors that run their checks from this node. Optional so nodes
+     * restored from an older local cache still typecheck; treat absent as
+     * unknown rather than zero.
+     */
+    monitor_count?: number;
 }
 
 export interface TerminalTab {
