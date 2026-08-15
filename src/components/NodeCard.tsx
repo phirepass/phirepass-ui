@@ -26,7 +26,9 @@ import {
     Plus,
     Loader2,
     Gauge,
-    Network
+    Network,
+    Router,
+    Waypoints
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -224,6 +226,15 @@ export function NodeCard({
     // itself as having — which can differ from `node.ip`, the address the server
     // observed the connection arriving from (a relay or proxy hop in between).
     const publicIpInfo = node.info?.public ?? null;
+    // The LAN segment the node sits on, read from its own routing table at login.
+    // Unlike the public lookup this costs no round trip, so it is present for any
+    // host with a default route — but absent entirely for agents older than the
+    // field, hence every consumer below tolerates `null`.
+    const lan = node.info?.lan ?? null;
+    const gatewayIp = (lan?.gateway_ip ?? '').trim();
+    const gatewayMac = (lan?.gateway_mac ?? '').trim();
+    const lanCidr = (lan?.cidr ?? '').trim();
+    const lanIface = (lan?.iface ?? '').trim();
     const publicIp = (publicIpInfo?.ip ?? '').trim();
     const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
         .filter((part) => !!part?.trim())
@@ -538,6 +549,75 @@ export function NodeCard({
                             ) : null}
                         </TooltipContent>
                     </Tooltip>
+                    {/* The LAN segment, sat next to IP because it answers the same
+                        question one hop further out: not "what address is this
+                        node" but "what network is it on". Each row is conditional
+                        on its own value — a host with no default route, or an
+                        agent too old to report one, gets no empty row. Both carry
+                        the same double-click blur as the IP above, since they are
+                        addresses too. */}
+                    {gatewayIp ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className="flex items-center gap-2 px-1 py-1 cursor-pointer"
+                                    onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
+                                >
+                                    <Router className="w-3.5 h-3.5 shrink-0 text-info/70" />
+                                    <span className="text-muted-foreground shrink-0">Gateway</span>
+                                    <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
+                                        {gatewayIp}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Default gateway: {ipBlurred ? '••••••••' : gatewayIp}
+                                {gatewayMac ? (
+                                    <>
+                                        <br />
+                                        MAC: {ipBlurred ? '••••••••' : gatewayMac}
+                                    </>
+                                ) : null}
+                                {lanIface ? (
+                                    <>
+                                        <br />
+                                        Interface: {lanIface}
+                                    </>
+                                ) : null}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
+                    {lanCidr ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className="flex items-center gap-2 px-1 py-1 cursor-pointer"
+                                    onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
+                                >
+                                    <Waypoints className="w-3.5 h-3.5 shrink-0 text-info/70" />
+                                    <span className="text-muted-foreground shrink-0">Subnet</span>
+                                    <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
+                                        {lanCidr}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                LAN subnet: {ipBlurred ? '••••••••' : lanCidr}
+                                {lanIface ? (
+                                    <>
+                                        <br />
+                                        Interface: {lanIface}
+                                    </>
+                                ) : null}
+                                {lan?.container ? (
+                                    <>
+                                        <br />
+                                        Agent runs in a container, so this may be a bridge network
+                                    </>
+                                ) : null}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-2 px-1 py-1">

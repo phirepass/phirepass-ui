@@ -9,6 +9,26 @@ import type { PublicIpLocation } from './geo';
 export type NodePublicIpInfo = PublicIpLocation;
 
 /**
+ * Identity of the LAN segment the node sits on, read by the agent from its own
+ * routing table at login. Costs no network round trip, so unlike
+ * {@link NodePublicIpInfo} it is present whenever the host has a default route.
+ *
+ * Every field is optional: a host may legitimately have no default route, and
+ * agents built before the field existed send no `lan` at all.
+ */
+export interface NodeLanFingerprint {
+    /** Default gateway's link-layer address, lowercase hex, colon separated. */
+    gateway_mac?: string;
+    gateway_ip?: string;
+    /** The interface's network in CIDR form, e.g. `192.168.1.0/24`. */
+    cidr?: string;
+    /** Interface carrying the default route, e.g. `eth0`. */
+    iface?: string;
+    /** Whether the agent runs inside a container — explains a `172.17.x` local IP. */
+    container?: boolean;
+}
+
+/**
  * The half of a node's telemetry that cannot change while the agent runs. Sent
  * once with the agent's auth frame, so it is present even between heartbeats.
  * `null` for a node that has never connected.
@@ -26,6 +46,7 @@ export interface NodeInfo {
     host_mac?: string;
     host_os_info?: string;
     public?: NodePublicIpInfo | null;
+    lan?: NodeLanFingerprint | null;
     created_at?: number;
 }
 

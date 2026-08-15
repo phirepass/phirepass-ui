@@ -52,6 +52,14 @@ type NodePublicIpInfo = {
     is_proxy?: boolean;
 };
 
+type NodeLanFingerprint = {
+    gateway_mac?: string;
+    gateway_ip?: string;
+    cidr?: string;
+    iface?: string;
+    container?: boolean;
+};
+
 type NodeInfoPayload = {
     proc_id?: string;
     version?: string;
@@ -61,6 +69,7 @@ type NodeInfoPayload = {
     host_mac?: string;
     host_os_info?: string;
     public?: NodePublicIpInfo | null;
+    lan?: NodeLanFingerprint | null;
     created_at?: number;
 };
 
@@ -224,6 +233,34 @@ function normalizePublicIpInfo(value: unknown): NodePublicIpInfo | null {
     };
 }
 
+/**
+ * The agent reads this from its own routing table, so a host with no default
+ * route reports the object with every field empty. That is indistinguishable
+ * from "not reported" once normalized, so an entry with nothing usable in it
+ * collapses to `null` and the card renders no LAN rows at all.
+ */
+function normalizeLanFingerprint(value: unknown): NodeLanFingerprint | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const raw = value as NodeLanFingerprint;
+
+    const lan: NodeLanFingerprint = {
+        gateway_mac: toString(raw.gateway_mac) || undefined,
+        gateway_ip: toString(raw.gateway_ip) || undefined,
+        cidr: toString(raw.cidr) || undefined,
+        iface: toString(raw.iface) || undefined,
+        container: typeof raw.container === 'boolean' ? raw.container : undefined,
+    };
+
+    const hasAddressing = !!(lan.gateway_mac || lan.gateway_ip || lan.cidr || lan.iface);
+
+    // `container` alone says nothing about the segment, so it does not keep the
+    // object alive on its own.
+    return hasAddressing ? lan : null;
+}
+
 function normalizeInfoPayload(value: unknown): NodeInfoPayload | null {
     if (!value || typeof value !== 'object') {
         return null;
@@ -240,6 +277,7 @@ function normalizeInfoPayload(value: unknown): NodeInfoPayload | null {
         host_mac: toString(raw.host_mac) || undefined,
         host_os_info: toString(raw.host_os_info) || undefined,
         public: normalizePublicIpInfo(raw.public),
+        lan: normalizeLanFingerprint(raw.lan),
         created_at: typeof raw.created_at === 'number' ? raw.created_at : undefined,
     };
 }
