@@ -256,9 +256,10 @@ function normalizeLanFingerprint(value: unknown): NodeLanFingerprint | null {
 
     const hasAddressing = !!(lan.gateway_mac || lan.gateway_ip || lan.cidr || lan.iface);
 
-    // `container` alone says nothing about the segment, so it does not keep the
-    // object alive on its own.
-    return hasAddressing ? lan : null;
+    // `container` keeps the object alive on its own: the card states it as a
+    // fact of its own now, not merely as a caveat on the segment, and a
+    // containerised agent with no default route still has that worth showing.
+    return hasAddressing || typeof lan.container === 'boolean' ? lan : null;
 }
 
 function normalizeInfoPayload(value: unknown): NodeInfoPayload | null {

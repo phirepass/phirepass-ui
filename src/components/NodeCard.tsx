@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import { TunnelNode } from '@/types/node';
 import { LocationStrip } from './LocationStrip';
 import { LocationDetails } from './LocationDetails';
+import { LanFingerprintDetails } from './LanFingerprintDetails';
 import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
@@ -28,7 +29,7 @@ import {
     Gauge,
     Network,
     Router,
-    Waypoints
+    Container as ContainerIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from "@/components/ui/checkbox";
@@ -235,6 +236,16 @@ export function NodeCard({
     const gatewayMac = (lan?.gateway_mac ?? '').trim();
     const lanCidr = (lan?.cidr ?? '').trim();
     const lanIface = (lan?.iface ?? '').trim();
+    // Tri-state on purpose: `null` means the agent never reported the field, and
+    // that is not the same claim as `false`. Only a real boolean earns the row
+    // and the header badge — an older agent shows neither rather than being
+    // labelled bare-metal on no evidence.
+    const isContainer = typeof lan?.container === 'boolean' ? lan.container : null;
+    // Whether the location dialog has a second half to show. `displayLocalIp` is
+    // deliberately not counted: it predates the fingerprint and is present for
+    // practically every node, so counting it would title a section "Local
+    // network" over a single row the dialog never used to bother with.
+    const hasLanDetails = !!(gatewayIp || gatewayMac || lanCidr || lanIface) || isContainer !== null;
     const publicIp = (publicIpInfo?.ip ?? '').trim();
     const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
         .filter((part) => !!part?.trim())
@@ -468,6 +479,27 @@ export function NodeCard({
                                 MAC {node.stats.host_mac}
                             </TooltipContent>
                         </Tooltip>
+                        {/* Sits beside the OS chip because it qualifies it: the
+                            OS string of a containerised agent describes the
+                            image, not the machine. Shown only when the agent
+                            positively reports a container, so it reads as a
+                            marker rather than a field — the false case is left
+                            to the stats row below. */}
+                        {isContainer ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1 text-xs text-lime bg-lime/10 border border-lime/25 px-1.5 py-1 rounded whitespace-nowrap shrink-0">
+                                        <ContainerIcon className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="font-medium">Container</span>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    Agent runs inside a container
+                                    {lanIface ? ` on ${lanIface}` : ''}
+                                    {lanCidr ? ` (${ipBlurred ? '••••••••' : lanCidr})` : ''}
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : null}
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded whitespace-nowrap">
                             {node.is_online ? node.stats.host_os_info : 'Unknown'}
                         </span>
@@ -551,11 +583,13 @@ export function NodeCard({
                     </Tooltip>
                     {/* The LAN segment, sat next to IP because it answers the same
                         question one hop further out: not "what address is this
-                        node" but "what network is it on". Each row is conditional
-                        on its own value — a host with no default route, or an
-                        agent too old to report one, gets no empty row. Both carry
-                        the same double-click blur as the IP above, since they are
-                        addresses too. */}
+                        node" but "what network is it on". Conditional on the
+                        value — a host with no default route, or an agent too old
+                        to report one, gets no empty row — and carrying the same
+                        double-click blur as the IP above, since it is an address
+                        too. The subnet rides in the tooltip rather than taking a
+                        row of its own: it is the same fact one field wider, and
+                        the grid slot is better spent on the container flag. */}
                     {gatewayIp ? (
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -563,7 +597,7 @@ export function NodeCard({
                                     className="flex items-center gap-2 px-1 py-1 cursor-pointer"
                                     onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
                                 >
-                                    <Router className="w-3.5 h-3.5 shrink-0 text-info/70" />
+                                    <Router className="w-3.5 h-3.5 shrink-0 text-pink/80" />
                                     <span className="text-muted-foreground shrink-0">Gateway</span>
                                     <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
                                         {gatewayIp}
@@ -578,43 +612,47 @@ export function NodeCard({
                                         MAC: {ipBlurred ? '••••••••' : gatewayMac}
                                     </>
                                 ) : null}
+                                {lanCidr ? (
+                                    <>
+                                        <br />
+                                        Subnet: {ipBlurred ? '••••••••' : lanCidr}
+                                    </>
+                                ) : null}
                                 {lanIface ? (
                                     <>
                                         <br />
                                         Interface: {lanIface}
                                     </>
                                 ) : null}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : null}
-                    {lanCidr ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div
-                                    className="flex items-center gap-2 px-1 py-1 cursor-pointer"
-                                    onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
-                                >
-                                    <Waypoints className="w-3.5 h-3.5 shrink-0 text-info/70" />
-                                    <span className="text-muted-foreground shrink-0">Subnet</span>
-                                    <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
-                                        {lanCidr}
-                                    </span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                LAN subnet: {ipBlurred ? '••••••••' : lanCidr}
-                                {lanIface ? (
-                                    <>
-                                        <br />
-                                        Interface: {lanIface}
-                                    </>
-                                ) : null}
-                                {lan?.container ? (
+                                {isContainer ? (
                                     <>
                                         <br />
                                         Agent runs in a container, so this may be a bridge network
                                     </>
                                 ) : null}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
+                    {/* Whether the agent is containerised, stated flatly rather
+                        than left to be inferred from a 172.17.x address. Plain
+                        true/false because it is a plain boolean; the row is not
+                        blurred, since unlike its neighbours it discloses no
+                        address. */}
+                    {isContainer !== null ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2 px-1 py-1">
+                                    <ContainerIcon className="w-3.5 h-3.5 shrink-0 text-lime/80" />
+                                    <span className="text-muted-foreground shrink-0">Container</span>
+                                    <span className="ml-auto min-w-0 font-mono text-foreground truncate">
+                                        {isContainer ? 'true' : 'false'}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {isContainer
+                                    ? 'Agent runs inside a container — its local IP and subnet describe the container network, not the host LAN'
+                                    : 'Agent runs directly on the host, not in a container'}
                             </TooltipContent>
                         </Tooltip>
                     ) : null}
@@ -866,7 +904,9 @@ export function NodeCard({
             {/* Mounted only while open, which is what keeps MapLibre to a single
                 WebGL context no matter how many nodes are on screen. */}
             <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
+                {/* The second section can push the map past a short viewport, so
+                    the dialog scrolls its own body rather than the page. */}
+                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
@@ -889,7 +929,32 @@ export function NodeCard({
                         </div>
                     ) : null}
 
-                    <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
+                    {/* Two halves of one question — where the node's traffic comes
+                        out, and where it starts. The headings only earn their
+                        keep once both are on screen, so a node whose agent
+                        reported no LAN keeps the dialog exactly as it was. */}
+                    {hasLanDetails ? (
+                        <div className="space-y-4">
+                            <section>
+                                <h4 className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    Public address
+                                </h4>
+                                <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
+                            </section>
+                            <section className="border-t border-border/50 pt-4">
+                                <h4 className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    Local network
+                                </h4>
+                                <LanFingerprintDetails
+                                    lan={lan}
+                                    localIp={displayLocalIp}
+                                    blurred={ipBlurred}
+                                />
+                            </section>
+                        </div>
+                    ) : (
+                        <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

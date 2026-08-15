@@ -14,7 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const WITHDRAWN_ROUTES = ["/dashboard/profile", "/dashboard/settings"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     if (WITHDRAWN_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {

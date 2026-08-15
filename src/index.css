@@ -26,6 +26,8 @@
     --color-info-foreground: hsl(var(--info-foreground));
     --color-violet: hsl(var(--violet));
     --color-violet-foreground: hsl(var(--violet-foreground));
+    --color-pink: hsl(var(--pink));
+    --color-lime: hsl(var(--lime));
     --color-border: hsl(var(--border));
     --color-input: hsl(var(--input));
     --color-ring: hsl(var(--ring));
@@ -102,6 +104,16 @@
            against the tinted card, just under AA for the small count text. */
         --violet: 265 72% 68%;
         --violet-foreground: 210 20% 98%;
+
+        /* Two icon-only hues for the node card's network rows. Every other stat
+           icon already claims one of the hues above, so these two were placed in
+           the widest gaps left on the wheel — 265→356 and 38→160 — to stay
+           tellable apart from their neighbours at 14px: pink sits clear of
+           violet, lime clear of both the emerald accent and the amber warning.
+           Icon tints only, hence no `-foreground` pair; both measure well past
+           AA on the card (~6.5:1 and ~7.5:1) even before the /80 they render at. */
+        --pink: 322 70% 66%;
+        --lime: 96 48% 55%;
 
         --border: 222 16% 15%;
         --input: 222 16% 12%;
