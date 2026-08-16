@@ -1,4 +1,4 @@
-import MonitorPage from '@/components/monitor/MonitorPage';
+import MonitorOverview from '@/components/monitor/MonitorOverview';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,5 +8,5 @@ export const dynamic = 'force-dynamic';
  * served at `/Uptime`, as a second uncontrolled entry point.
  */
 export default function Page() {
-    return <MonitorPage />;
+    return <MonitorOverview />;
 }

@@ -166,6 +166,88 @@ export interface MonitorDetail {
     incidents: Incident[];
 }
 
+/** A status tally, in the vocabulary `MonitorStatus` already uses. */
+export type MonitorStatusCounts = Record<'up' | 'degraded' | 'down' | 'unknown' | 'paused', number>;
+
+/** Which clock a monitor is running down, and how much is left on it. */
+export interface MonitorExpiryRef {
+    id: string;
+    name: string;
+    kind: 'certificate' | 'domain';
+    expires_at: string;
+    /** Whole days remaining; negative once it has lapsed. */
+    days: number;
+}
+
+/**
+ * One probe kind, described rather than listed.
+ *
+ * This is what the overview renders. It is aggregated in SQL precisely so the
+ * landing page never has to pull every monitor and its thirty days of history
+ * across the wire to draw three panels.
+ */
+export interface MonitorKindSummary {
+    kind: MonitorKind;
+    total: number;
+    counts: MonitorStatusCounts;
+    /**
+     * Uptime across every check this kind recorded in the last 24 hours.
+     *
+     * Pooled over checks, not averaged over monitors: a kind holding one busy
+     * monitor and nine idle ones should report what actually happened, and a
+     * mean of per-monitor percentages would let a single quiet monitor swing it.
+     * `null` when nothing reached a verdict in the window.
+     */
+    uptime_24h_pct: number | null;
+    /** The worst monitor of this kind right now, or null when all are healthy. */
+    worst: {
+        id: string;
+        name: string;
+        status: MonitorStatus;
+        last_checked_at: string | null;
+    } | null;
+    /** The soonest expiry of this kind, regardless of its warning window. */
+    next_expiry: MonitorExpiryRef | null;
+}
+
+/** A monitor that currently warrants a line in the alert strip. */
+export interface MonitorProblem {
+    id: string;
+    kind: MonitorKind;
+    name: string;
+    target: string;
+    status: MonitorStatus;
+    last_error: string | null;
+    degraded_ms: number;
+    /** Set when the monitor is inside its own expiry warning window. */
+    expiry: MonitorExpiryRef | null;
+}
+
+/** The whole payload behind `/dashboard/monitors`. */
+export interface MonitorOverview {
+    total: number;
+    counts: MonitorStatusCounts;
+    kinds: MonitorKindSummary[];
+    /**
+     * Everything down, degraded, or near expiry — capped.
+     *
+     * Bounded because the alert strip is a summary, not an inventory: a fleet
+     * with four hundred simultaneous outages does not need four hundred rows to
+     * communicate that, and the cap is what keeps this endpoint's cost flat.
+     */
+    problems: MonitorProblem[];
+    /** True when `problems` hit the cap and more exist. */
+    problems_truncated: boolean;
+}
+
+/** One page of monitors, with the total the pager needs. */
+export interface MonitorListPage {
+    monitors: MonitorSummary[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
 export interface MonitorInput {
     name: string;
     kind: MonitorKind;

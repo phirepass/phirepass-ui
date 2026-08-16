@@ -33,7 +33,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
     { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
-    { href: '/dashboard/monitor', label: 'Monitor', icon: Activity },
+    { href: '/dashboard/monitors', label: 'Monitors', icon: Activity },
     // Administrative surfaces. Dev-only until RBAC can restrict them to the
     // roles that should see them at all — see src/lib/rbac.ts.
     { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },

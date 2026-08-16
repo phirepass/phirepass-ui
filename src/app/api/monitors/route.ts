@@ -1,14 +1,57 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
-import { loadMonitors } from '@/app/lib/monitor';
+import { loadMonitorById, loadMonitorPage } from '@/app/lib/monitor';
 import { parseMonitor } from '@/app/lib/monitor-input';
+import type { MonitorKind, MonitorStatus } from '@/types/monitor';
 
+const DEFAULT_LIMIT = 24;
+
+const KINDS: MonitorKind[] = ['http', 'ssl', 'domain'];
+const STATUSES: MonitorStatus[] = ['up', 'degraded', 'down', 'unknown', 'paused'];
+
+/**
+ * Validated against the known set rather than passed through.
+ *
+ * `status` reaches a `CASE` comparison and `kind` a column comparison, both as
+ * bound parameters — so this is not what stops injection. It is what stops a
+ * typo returning an empty page that reads as "you have no monitors".
+ */
+function parseEnum<T extends string>(raw: string | null, allowed: T[]): T | undefined {
+    if (!raw) return undefined;
+    return allowed.includes(raw as T) ? raw as T : undefined;
+}
+
+function parsePositiveInt(raw: string | null, fallback: number): number {
+    const value = Number(raw);
+    return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+/**
+ * `GET /api/monitors?kind=&status=&q=&page=&limit=` — one page, worst first.
+ *
+ * Filtering, ordering and paging all happen in SQL. The client receives only the
+ * monitors it is about to draw, and the thirty-day history is aggregated for
+ * that page rather than for every monitor the caller owns.
+ */
 export async function GET(req: Request) {
     try {
         const user = await verifyToken();
-        const monitors = await loadMonitors(user.id);
-        return json_response({ monitors }, 200);
+        const params = new URL(req.url).searchParams;
+
+        const page = parsePositiveInt(params.get('page'), 1);
+        const limit = parsePositiveInt(params.get('limit'), DEFAULT_LIMIT);
+        const search = params.get('q')?.trim() || undefined;
+
+        const { monitors, total } = await loadMonitorPage(user.id, {
+            kind: parseEnum(params.get('kind'), KINDS),
+            status: parseEnum(params.get('status'), STATUSES),
+            search,
+            limit,
+            offset: (page - 1) * limit,
+        });
+
+        return json_response({ monitors, total, page, limit }, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
         return json_response({ error: 'Server error' }, 500);
@@ -79,7 +122,7 @@ export async function POST(req: Request) {
             ],
         );
 
-        const [monitor] = await loadMonitors(user.id, created.rows[0].id as string);
+        const monitor = await loadMonitorById(user.id, created.rows[0].id as string);
         return json_response({ monitor }, 201);
     } catch (e) {
         console.warn(`[server][post][${req.url}]`, e);

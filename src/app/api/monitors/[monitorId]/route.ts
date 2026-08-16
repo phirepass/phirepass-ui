@@ -1,7 +1,7 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
-import { loadMonitorDetail, loadMonitors } from '@/app/lib/monitor';
+import { loadMonitorById, loadMonitorDetail } from '@/app/lib/monitor';
 import { parseMonitor, type ParsedMonitor } from '@/app/lib/monitor-input';
 
 export async function GET(
@@ -99,7 +99,7 @@ export async function PATCH(
             return json_response({ error: 'Monitor not found' }, 404);
         }
 
-        const [monitor] = await loadMonitors(user.id, monitorId);
+        const monitor = await loadMonitorById(user.id, monitorId);
         return json_response({ monitor }, 200);
     } catch (e) {
         console.warn(`[server][patch][${req.url}]`, e);

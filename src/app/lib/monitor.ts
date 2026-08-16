@@ -193,35 +193,51 @@ function toSummary(
 }
 
 /**
- * Every monitor owned by `userId`, or just `monitorId` when given.
- *
- * Three queries rather than one join: the per-day aggregate and the open-incident
- * lookup both fan out per monitor, and joining them onto the monitor rows would
- * multiply the result set only to be regrouped in JavaScript.
- *
- * Ownership is enforced in SQL on all three, so a monitor id belonging to
- * somebody else simply returns nothing.
+ * Worst first: down, degraded, unknown, up, paused — the same order the summary
+ * endpoint uses, so a panel's headline and the first card on the page it links
+ * to name the same monitor.
  */
-export async function loadMonitors(
-    userId: string,
-    monitorId?: string,
-): Promise<MonitorSummary[]> {
-    const scope = monitorId ? 'AND m.id = $2' : '';
-    const params = monitorId ? [userId, monitorId] : [userId];
+const SEVERITY = `
+    CASE WHEN m.paused THEN 4
+         WHEN m.last_status = 'down' THEN 0
+         WHEN m.last_status = 'degraded' THEN 1
+         WHEN m.last_status IS NULL OR m.last_status = 'unknown' THEN 2
+         ELSE 3
+    END`;
 
-    const monitors = await query(
-        `SELECT m.*, n.name AS node_name
-        FROM monitors m
-        JOIN nodes n ON n.id = m.node_id
-        WHERE m.user_id = $1 ${scope}
-        ORDER BY m.created_at DESC`,
-        params,
-    );
+const EFFECTIVE_STATUS = `
+    CASE WHEN m.paused THEN 'paused'
+         ELSE COALESCE(m.last_status, 'unknown')
+    END`;
 
-    const rows = monitors.rows as MonitorRow[];
+/** Ceiling on one page, so a hand-written `limit` cannot ask for everything. */
+const MAX_PAGE_SIZE = 100;
+
+export interface MonitorPageFilters {
+    kind?: MonitorKind;
+    /** An effective status, i.e. `paused` beats whatever was last recorded. */
+    status?: MonitorStatus;
+    /** Matched against name, target and agent name. */
+    search?: string;
+    limit: number;
+    offset: number;
+}
+
+/**
+ * Builds the summaries for an already-chosen set of monitor rows.
+ *
+ * Split out from selection because the expensive part — thirty days of check
+ * history per monitor — is now scoped to whatever the caller selected. That is
+ * the whole point of paginating: the list endpoint aggregates history for one
+ * page of monitors, not for the entire fleet.
+ */
+async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSummary[]> {
     if (rows.length === 0) {
         return [];
     }
+
+    const ids = rows.map((row) => row.id);
+    const params = [userId, ids];
 
     // Counts come back from `pg` as strings (bigint), so every aggregate is cast
     // to int in SQL rather than parsed here.
@@ -235,7 +251,8 @@ export async function loadMonitors(
                 round(avg(c.latency_ms))::int                        AS avg_latency_ms
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
-        WHERE m.user_id = $1 ${scope}
+        WHERE m.user_id = $1
+          AND c.monitor_id = ANY($2::uuid[])
           AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${HISTORY_DAYS - 1})
         GROUP BY 1, 2`,
         params,
@@ -245,7 +262,8 @@ export async function loadMonitors(
         `SELECT i.monitor_id, i.started_at
         FROM monitor_incidents i
         JOIN monitors m ON m.id = i.monitor_id
-        WHERE m.user_id = $1 ${scope}
+        WHERE m.user_id = $1
+          AND i.monitor_id = ANY($2::uuid[])
           AND i.resolved_at IS NULL`,
         params,
     );
@@ -270,12 +288,95 @@ export async function loadMonitors(
     ));
 }
 
+/** One monitor, or null when it is not owned by `userId`. */
+export async function loadMonitorById(
+    userId: string,
+    monitorId: string,
+): Promise<MonitorSummary | null> {
+    const monitors = await query(
+        `SELECT m.*, n.name AS node_name
+        FROM monitors m
+        JOIN nodes n ON n.id = m.node_id
+        WHERE m.user_id = $1 AND m.id = $2`,
+        [userId, monitorId],
+    );
+
+    const [summary] = await summarize(userId, monitors.rows as MonitorRow[]);
+    return summary ?? null;
+}
+
+/**
+ * One page of monitors, worst first, plus the total the pager needs.
+ *
+ * Filtering and ordering happen in SQL rather than in the browser, so the client
+ * never receives monitors it is not about to draw. The count is a second query
+ * over the same predicate — cheaper than a window function here, since the page
+ * itself already has to fan out into history and incidents.
+ */
+export async function loadMonitorPage(
+    userId: string,
+    filters: MonitorPageFilters,
+): Promise<{ monitors: MonitorSummary[]; total: number }> {
+    const conditions: string[] = ['m.user_id = $1'];
+    const params: unknown[] = [userId];
+
+    if (filters.kind) {
+        params.push(filters.kind);
+        conditions.push(`m.kind = $${params.length}`);
+    }
+
+    if (filters.status) {
+        params.push(filters.status);
+        conditions.push(`${EFFECTIVE_STATUS} = $${params.length}`);
+    }
+
+    if (filters.search) {
+        // Escaped before it becomes a LIKE pattern: an unescaped `%` in a search
+        // box would silently match everything.
+        const pattern = `%${filters.search.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+        params.push(pattern);
+        const placeholder = `$${params.length}`;
+        conditions.push(
+            `(m.name ILIKE ${placeholder} OR m.target ILIKE ${placeholder} OR n.name ILIKE ${placeholder})`,
+        );
+    }
+
+    const where = conditions.join(' AND ');
+
+    const counted = await query(
+        `SELECT count(*)::int AS total
+        FROM monitors m
+        JOIN nodes n ON n.id = m.node_id
+        WHERE ${where}`,
+        params,
+    );
+
+    const total = (counted.rows[0]?.total as number | undefined) ?? 0;
+    const limit = Math.min(Math.max(1, filters.limit), MAX_PAGE_SIZE);
+
+    const pageParams = [...params, limit, Math.max(0, filters.offset)];
+    const monitors = await query(
+        `SELECT m.*, n.name AS node_name
+        FROM monitors m
+        JOIN nodes n ON n.id = m.node_id
+        WHERE ${where}
+        ORDER BY ${SEVERITY} ASC, m.name ASC, m.id ASC
+        LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+        pageParams,
+    );
+
+    return {
+        monitors: await summarize(userId, monitors.rows as MonitorRow[]),
+        total,
+    };
+}
+
 /** One monitor plus its recent checks and incidents, or null if not owned. */
 export async function loadMonitorDetail(
     userId: string,
     monitorId: string,
 ): Promise<MonitorDetail | null> {
-    const [monitor] = await loadMonitors(userId, monitorId);
+    const monitor = await loadMonitorById(userId, monitorId);
     if (!monitor) {
         return null;
     }

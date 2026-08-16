@@ -1,7 +1,7 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
-import { loadMonitors } from '@/app/lib/monitor';
+import { loadMonitorById } from '@/app/lib/monitor';
 
 /**
  * "Check now" — brings the next check forward rather than running one.
@@ -42,7 +42,7 @@ export async function POST(
             return json_response({ error: 'Resume the monitor before checking it' }, 409);
         }
 
-        const [monitor] = await loadMonitors(user.id, monitorId);
+        const monitor = await loadMonitorById(user.id, monitorId);
         return json_response({ monitor }, 200);
     } catch (e) {
         console.warn(`[server][post][${req.url}]`, e);
