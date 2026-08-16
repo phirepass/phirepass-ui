@@ -877,7 +877,7 @@ const Landing = () => {
                         (Header.tsx, Nodes.tsx), so the footer lines up with the
                         signed-in pages. */}
                     <div className="container mx-auto px-4 flex flex-col gap-6">
-                        <LegalLinks withGithub />
+                        <LegalLinks withGithub withContact />
 
                         {/* Name and copyright close the page, on their own last line. */}
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-border/60 pt-6 text-center">

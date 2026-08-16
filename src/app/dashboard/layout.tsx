@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
+import { ContactSupportLink } from "@/components/ContactSupportDialog";
 import { ReactNode } from "react";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
 import { clearCachedNodes } from "@/lib/nodesCache";
@@ -100,7 +101,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-col min-h-screen">
             <Header user={user} onLogout={handleLogout} />
             <main className="flex-1">{children}</main>
-            <div className="py-6 pb-12" />
+            {/* Takes the place of the old bottom spacer, keeping the same
+                py-6 pb-12 breathing room under short pages while giving the
+                signed-in app the support entry the landing footer has. */}
+            <footer className="mt-8 border-t border-border/60 py-6 pb-12">
+                <div className="container mx-auto flex justify-center px-4 text-sm text-muted-foreground">
+                    <ContactSupportLink label="Contact us" user={user} />
+                </div>
+            </footer>
         </div>
     );
 }

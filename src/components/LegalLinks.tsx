@@ -1,22 +1,17 @@
 import Link from 'next/link';
-import { FileText, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { FileText, ShieldCheck } from 'lucide-react';
 
+import { ContactSupportLink } from '@/components/ContactSupportDialog';
+import { LinkBadge as Badge } from '@/components/LinkBadge';
 import { cn } from '@/lib/utils';
 
 /**
  * The Terms and Privacy links, in one place because they appear in four: the
  * landing footer, the legal pages' own footer, and the consent line under both
- * auth forms. Each carries a circular icon badge that lights on hover.
+ * auth forms. Each carries a circular icon badge that lights on hover (shared
+ * with the contact trigger, which joins the row where `withContact` is set).
  */
 const GITHUB_URL = 'https://github.com/orgs/phirepass/repositories';
-
-function Badge({ icon: Icon, children }: { icon?: LucideIcon; children?: React.ReactNode }) {
-    return (
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-secondary/60 text-muted-foreground transition-colors group-hover:border-accent/50 group-hover:text-accent">
-            {Icon ? <Icon className="h-3 w-3" /> : children}
-        </span>
-    );
-}
 
 export function TermsLink({ label = 'Terms', className }: { label?: string; className?: string }) {
     return (
@@ -75,11 +70,15 @@ export function LegalLinks({
     termsLabel,
     privacyLabel,
     withGithub = false,
+    withContact = false,
     className,
 }: {
     termsLabel?: string;
     privacyLabel?: string;
     withGithub?: boolean;
+    /** Adds the support form's trigger; omitted under the auth forms, where the
+        row is a consent line rather than a footer. */
+    withContact?: boolean;
     className?: string;
 }) {
     return (
@@ -87,6 +86,7 @@ export function LegalLinks({
             <TermsLink label={termsLabel} />
             <PrivacyLink label={privacyLabel} />
             {withGithub ? <GithubLink /> : null}
+            {withContact ? <ContactSupportLink /> : null}
         </div>
     );
 }

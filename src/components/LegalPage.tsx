@@ -57,7 +57,7 @@ export function LegalPage({
                 {/* Same order as the landing footer: links first, the name and
                     copyright closing on the last line. */}
                 <div className="max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8">
-                    <LegalLinks termsLabel="Terms of Service" privacyLabel="Privacy Policy" withGithub />
+                    <LegalLinks termsLabel="Terms of Service" privacyLabel="Privacy Policy" withGithub withContact />
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-border/60 pt-6 text-center">
                         <Link href="/" className="flex items-center gap-3">
                             <PhirepassLogo className="w-8 h-8" />

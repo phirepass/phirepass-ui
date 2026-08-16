@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LucideIcon } from 'lucide-react';
+import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { IS_DEV_MODE } from '@/lib/dev-mode';
 import { PhirepassLogo } from '@/components/PhirepassLogo';
+import { ContactSupportDialog } from '@/components/ContactSupportDialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -44,6 +45,7 @@ export function Header({ user, onLogout }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [identityBlurred, setIdentityBlurred] = useState(false);
+    const [contactOpen, setContactOpen] = useState(false);
     const identityClickTimer = useRef(0);
     const touchStartY = useRef<number | null>(null);
     const router = useRouter();
@@ -193,6 +195,10 @@ export function Header({ user, onLogout }: HeaderProps) {
                                     <KeyRound className="w-4 h-4 mr-2" />
                                     Tokens
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setContactOpen(true)}>
+                                    <LifeBuoy className="w-4 h-4 mr-2" />
+                                    Contact us
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
                                     <LogOut className="w-4 h-4 mr-2" />
@@ -276,6 +282,14 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <KeyRound className="w-5 h-5 mr-3" />
                             Tokens
                         </Button>
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]"
+                            onClick={() => { setMenuOpen(false); setContactOpen(true); }}
+                        >
+                            <LifeBuoy className="w-5 h-5 mr-3" />
+                            Contact us
+                        </Button>
                     </div>
                     <Button variant="ghost" className="w-full justify-start h-12 text-base text-destructive transition-transform duration-150 active:scale-[0.98]" onClick={onLogout}>
                         <LogOut className="w-5 h-5 mr-3" />
@@ -283,6 +297,14 @@ export function Header({ user, onLogout }: HeaderProps) {
                     </Button>
                 </div>
             </div>
+
+            {/* Rendered outside both menus so closing either one does not unmount
+                the open dialog. */}
+            <ContactSupportDialog
+                open={contactOpen}
+                onOpenChange={setContactOpen}
+                user={user ? { name: user.name, email: user.email } : null}
+            />
         </>
     );
 }

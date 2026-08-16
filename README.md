@@ -95,6 +95,35 @@ RFC1918 addresses would rule out the main thing people want to watch. The probe
 runs on the user's own agent, against their own network, so the reach it has is
 reach they already had.
 
+## Support contact
+
+The footer's **Contact** link and the profile menu's **Contact us** entry
+open the same dialog (`src/components/ContactSupportDialog.tsx`), which posts to
+`POST /api/contact`. The route sends one transactional email through the
+`resend` SDK — nothing is written to Postgres, so a support request survives no
+database at all.
+
+One variable configures it, `MAILER_API_KEY` — named for the job rather than
+the vendor, so changing providers is a change to `src/app/lib/email.ts` and not
+to every environment. Without it the route answers `503` and the dialog says so
+rather than failing silently. The sender and the support mailbox are module
+constants in that same file: they are properties of the product, not of the
+deployment, and the from-domain has to be verified with the mail provider
+anyway. `Reply-To` carries the address typed in the form.
+
+The endpoint is deliberately unauthenticated — someone who cannot sign in is
+exactly the person who needs it — so it carries a honeypot field and a per-IP
+budget of 5 messages an hour in Redis. The rate limit fails open: if Redis is
+down the message still goes out, because a support form that quietly stops
+accepting mail during a cache outage is the worse failure. When the sender does
+have a session, their account email is taken from it and added to the message,
+so a request cannot claim to come from someone else's account.
+
+The form asks for no subject line: the topic select is the whole of it, sent as
+`[Support] Technical issue`, so support mail sorts on a fixed set of values
+instead of on whatever a sender typed. What the message is about is the first
+thing in the body.
+
 ## Notes
 
 `src/pages/*` is leftover from a pre-Next.js version of the app and is still an
