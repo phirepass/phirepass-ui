@@ -9,6 +9,16 @@ export interface UserNodeOption {
     id: string;
     name: string;
     online: boolean;
+    /**
+     * Monitors already bound to this agent.
+     *
+     * `undefined` means the count could not be read, not that there are none —
+     * `GET /api/nodes` omits it entirely when the uptime schema is absent
+     * (applied by hand; there is no migration runner). A picker must render
+     * nothing for `undefined` rather than "0 monitors", which would be a claim
+     * the server did not make.
+     */
+    monitorCount?: number;
 }
 
 interface UseUserNodesResult {
@@ -60,6 +70,7 @@ export function useUserNodes(enabled: boolean = true): UseUserNodesResult {
                             // `status` is the newer field; fall back to the
                             // boolean for nodes served from an older cache.
                             online: node.status ? node.status === 'online' : node.is_online,
+                            monitorCount: node.monitor_count,
                         }))
                         // Online first, then alphabetical: the ones that can
                         // actually run a probe right now are the likely pick.

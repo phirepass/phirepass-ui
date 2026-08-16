@@ -16,6 +16,20 @@ import { useUserNodes } from '@/hooks/use-user-nodes';
 import { cn } from '@/lib/utils';
 import { KIND_SUPPORTS_AGENT, type MonitorKind } from '@/types/monitor';
 
+/**
+ * How many checks an agent is already carrying.
+ *
+ * Spelled out rather than shown as a bare number: "3" beside a status word
+ * reads as a version, an ID, or anything else. The count is here so someone
+ * choosing a vantage can see which agents are already loaded before adding to
+ * one — a probe runs on the agent's own runtime, and `PROBE_MAX_CONCURRENT`
+ * caps how many can be in flight at once.
+ */
+function formatMonitorLoad(count: number): string {
+    if (count === 0) return 'no monitors';
+    return count === 1 ? '1 monitor' : `${count} monitors`;
+}
+
 interface MonitorVantageFieldProps {
     kind: MonitorKind;
     nodeId: string | null;
@@ -62,6 +76,8 @@ export function MonitorVantageField({
         }
         return [
             ...nodes,
+            // No count: this node is not in the list the server returned, so
+            // there is nothing to report about it.
             { id: nodeId, name: fallbackNodeName || 'Unavailable node', online: false },
         ];
     }, [nodes, nodeId, fallbackNodeName]);
@@ -96,19 +112,45 @@ export function MonitorVantageField({
                     </SelectTrigger>
                     <SelectContent>
                         {options.map((node) => (
-                            <SelectItem key={node.id} value={node.id}>
-                                <span className="flex items-center gap-2">
-                                    <HardDrive className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {node.name}
-                                    <span
-                                        aria-hidden
-                                        className={cn(
-                                            'h-1.5 w-1.5 rounded-full',
-                                            node.online ? 'bg-success' : 'bg-muted-foreground/50'
-                                        )}
-                                    />
-                                    <span className="text-xs text-muted-foreground">
-                                        {node.online ? 'online' : 'offline'}
+                            <SelectItem
+                                key={node.id}
+                                value={node.id}
+                                // Radix wraps the child in an `ItemText` span
+                                // that shrinks to its content, so `ml-auto`
+                                // inside it has nothing to push against and the
+                                // status/load column comes out ragged. Letting
+                                // that span grow is scoped here rather than
+                                // changed on the shared `SelectItem`, which
+                                // seven other pickers use.
+                                className="[&>span:last-child]:min-w-0 [&>span:last-child]:flex-1"
+                            >
+                                <span className="flex w-full items-center gap-2">
+                                    <HardDrive className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{node.name}</span>
+
+                                    {/* Status and load sit together on the
+                                        right: both are facts about whether this
+                                        agent is a good place to put the check,
+                                        where the name is only which one it is. */}
+                                    <span className="ml-auto flex shrink-0 items-center gap-2 pl-3 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1.5">
+                                            <span
+                                                aria-hidden
+                                                className={cn(
+                                                    'h-1.5 w-1.5 rounded-full',
+                                                    node.online ? 'bg-success' : 'bg-muted-foreground/50',
+                                                )}
+                                            />
+                                            {node.online ? 'online' : 'offline'}
+                                        </span>
+
+                                        {/* Omitted, not zeroed, when the count
+                                            is unknown — see `UserNodeOption`. */}
+                                        {node.monitorCount !== undefined ? (
+                                            <span className="tabular-nums">
+                                                · {formatMonitorLoad(node.monitorCount)}
+                                            </span>
+                                        ) : null}
                                     </span>
                                 </span>
                             </SelectItem>

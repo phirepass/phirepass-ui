@@ -346,7 +346,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                             onClick={() => setShowAdvanced((value) => !value)}
                             className="cursor-not-allowed text-xs font-medium text-muted-foreground/60"
                         >
-                            Show advanced options
+                            Show advanced options (soon)
                         </button>
                     </div>
 
