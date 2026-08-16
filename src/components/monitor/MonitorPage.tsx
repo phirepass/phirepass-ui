@@ -31,9 +31,21 @@ import {
 import { MonitorCard } from './MonitorCard';
 import { MonitorDetailDialog } from './MonitorDetailDialog';
 import { MonitorFormDialog } from './MonitorFormDialog';
-import { effectiveStatus, expiryFor, formatLatency } from './monitor-display';
+import { KIND_ICONS, KIND_STYLES, effectiveStatus, expiryFor, formatLatency } from './monitor-display';
 import { usePolledResource } from '@/hooks/use-polled-resource';
-import { MONITOR_KIND_LABELS, type MonitorInput, type MonitorSummary } from '@/types/monitor';
+import {
+    MONITOR_KIND_LABELS,
+    type MonitorInput,
+    type MonitorKind,
+    type MonitorSummary,
+} from '@/types/monitor';
+import { cn } from '@/lib/utils';
+
+/**
+ * The order sections appear in: what the service does, then the two things that
+ * quietly expire underneath it.
+ */
+const KIND_ORDER: MonitorKind[] = ['http', 'ssl', 'domain'];
 
 const MONITORS_PER_PAGE = 6;
 
@@ -160,8 +172,19 @@ export default function MonitorPage() {
                     || MONITOR_KIND_LABELS[monitor.kind].toLowerCase().includes(needle)
                 );
             })
-            // Worst first: the thing that needs attention should never be on page 2.
+            // Grouped by kind first, then worst-first inside each group.
+            //
+            // This deliberately gives up the old global "worst first, so it is
+            // never on page 2" ordering. The three kinds answer different
+            // questions on different cadences — an HTTP check every 15 minutes,
+            // an expiry check once a day — and interleaving them made the list
+            // read as one undifferentiated pile. What paid for the change is
+            // that severity is still surfaced above the list and not only by
+            // position: the alert strip names anything down or expiring, the
+            // stat tiles count them, and the status chips filter to them.
             .sort((a, b) => {
+                const byKind = KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind);
+                if (byKind !== 0) return byKind;
                 const delta = severity[effectiveStatus(a)] - severity[effectiveStatus(b)];
                 if (delta !== 0) return delta;
                 return a.name.localeCompare(b.name);
@@ -174,6 +197,33 @@ export default function MonitorPage() {
         (clampedPage - 1) * MONITORS_PER_PAGE,
         clampedPage * MONITORS_PER_PAGE
     );
+
+    /**
+     * The page's monitors, cut into one section per kind.
+     *
+     * Built from the *paged* slice rather than the whole list, so pagination
+     * keeps working exactly as it did — a page can straddle two kinds and simply
+     * shows two headers. Grouping the full list instead would mean paginating
+     * groups, which reads badly when one kind has forty monitors and another has
+     * one.
+     *
+     * The counts are the group's size on this page, not overall; a header
+     * claiming "12" above three cards would be worse than no count at all.
+     */
+    const monitorSections = useMemo(() => {
+        const sections: { kind: MonitorKind; monitors: MonitorSummary[] }[] = [];
+
+        for (const monitor of pagedMonitors) {
+            const last = sections[sections.length - 1];
+            if (last && last.kind === monitor.kind) {
+                last.monitors.push(monitor);
+            } else {
+                sections.push({ kind: monitor.kind, monitors: [monitor] });
+            }
+        }
+
+        return sections;
+    }, [pagedMonitors]);
 
     /**
      * Throws on failure so `MonitorFormDialog` can surface the API's own message
@@ -348,22 +398,43 @@ export default function MonitorPage() {
                         />
                     ) : (
                         <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {pagedMonitors.map((monitor) => (
-                                    <MonitorCard
-                                        key={monitor.id}
-                                        monitor={monitor}
-                                        checking={checkingId === monitor.id}
-                                        onOpen={(target) => setDetailMonitorId(target.id)}
-                                        onCheckNow={(target) => void checkNow(target)}
-                                        onTogglePause={togglePause}
-                                        onEdit={(target) => {
-                                            setEditing(target);
-                                            setFormOpen(true);
-                                        }}
-                                        onDelete={setMonitorToDelete}
-                                    />
-                                ))}
+                            <div className="space-y-6">
+                                {monitorSections.map((section) => {
+                                    const Icon = KIND_ICONS[section.kind];
+
+                                    return (
+                                        <section key={section.kind}>
+                                            <div className="mb-3 flex items-center gap-2">
+                                                <Icon className={cn('h-4 w-4', KIND_STYLES[section.kind].text)} />
+                                                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                    {MONITOR_KIND_LABELS[section.kind]}
+                                                </h3>
+                                                <span className="rounded border border-border px-1.5 py-px text-[10px] tabular-nums text-muted-foreground">
+                                                    {section.monitors.length}
+                                                </span>
+                                                <div className="ml-2 h-px flex-1 bg-border/60" />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {section.monitors.map((monitor) => (
+                                                    <MonitorCard
+                                                        key={monitor.id}
+                                                        monitor={monitor}
+                                                        checking={checkingId === monitor.id}
+                                                        onOpen={(target) => setDetailMonitorId(target.id)}
+                                                        onCheckNow={(target) => void checkNow(target)}
+                                                        onTogglePause={togglePause}
+                                                        onEdit={(target) => {
+                                                            setEditing(target);
+                                                            setFormOpen(true);
+                                                        }}
+                                                        onDelete={setMonitorToDelete}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    );
+                                })}
                             </div>
 
                             <Pager page={clampedPage} pageCount={pageCount} onPageChange={setPage} />

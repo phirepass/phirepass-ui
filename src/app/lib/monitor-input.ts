@@ -93,6 +93,50 @@ function sslTargetError(target: string): string | null {
     return null;
 }
 
+/**
+ * Rejects a `domain` target the agent's parser would refuse, returning the
+ * reason or `null` when it is fine.
+ *
+ * Mirrors `parse_domain` in `agent/src/probe/domain.rs`, and matters more here
+ * than the TLS validator does: an unregistered name comes back from the registry
+ * as a 404, which this kind reports as **down** — because that is what a lapsed
+ * registration looks like. A typo reaching the registry would therefore be shown
+ * as an expired domain. Catching the malformed shapes up front is what keeps
+ * that verdict trustworthy.
+ */
+function domainTargetError(target: string): string | null {
+    const withoutScheme = target.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+    const authority = withoutScheme.split(/[/?#]/)[0];
+    const host = (authority.split('@').pop() ?? '')
+        .split(':')[0]
+        .replace(/\.$/, '')
+        .toLowerCase();
+
+    if (!host) return 'Target needs a domain name';
+    if (host.length > 253) return 'Domain is too long';
+
+    // An address has no registration to expire.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) {
+        return 'Enter a domain name, not an IP address';
+    }
+
+    const labels = host.split('.');
+    if (labels.length < 2) return 'Enter a full domain, including its TLD';
+
+    for (const label of labels) {
+        if (!label) return 'Domain has an empty label';
+        if (label.length > 63) return 'A label in the domain is too long';
+        if (!/^[a-z0-9-]+$/.test(label)) {
+            return 'Domain may only contain letters, digits and hyphens';
+        }
+        if (label.startsWith('-') || label.endsWith('-')) {
+            return 'A domain label may not start or end with a hyphen';
+        }
+    }
+
+    return null;
+}
+
 function str(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
@@ -138,6 +182,10 @@ export function parseMonitor(
     }
     if (kind === 'ssl') {
         const invalid = sslTargetError(target);
+        if (invalid) return { ok: false, error: invalid };
+    }
+    if (kind === 'domain') {
+        const invalid = domainTargetError(target);
         if (invalid) return { ok: false, error: invalid };
     }
 

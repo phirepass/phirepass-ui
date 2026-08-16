@@ -193,35 +193,36 @@ export const MONITOR_KIND_LABELS: Record<MonitorKind, string> = {
 export const MONITOR_KIND_HINTS: Record<MonitorKind, string> = {
     http: 'Requests a URL and checks the status code, optional keyword, and response time.',
     ssl: 'Inspects the TLS certificate at host:port and warns before it expires. Use a hostname, not an IP.',
-    domain: 'Looks the domain up over RDAP and warns before the registration lapses.',
+    domain: 'Asks the registry over RDAP and warns before the registration lapses. Some TLDs publish no expiry date.',
 };
 
 /**
- * Which kinds can currently be created. `domain` is specified end to end but has
- * no backend yet, so the form offers it disabled rather than dropping it: the
- * vocabulary stays whole, existing monitors of that kind still render everywhere
- * else, and turning it on is one edit here.
- *
- * It needs an RDAP client and — because it never connects to the target — a
- * settled answer to which agent should run it, given every agent would get the
- * same reply the server would.
+ * Which kinds can currently be created. All three are implemented; the map stays
+ * because it is how a kind is introduced — specified end to end, offered
+ * disabled, then turned on here once its probe lands.
  */
 export const MONITOR_KIND_ENABLED: Record<MonitorKind, boolean> = {
     http: true,
     ssl: true,
-    domain: false,
+    domain: true,
 };
 
 /**
- * Vantage only means something where the probe opens a connection. A `domain`
- * check asks a registry about a name over RDAP and connects to the target not
- * at all, so "run it from node X" would be a distinction without a difference —
- * every agent would get the same answer the server does.
+ * Every kind runs from an agent, so every kind needs a vantage.
+ *
+ * `domain` is the awkward one and it is worth being honest about: an RDAP query
+ * asks a registry about a name and never touches the domain's own hosts, so the
+ * answer does not depend on which agent asks. The dropdown is therefore not
+ * choosing *what* you learn, only *who* asks — which does matter for one real
+ * reason, since registries rate-limit by source address and a fleet spreads that
+ * load. The alternative was nodeless monitors: `node_id` made nullable, a second
+ * claim path in the scheduler, and a dispatch fork away from the WebSocket. That
+ * was judged too much machinery to remove one dropdown. See MONITOR.md.
  */
 export const KIND_SUPPORTS_AGENT: Record<MonitorKind, boolean> = {
     http: true,
     ssl: true,
-    domain: false,
+    domain: true,
 };
 
 /**
