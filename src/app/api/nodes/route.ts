@@ -120,14 +120,37 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
 }
 
 /**
- * The agent already filters, dedupes, orders and caps this list (see
- * `common/src/metrics/host.rs`), so nothing is re-decided here — the order is
- * meaningful and must survive. An agent predating disk telemetry sends no field
- * at all, which normalizes to an empty list, and the card treats "empty" as "not
- * reported" rather than "no disks".
+ * Read-only image filesystems, which report a size but are not storage anyone
+ * can run out of.
  *
- * A mount with no capacity is still dropped: the agent will not send one, but
- * this is the boundary where a hand-written Redis value would arrive, and every
+ * Every one of these is mounted from a fixed image with zero free space, so it
+ * reads as permanently 100% full and can never fill up — `erofs` is how Docker
+ * mounts `/usr/sbin/docker-init` into a container, which is exactly the shape
+ * that had `phirepass-ha` nodes raising a critical disk alert for a 220 MB file
+ * that nothing writes to.
+ *
+ * Dropped here as well as in the agent (`common/src/metrics/host.rs`) because
+ * the agent ships as a separately versioned image: nodes keep reporting these
+ * until every one of them is upgraded, and until then this is the only place
+ * that can keep the dashboard honest.
+ */
+const IMAGE_FILESYSTEMS = new Set(['erofs', 'squashfs', 'iso9660', 'cramfs', 'romfs']);
+
+/**
+ * The agent already filters, dedupes, orders and caps this list (see
+ * `common/src/metrics/host.rs`), so almost nothing is re-decided here — the
+ * order is meaningful and must survive. An agent predating disk telemetry sends
+ * no field at all, which normalizes to an empty list, and the card treats
+ * "empty" as "not reported" rather than "no disks".
+ *
+ * What is re-decided is which mounts count as storage at all, since the answer
+ * has to hold for agents older than the rule. Everything downstream — the card's
+ * bar, its per-mount breakdown, and the disk alerts, which may only fire on a
+ * mount the card displays — reads the list this returns, so a mount dropped here
+ * is invisible and unalertable in one move.
+ *
+ * A mount with no capacity is dropped too: the agent will not send one, but this
+ * is the boundary where a hand-written Redis value would arrive, and every
  * percentage downstream divides by it.
  */
 function normalizeFilesystems(value: unknown): NodeFilesystem[] {
@@ -145,6 +168,10 @@ function normalizeFilesystems(value: unknown): NodeFilesystem[] {
         const total_bytes = toNumber(raw.total_bytes);
 
         if (!mount || total_bytes <= 0) {
+            return [];
+        }
+
+        if (IMAGE_FILESYSTEMS.has(toString(raw.fs_type).toLowerCase())) {
             return [];
         }
 

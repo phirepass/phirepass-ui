@@ -8,7 +8,7 @@ import { DiskDetails } from './DiskDetails';
 import {
     DISK_DANGER_PERCENT,
     DISK_WARN_PERCENT,
-    fullestFilesystem,
+    displayedFilesystem,
     percentUsed,
 } from './disk-display';
 import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
@@ -236,10 +236,11 @@ export function NodeCard({
     const freeDiskBytes = Math.max(0, diskTotalBytes - diskUsedBytes);
     // The bar shows the aggregate, but the aggregate is the reassuring number: a
     // host with a 4 TB array and a full 2 GB /boot reads as barely used. The
-    // fullest single mount is what an operator actually needs, so it drives the
-    // tooltip — and the same helper drives the dashboard's disk alert, so the
-    // two can never name different mounts.
-    const fullestDisk = fullestFilesystem(disks);
+    // fullest single mount is what an operator actually needs, so it is named
+    // beside the bar — and it is the only mount the dashboard's disk alert is
+    // allowed to fire on, which is why both read it from the same helper. Every
+    // other mount stays behind the storage dialog, unalerted.
+    const fullestDisk = displayedFilesystem(node.stats);
     const nodeVersion = node.stats.version?.trim();
     const isIncompatible = node.is_online
         && !!nodeVersion

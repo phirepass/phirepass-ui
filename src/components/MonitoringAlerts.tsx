@@ -2,7 +2,7 @@ import { TunnelNode } from "@/types/node";
 import { AlertTriangle, XCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { fullestFilesystem, percentUsed } from "./disk-display";
+import { displayedFilesystem, percentUsed } from "./disk-display";
 
 // Higher than the card's own 70/90 tinting on purpose. The bar is glanceable
 // context and can afford to colour early; this strip interrupts the page, so it
@@ -57,10 +57,15 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
         // the alert — and naming it is most of the value, since "disk is full"
         // without a mount point sends someone hunting.
         //
-        // `host_disks` is absent for agents older than the field and for nodes
-        // restored from the local cache, and absent must raise nothing: a node
-        // that never reported disks is not a node with healthy disks.
-        const fullest = fullestFilesystem(node.stats.host_disks);
+        // Strictly the mount the node card prints on its face, and never one of
+        // the others behind the card's storage dialog: this strip sits above the
+        // cards, so a mount it names but no card shows is a number the operator
+        // cannot go look at.
+        //
+        // `null` for agents older than the disk fields and for nodes restored
+        // from the local cache, and that must raise nothing: a node that never
+        // reported disks is not a node with healthy disks.
+        const fullest = displayedFilesystem(node.stats);
         const diskPercent = fullest ? percentUsed(fullest) : 0;
 
         if (fullest && diskPercent >= DISK_CRITICAL_PERCENT) {

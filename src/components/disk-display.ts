@@ -1,4 +1,4 @@
-import type { NodeFilesystem } from '@/types/node';
+import type { NodeFilesystem, NodeStats } from '@/types/node';
 
 /** Above this a mount is called out; matches the warning tier in `StatBar`. */
 export const DISK_WARN_PERCENT = 70;
@@ -39,4 +39,28 @@ export function fullestFilesystem(
             (worst, fs) => (!worst || percentUsed(fs) > percentUsed(worst) ? fs : worst),
             null,
         );
+}
+
+/**
+ * The one filesystem a node card names on its face, or `null` when the card
+ * shows no storage at all.
+ *
+ * This is the *only* thing a disk alert may fire on. The card's Storage block
+ * needs both a mount list and an aggregate capacity to render, and the single
+ * mount it prints beside the bar is the fullest one; every other mount lives
+ * behind a click, in the storage dialog. An alert naming a mount that is not on
+ * the card sends someone hunting for a number that is not on the page, so the
+ * card and the alert strip read the same value from here and cannot drift.
+ */
+export function displayedFilesystem(
+    stats: Pick<NodeStats, 'host_disks' | 'host_disk_total_bytes'> | undefined,
+): NodeFilesystem | null {
+    const disks = stats?.host_disks ?? [];
+    // Mirrors `hasDiskStats` in `NodeCard`: an aggregate of zero means the card
+    // renders nothing, whatever the mount list says.
+    if (disks.length === 0 || (stats?.host_disk_total_bytes ?? 0) <= 0) {
+        return null;
+    }
+
+    return fullestFilesystem(disks);
 }

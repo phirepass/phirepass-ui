@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Footer } from '@/components/Footer';
 import {
   ArrowLeft,
   Bell,
@@ -215,7 +214,6 @@ export default function Settings() {
         </div>
         </div>
     </div>
-    <Footer />
     </div>
   );
 }
