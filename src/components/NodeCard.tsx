@@ -5,7 +5,12 @@ import { LocationStrip } from './LocationStrip';
 import { LocationDetails } from './LocationDetails';
 import { LanFingerprintDetails } from './LanFingerprintDetails';
 import { DiskDetails } from './DiskDetails';
-import { fullestFilesystem, percentUsed } from './disk-display';
+import {
+    DISK_DANGER_PERCENT,
+    DISK_WARN_PERCENT,
+    fullestFilesystem,
+    percentUsed,
+} from './disk-display';
 import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
@@ -525,10 +530,10 @@ export function NodeCard({
                     </div>
                 </div>
 
-                {/* Primary Stats - Side by Side. Three across once the node
-                    reports disks; two for an older agent, rather than an empty
-                    third column reading 0%. */}
-                <div className={cn('grid gap-3 mb-4', hasDiskStats ? 'grid-cols-3' : 'grid-cols-2')}>
+                {/* CPU and memory are a pair: one number each, same shape, and
+                    they read fine side by side. Disk is not one of them — see
+                    below. */}
+                <div className="relative z-10 grid grid-cols-2 gap-3 mb-3">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div>
@@ -549,36 +554,65 @@ export function NodeCard({
                             {formatBytes(node.stats.host_mem_used_bytes)} / {formatBytes(node.stats.host_mem_total_bytes)} • Free {formatBytes(freeMemoryBytes)}
                         </TooltipContent>
                     </Tooltip>
-                    {hasDiskStats ? (
+                </div>
+
+                {/* Storage gets the full width rather than a third of it.
+                    Squeezed into the three-column row its bar was a stub, its
+                    label collided with its own percentage, and the one stat that
+                    is *clickable* looked identical to the two that are not.
+
+                    It also carries more than the other two legitimately can: CPU
+                    and memory are a single number each, where this is an
+                    aggregate over mounts that can disagree — a 4 TB array at 20%
+                    beside a full 2 GB `/boot` reads as "fine" until you open it.
+                    So the fullest mount is named inline, and the whole row opens
+                    the breakdown. */}
+                {hasDiskStats ? (
+                    <div className="relative z-10 mb-4">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                {/* The only one of the three bars that opens
-                                    something: CPU and memory are a single number
-                                    each, where disk is an aggregate over mounts
-                                    that can disagree with each other. */}
                                 <button
                                     type="button"
                                     onClick={() => setDiskDialogOpen(true)}
-                                    className="text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="w-full rounded-lg border border-border/60 bg-secondary/30 p-3 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     aria-label={`Storage breakdown for ${node.name || 'this node'}`}
                                 >
-                                    <StatBar label="Disk" value={diskPercent} icon={<HardDrive className="w-4 h-4" />} />
+                                    <StatBar
+                                        label="Storage"
+                                        value={diskPercent}
+                                        icon={<HardDrive className="w-4 h-4" />}
+                                    />
+                                    <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                                        <span className="truncate font-mono">
+                                            {formatBytes(diskUsedBytes)} / {formatBytes(diskTotalBytes)}
+                                            <span className="text-muted-foreground/70">
+                                                {' '}· {formatBytes(freeDiskBytes)} free
+                                            </span>
+                                        </span>
+                                        {fullestDisk ? (
+                                            <span
+                                                className={cn(
+                                                    'shrink-0 tabular-nums',
+                                                    percentUsed(fullestDisk) >= DISK_DANGER_PERCENT
+                                                        ? 'text-destructive'
+                                                        : percentUsed(fullestDisk) >= DISK_WARN_PERCENT
+                                                            ? 'text-warning'
+                                                            : 'text-muted-foreground/70',
+                                                )}
+                                            >
+                                                {fullestDisk.mount} {percentUsed(fullestDisk).toFixed(0)}%
+                                            </span>
+                                        ) : null}
+                                    </div>
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent>
-                                {formatBytes(diskUsedBytes)} / {formatBytes(diskTotalBytes)} • Free {formatBytes(freeDiskBytes)}
-                                {fullestDisk ? (
-                                    <>
-                                        <br />
-                                        Fullest: {fullestDisk.mount} at {percentUsed(fullestDisk).toFixed(1)}%
-                                    </>
-                                ) : null}
-                                <br />
-                                {disks.length === 1 ? '1 mount' : `${disks.length} mounts`} — click for the breakdown
+                                {disks.length === 1 ? '1 mount' : `${disks.length} mounts`} — click for the
+                                breakdown
                             </TooltipContent>
                         </Tooltip>
-                    ) : null}
-                </div>
+                    </div>
+                ) : null}
 
                 {/* Extended Stats Grid */}
                 <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-x-4 gap-y-0.5 mb-3 text-xs">
