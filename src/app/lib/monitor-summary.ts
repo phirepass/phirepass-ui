@@ -1,5 +1,6 @@
 import { query } from '@/app/lib/db';
 import type {
+    DailyBucket,
     MonitorKind,
     MonitorKindSummary,
     MonitorOverview,
@@ -26,6 +27,16 @@ import type {
 
 /** The alert strip is a summary; past this many problems it says "and more". */
 const PROBLEM_LIMIT = 50;
+
+/**
+ * Days of history each panel's strip shows.
+ *
+ * Fourteen rather than the detail dialog's thirty: a panel is a few hundred
+ * pixels wide, and thirty bars in that space are too thin to read a single bad
+ * day off. Two weeks still covers "did this get worse recently", which is the
+ * only question the overview asks.
+ */
+const PANEL_HISTORY_DAYS = 14;
 
 /**
  * A monitor's status as the dashboard reckons it: paused wins over whatever it
@@ -92,6 +103,54 @@ interface ExpiryRow {
     name: string;
     expires_at: Date;
     is_cert: boolean;
+}
+
+interface KindDailyRow {
+    kind: MonitorKind;
+    day: string;
+    checks: number;
+    down_checks: number;
+    unknown_checks: number;
+    degraded_checks: number;
+    avg_latency_ms: number | null;
+}
+
+/**
+ * The trailing `PANEL_HISTORY_DAYS` for one kind, oldest first, with days that
+ * recorded nothing left explicitly empty.
+ *
+ * The strip draws one bar per entry, so a day with no checks has to be present
+ * and neutral rather than absent — otherwise a gap in coverage silently
+ * compresses the timeline and the bars stop lining up with dates.
+ */
+function buildKindDaily(rows: KindDailyRow[], now: Date): DailyBucket[] {
+    const byDay = new Map(rows.map((row) => [row.day, row]));
+    const buckets: DailyBucket[] = [];
+
+    for (let offset = PANEL_HISTORY_DAYS - 1; offset >= 0; offset--) {
+        const date = new Date(now);
+        date.setUTCDate(date.getUTCDate() - offset);
+        const day = date.toISOString().slice(0, 10);
+        const row = byDay.get(day);
+
+        const checks = row?.checks ?? 0;
+        const downChecks = row?.down_checks ?? 0;
+        const unknownChecks = row?.unknown_checks ?? 0;
+        // Only checks that reached a verdict can score; see `UptimeWindow`.
+        const verdicts = checks - unknownChecks;
+
+        buckets.push({
+            day,
+            checks,
+            down_checks: downChecks,
+            unknown_checks: unknownChecks,
+            degraded_checks: row?.degraded_checks ?? 0,
+            avg_latency_ms: row?.avg_latency_ms ?? null,
+            uptime_pct: verdicts > 0 ? ((verdicts - downChecks) / verdicts) * 100 : null,
+        });
+    }
+
+    return buckets;
 }
 
 interface ProblemRow {
@@ -182,6 +241,25 @@ export async function loadMonitorOverview(
         params,
     );
 
+    // One row per (kind, day) — an aggregate, not a per-monitor fan-out, so the
+    // panel's strip costs one `GROUP BY` regardless of how many monitors a kind
+    // holds.
+    const daily = await query(
+        `SELECT m.kind,
+                to_char(date_trunc('day', c.checked_at), 'YYYY-MM-DD') AS day,
+                count(*)::int                                       AS checks,
+                count(*) FILTER (WHERE c.status = 'down')::int       AS down_checks,
+                count(*) FILTER (WHERE c.status = 'unknown')::int    AS unknown_checks,
+                count(*) FILTER (WHERE c.status = 'degraded')::int   AS degraded_checks,
+                round(avg(c.latency_ms))::int                        AS avg_latency_ms
+        FROM monitor_checks c
+        JOIN monitors m ON m.id = c.monitor_id
+        WHERE m.user_id = $1 ${kindFilter}
+          AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${PANEL_HISTORY_DAYS - 1})
+        GROUP BY 1, 2`,
+        params,
+    );
+
     // Skipped entirely when unscoped: the alert strip lives on the per-kind
     // pages, so the overview would be paying for rows nothing renders.
     //
@@ -219,6 +297,16 @@ export async function loadMonitorOverview(
         ]),
     );
 
+    const dailyByKind = new Map<MonitorKind, KindDailyRow[]>();
+    for (const row of daily.rows as KindDailyRow[]) {
+        const bucket = dailyByKind.get(row.kind);
+        if (bucket) {
+            bucket.push(row);
+        } else {
+            dailyByKind.set(row.kind, [row]);
+        }
+    }
+
     const worstByKind = new Map<MonitorKind, WorstRow>(
         (worst.rows as WorstRow[]).map((row) => [row.kind, row]),
     );
@@ -229,6 +317,7 @@ export async function loadMonitorOverview(
 
     const totals = emptyCounts();
     let total = 0;
+    const today = new Date();
 
     const kinds: MonitorKindSummary[] = (tallies.rows as TallyRow[]).map((row) => {
         const counts: MonitorStatusCounts = {
@@ -252,6 +341,7 @@ export async function loadMonitorOverview(
             total: row.total,
             counts,
             uptime_24h_pct: uptimeByKind.get(row.kind) ?? null,
+            daily: buildKindDaily(dailyByKind.get(row.kind) ?? [], today),
             // Suppressed when the head of the group is healthy: there is no
             // worst one worth naming, and naming a healthy monitor next to a
             // status word reads as an alert.

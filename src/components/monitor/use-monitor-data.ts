@@ -48,6 +48,7 @@ export function emptyKindSummary(kind: MonitorKind): MonitorKindSummary {
         uptime_24h_pct: null,
         worst: null,
         next_expiry: null,
+        daily: [],
     };
 }
 

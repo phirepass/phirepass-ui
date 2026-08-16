@@ -4,6 +4,7 @@ import {
     Eye,
     EyeOff,
     Info,
+    KeyRound,
     MoreVertical,
     Trash2,
 } from 'lucide-react';
@@ -73,12 +74,34 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
         <div
             className={cn(
                 'group gradient-card border border-border rounded-xl p-4 bg-card flex flex-col gap-2.5',
-                'transition-colors hover:border-primary/40',
+                'relative transition-colors hover:border-primary/40',
                 !isActive && 'opacity-70'
             )}
         >
+            {/* ── watermark ────────────────────────────────────────────
+                The same treatment the monitor cards and group panels carry, so
+                a token reads as part of the same family of things.
+
+                In its own clipping layer rather than `overflow-hidden` on the
+                card: the dropdown does portal out, but a tooltip or a future
+                popover might not, and clipping them would be a silent regression
+                for a purely decorative gain.
+
+                `aria-hidden` and `pointer-events-none` — the card already says
+                what it is, and this must never intercept a click meant for the
+                reveal button or the menu. */}
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-xl"
+            >
+                <KeyRound
+                    className="absolute -bottom-8 -right-8 h-44 w-44 text-accent opacity-[0.07]"
+                    strokeWidth={0.75}
+                />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative z-10 flex items-center gap-2.5 min-w-0">
                 <StatusIndicator isOnline={isActive} size="sm" />
                 <button
                     type="button"
@@ -138,7 +161,9 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
             {/* Token value */}
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <p className="truncate font-mono text-xs text-muted-foreground">{displayedSecret}</p>
+                    <p className="relative z-10 truncate font-mono text-xs text-muted-foreground">
+                        {displayedSecret}
+                    </p>
                 </TooltipTrigger>
                 <TooltipContent>
                     {secret
@@ -152,7 +177,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
             {lifetimeUsed !== null ? (
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="h-1 overflow-hidden rounded-full bg-secondary">
+                        <div className="relative z-10 h-1 overflow-hidden rounded-full bg-secondary">
                             <div
                                 className={cn(
                                     'h-full rounded-full transition-all duration-500',
@@ -171,7 +196,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
             {/* The two dates that answer "where is this token in its life?" are
                 labelled and given their own row — unlabelled ages next to an
                 expiry read as three interchangeable timestamps. */}
-            <dl className="grid grid-cols-2 gap-x-3 border-t border-border/40 pt-2 text-[11px]">
+            <dl className="relative z-10 grid grid-cols-2 gap-x-3 border-t border-border/40 pt-2 text-[11px]">
                 <div className="min-w-0">
                     <dt className="text-muted-foreground/70">Created</dt>
                     <Tooltip>
@@ -209,7 +234,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                 has no deadline to announce, and a line saying so is a row of card
                 spent restating the absence of news. */}
             {token.expires_at ? (
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                <div className="relative z-10 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span className={cn('flex items-center gap-1 font-mono', expiringSoon && 'text-warning')}>

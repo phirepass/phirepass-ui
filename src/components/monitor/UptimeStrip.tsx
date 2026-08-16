@@ -18,7 +18,21 @@ import type { DailyBucket } from '@/types/monitor';
  * but is drawn as a warning, so a service sliding toward failure shows on the
  * strip before it starts failing.
  */
-export function UptimeStrip({ daily, className }: { daily: DailyBucket[]; className?: string }) {
+export function UptimeStrip({
+    daily,
+    className,
+    /**
+     * Bar height. The default suits the detail dialog, where the strip sits in a
+     * dense column of facts; the overview panels give it more room because there
+     * it is one of only three things on the card and has to read from further
+     * away.
+     */
+    barHeight = 'h-6',
+}: {
+    daily: DailyBucket[];
+    className?: string;
+    barHeight?: string;
+}) {
     return (
         <div className={cn('flex items-end gap-[2px]', className)}>
             {daily.map((day) => {
@@ -54,7 +68,8 @@ export function UptimeStrip({ daily, className }: { daily: DailyBucket[]; classN
                         <TooltipTrigger asChild>
                             <div
                                 className={cn(
-                                    'h-6 min-w-[3px] flex-1 rounded-[2px] transition-opacity hover:opacity-70',
+                                    'min-w-[3px] flex-1 rounded-[3px] transition-opacity hover:opacity-70',
+                                    barHeight,
                                     tone
                                 )}
                             />

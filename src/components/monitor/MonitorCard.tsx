@@ -109,6 +109,32 @@ export function MonitorCard({
                     monitor.paused && 'opacity-70'
                 )}
             >
+                {/* ── watermark ────────────────────────────────────────
+                    The kind's own icon as the card's ground, matching the
+                    overview panels so a card and its group read as the same
+                    family.
+
+                    In its own clipping layer rather than on the card: the
+                    wrapper above is `md:overflow-visible` so menus and tooltips
+                    can escape the card, and adding `overflow-hidden` to make the
+                    bleed work would have clipped those too.
+
+                    Decorative — `aria-hidden`, `pointer-events-none`, and low
+                    enough in opacity to tint the card without touching any
+                    text's contrast. Sits under the `z-30` content below. */}
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-xl"
+                >
+                    <KindIcon
+                        className={cn(
+                            'absolute -bottom-10 -right-10 h-56 w-56 opacity-[0.07]',
+                            kindStyle.text,
+                        )}
+                        strokeWidth={0.75}
+                    />
+                </div>
+
                 {/* Header */}
                 <div className="relative z-30">
                     <div className="min-w-0 flex-1">
@@ -210,7 +236,7 @@ export function MonitorCard({
                 </div>
 
                 {/* Target */}
-                <div className="flex items-center gap-2 mb-4 mt-1 min-w-0">
+                <div className="relative z-10 flex items-center gap-2 mb-4 mt-1 min-w-0">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <p className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
@@ -254,7 +280,7 @@ export function MonitorCard({
                 </div>
 
                 {/* Primary stats */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="relative z-10 grid grid-cols-2 gap-3 mb-4">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="space-y-1">
@@ -329,7 +355,7 @@ export function MonitorCard({
                 </div>
 
                 {/* Extended stats */}
-                <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-x-4 gap-y-0.5 mb-3 text-xs">
+                <div className="relative z-10 grid grid-cols-1 min-[450px]:grid-cols-2 gap-x-4 gap-y-0.5 mb-3 text-xs">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="flex items-center gap-2 px-1 py-1">
@@ -418,7 +444,7 @@ export function MonitorCard({
                     </Tooltip>
                 ) : null}
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
+                <div className="relative z-10 flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
                     <span className="truncate text-muted-foreground/60 first-letter:uppercase">
                         {monitor.last_error ?? (monitor.last_checked_at ? 'No errors reported' : 'Awaiting first check')}
                     </span>
@@ -426,7 +452,7 @@ export function MonitorCard({
                 </div>
 
                 {/* 30-day history */}
-                <div className="mt-auto">
+                <div className="relative z-10 mt-auto">
                     <div className="mb-2 flex items-center justify-between">
                         {/*
                           * Both labels are deliberately terse, so each carries

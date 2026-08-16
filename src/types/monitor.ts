@@ -208,6 +208,15 @@ export interface MonitorKindSummary {
     } | null;
     /** The soonest expiry of this kind, regardless of its warning window. */
     next_expiry: MonitorExpiryRef | null;
+    /**
+     * Fourteen days of history for the panel's strip, oldest first, aggregated
+     * across every monitor of this kind.
+     *
+     * Days that recorded nothing are present and empty rather than absent — the
+     * strip draws one bar per entry, so a missing day would compress the
+     * timeline and stop the bars lining up with dates.
+     */
+    daily: DailyBucket[];
 }
 
 /** A monitor that currently warrants a line in the alert strip. */
