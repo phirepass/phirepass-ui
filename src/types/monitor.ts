@@ -192,19 +192,23 @@ export const MONITOR_KIND_LABELS: Record<MonitorKind, string> = {
 
 export const MONITOR_KIND_HINTS: Record<MonitorKind, string> = {
     http: 'Requests a URL and checks the status code, optional keyword, and response time.',
-    ssl: 'Inspects the TLS certificate served by host:port and warns before it expires.',
+    ssl: 'Inspects the TLS certificate at host:port and warns before it expires. Use a hostname, not an IP.',
     domain: 'Looks the domain up over RDAP and warns before the registration lapses.',
 };
 
 /**
- * Which kinds can currently be created. `ssl` and `domain` are specified end to
- * end but have no backend yet, so the form offers them disabled rather than
- * dropping them: the vocabulary stays whole, existing monitors of those kinds
- * still render everywhere else, and turning them on is one edit here.
+ * Which kinds can currently be created. `domain` is specified end to end but has
+ * no backend yet, so the form offers it disabled rather than dropping it: the
+ * vocabulary stays whole, existing monitors of that kind still render everywhere
+ * else, and turning it on is one edit here.
+ *
+ * It needs an RDAP client and — because it never connects to the target — a
+ * settled answer to which agent should run it, given every agent would get the
+ * same reply the server would.
  */
 export const MONITOR_KIND_ENABLED: Record<MonitorKind, boolean> = {
     http: true,
-    ssl: false,
+    ssl: true,
     domain: false,
 };
 

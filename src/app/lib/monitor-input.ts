@@ -42,6 +42,57 @@ const ALLOWED_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIO
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Rejects an `ssl` target the agent's parser would refuse, returning the reason
+ * or `null` when it is fine.
+ *
+ * Mirrors `parse_target` in `agent/src/probe/ssl.rs`. Worth duplicating: without
+ * it a typo is accepted at creation and then reports `unknown` once a day
+ * forever, which reads as a broken agent rather than a bad target — and the
+ * scheduler would keep dispatching it.
+ */
+function sslTargetError(target: string): string | null {
+    // A path means someone pasted a URL and kept too much of it. The agent
+    // tolerates it, but silently checking a different thing than the field shows
+    // is worse than asking for the host.
+    const authority = target.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+    if (/[/?#]/.test(authority)) {
+        return 'TLS monitors take a host and optional port, not a URL path';
+    }
+
+    let host = authority;
+    let port: string | null = null;
+
+    if (authority.startsWith('[')) {
+        const close = authority.indexOf(']');
+        if (close === -1) return 'Unclosed [ in the IPv6 address';
+        host = authority.slice(1, close);
+        const tail = authority.slice(close + 1);
+        if (tail.startsWith(':')) port = tail.slice(1);
+        else if (tail.length > 0) return 'Unexpected text after the IPv6 address';
+    } else {
+        const lastColon = authority.lastIndexOf(':');
+        // Only a port when the head holds no further colon, or a bare
+        // `2001:db8::1` would be read as host `2001:db8:` and port `:1`.
+        if (lastColon !== -1 && !authority.slice(0, lastColon).includes(':')) {
+            host = authority.slice(0, lastColon);
+            port = authority.slice(lastColon + 1);
+        }
+    }
+
+    if (!host) return 'Target needs a host';
+    if (host.length > 253) return 'Host is too long';
+
+    if (port !== null) {
+        const parsed = Number(port);
+        if (!/^\d+$/.test(port) || parsed < 1 || parsed > 65535) {
+            return 'Port must be between 1 and 65535';
+        }
+    }
+
+    return null;
+}
+
 function str(value: unknown): string {
     return typeof value === 'string' ? value.trim() : '';
 }
@@ -84,6 +135,10 @@ export function parseMonitor(
     if (target.length > 2048) return { ok: false, error: 'Target is too long' };
     if (kind === 'http' && !/^https?:\/\//i.test(target)) {
         return { ok: false, error: 'HTTP monitors need a target starting with http:// or https://' };
+    }
+    if (kind === 'ssl') {
+        const invalid = sslTargetError(target);
+        if (invalid) return { ok: false, error: invalid };
     }
 
     const nodeId = str(payload.node_id) || defaults?.node_id || '';

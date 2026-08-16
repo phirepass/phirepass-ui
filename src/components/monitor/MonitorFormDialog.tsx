@@ -251,7 +251,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                 {kind === 'http' ? (
                                     <span
                                         aria-hidden
-                                        className="ml-5 pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                        className="ml-1 pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
                                     >
                                         {method}
                                     </span>
@@ -309,6 +309,9 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                     onChange={(event) => setExpiryWarnDays(Number(event.target.value))}
                                     className="mt-1.5"
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Inside this window is degraded, not down.
+                                </p>
                             </div>
                         ) : (
                             <div>

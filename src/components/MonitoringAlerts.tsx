@@ -2,6 +2,13 @@ import { TunnelNode } from "@/types/node";
 import { AlertTriangle, XCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { fullestFilesystem, percentUsed } from "./disk-display";
+
+// Higher than the card's own 70/90 tinting on purpose. The bar is glanceable
+// context and can afford to colour early; this strip interrupts the page, so it
+// should only fire when someone genuinely needs to act.
+const DISK_HIGH_PERCENT = 85;
+const DISK_CRITICAL_PERCENT = 95;
 
 interface Alert {
     id: string;
@@ -44,32 +51,39 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
             });
         }
 
-        // High Memory alert
-        //if (node.stats.memory > 90) {
-            /*
+        // Disk pressure, judged per mount rather than on the aggregate. A host
+        // with a 4 TB array and a full 2 GB /boot has an aggregate of about 0%
+        // and an outage coming, so the fullest single filesystem is what earns
+        // the alert — and naming it is most of the value, since "disk is full"
+        // without a mount point sends someone hunting.
+        //
+        // `host_disks` is absent for agents older than the field and for nodes
+        // restored from the local cache, and absent must raise nothing: a node
+        // that never reported disks is not a node with healthy disks.
+        const fullest = fullestFilesystem(node.stats.host_disks);
+        const diskPercent = fullest ? percentUsed(fullest) : 0;
+
+        if (fullest && diskPercent >= DISK_CRITICAL_PERCENT) {
             alerts.push({
-                id: `mem-${node.id}`,
+                id: `disk-${node.id}`,
                 type: 'error',
-                title: 'Critical Memory Usage',
-                message: `Memory usage at ${node.stats.memory}%`,
+                title: 'Critical Disk Usage',
+                message: `${fullest.mount} is ${diskPercent.toFixed(1)}% full`,
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: `${node.name} (${node.stats.host_name})`,
                 timestamp: new Date(),
             });
-            */
-        //} else if (node.stats.memory > 80) {
-            /*
+        } else if (fullest && diskPercent >= DISK_HIGH_PERCENT) {
             alerts.push({
-                id: `mem-warn-${node.id}`,
+                id: `disk-warn-${node.id}`,
                 type: 'warning',
-                title: 'High Memory Usage',
-                message: `Memory usage at ${node.stats.memory}%`,
+                title: 'High Disk Usage',
+                message: `${fullest.mount} is ${diskPercent.toFixed(1)}% full`,
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: node.stats.host_name,
                 timestamp: new Date(),
             });
-            */
-        //}
+        }
 
         // Offline node alert
         //if (!node.isOnline) {

@@ -54,11 +54,36 @@ export interface NodeInfo {
  * The flat view the dashboard renders: live metrics from the agent's latest
  * heartbeat, merged with the static fields from {@link NodeInfo}.
  */
+/** One mounted filesystem on the node, as reported with the heartbeat. */
+export interface NodeFilesystem {
+    /** Mount point — a path on unix, a drive root such as `C:\` on Windows. */
+    mount: string;
+    fs_type: string;
+    total_bytes: number;
+    /**
+     * Free space the platform reports. Not `total - used`: on unix the two
+     * differ by the root-reserved blocks, and this is the number that says
+     * whether an ordinary service can still write.
+     */
+    available_bytes: number;
+}
+
 export interface NodeStats {
     ip: string;
     /** Open network connections on the host, sampled per heartbeat. */
     host_connections: number;
     host_cpu: number;
+    /**
+     * Real mounted filesystems, largest first, deduped and capped by the agent.
+     *
+     * Optional because nodes hydrate from `localStorage` before the first poll
+     * lands (see `src/lib/nodesCache.ts`), so a cached node written before this
+     * field existed has none — the same reason `monitor_count` is optional.
+     * Absent and empty both mean "nothing to show", never "no disks".
+     */
+    host_disks?: NodeFilesystem[];
+    host_disk_total_bytes?: number;
+    host_disk_used_bytes?: number;
     host_ip: string;
     host_local_ip: string;
     host_load_average: [number, number, number];

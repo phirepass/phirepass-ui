@@ -214,3 +214,48 @@ $job$);
 -- ─────────────────────────────────────────────────────────────────────────────
 ALTER TABLE monitors       ADD COLUMN IF NOT EXISTS last_reason text;
 ALTER TABLE monitor_checks ADD COLUMN IF NOT EXISTS reason      text;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Added after the initial schema; safe to re-run.
+--
+-- Retention floor, required by the `ssl` kind.
+--
+-- The flat 30-day prune above assumes short intervals, and that held while
+-- `http` was the only creatable kind: a 900s monitor writes ~96 checks a day, so
+-- 30 days is thousands of rows and the window is generous. A daily `ssl` monitor
+-- writes one. The same window keeps 30 — fewer than the 200 the detail dialog
+-- asks for, so its latency chart and recent-checks table would stay permanently
+-- sparse from the monitor's second month onward.
+--
+-- The floor keeps the most recent 200 rows per monitor regardless of age, and
+-- only then applies the 30-day cutoff.
+--
+-- The LATERAL rides `monitor_checks_idx (monitor_id, checked_at DESC)`, so it
+-- reads 201 index entries per monitor rather than ranking the whole table.
+-- `OFFSET 200 LIMIT 1` returns no row for a monitor with 200 checks or fewer,
+-- and the join then excludes that monitor from the delete entirely — which is
+-- exactly the "young or slow monitor" case the floor exists to protect.
+-- ─────────────────────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+    PERFORM cron.unschedule('uptime-prune-checks');
+EXCEPTION WHEN OTHERS THEN
+    -- Not yet scheduled: a first-time apply must not fail here.
+    NULL;
+END $$;
+
+SELECT cron.schedule('uptime-prune-checks', '17 3 * * *', $job$
+DELETE FROM monitor_checks c
+USING monitors m,
+LATERAL (
+    SELECT k.checked_at
+    FROM monitor_checks k
+    WHERE k.monitor_id = m.id
+    ORDER BY k.checked_at DESC
+    OFFSET 200 LIMIT 1
+) floor
+WHERE c.monitor_id = m.id
+  AND c.checked_at < now() - interval '30 days'
+  AND c.checked_at < floor.checked_at;
+$job$);

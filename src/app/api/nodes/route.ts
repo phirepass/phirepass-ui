@@ -4,10 +4,20 @@ import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
 import type { NodeStatus } from '@/types/node';
 
+type NodeFilesystem = {
+    mount: string;
+    fs_type: string;
+    total_bytes: number;
+    available_bytes: number;
+};
+
 type NodeStats = {
     ip: string;
     host_connections: number;
     host_cpu: number;
+    host_disks: NodeFilesystem[];
+    host_disk_total_bytes: number;
+    host_disk_used_bytes: number;
     host_ip: string;
     host_local_ip: string;
     host_load_average: [number, number, number];
@@ -109,6 +119,48 @@ function normalizeLoadAverage(value: unknown): [number, number, number] {
     return [0, 0, 0];
 }
 
+/**
+ * The agent already filters, dedupes, orders and caps this list (see
+ * `common/src/metrics/host.rs`), so nothing is re-decided here — the order is
+ * meaningful and must survive. An agent predating disk telemetry sends no field
+ * at all, which normalizes to an empty list, and the card treats "empty" as "not
+ * reported" rather than "no disks".
+ *
+ * A mount with no capacity is still dropped: the agent will not send one, but
+ * this is the boundary where a hand-written Redis value would arrive, and every
+ * percentage downstream divides by it.
+ */
+function normalizeFilesystems(value: unknown): NodeFilesystem[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') {
+            return [];
+        }
+
+        const raw = entry as Partial<NodeFilesystem>;
+        const mount = toString(raw.mount);
+        const total_bytes = toNumber(raw.total_bytes);
+
+        if (!mount || total_bytes <= 0) {
+            return [];
+        }
+
+        return [
+            {
+                mount,
+                fs_type: toString(raw.fs_type),
+                total_bytes,
+                // Clamped: free space above capacity is not a reading anyone can
+                // draw a bar from.
+                available_bytes: Math.min(toNumber(raw.available_bytes), total_bytes),
+            },
+        ];
+    });
+}
+
 type ServiceSummary = number | { visibility: 'public' | 'private'; count: number };
 
 function normalizeServices(value: unknown): Record<string, ServiceSummary> {
@@ -183,6 +235,9 @@ function buildDefaultStats(overrides?: Partial<NodeStats>): NodeStats {
         ip: '',
         host_connections: 0,
         host_cpu: 0,
+        host_disks: [],
+        host_disk_total_bytes: 0,
+        host_disk_used_bytes: 0,
         host_ip: '',
         host_local_ip: '',
         host_load_average: [0, 0, 0],
@@ -306,6 +361,17 @@ function normalizeStatsPayload(
         return toString(fromInfo) || toString(statsSource[key]);
     };
 
+    // Recomputed from the normalized list rather than read off the wire. The
+    // agent sums the same way, but if anything was dropped above then its totals
+    // no longer describe the rows being rendered, and a bar that disagrees with
+    // the table under it is worse than no bar.
+    const hostDisks = normalizeFilesystems(statsSource.host_disks);
+    const hostDiskTotalBytes = hostDisks.reduce((sum, fs) => sum + fs.total_bytes, 0);
+    const hostDiskUsedBytes = hostDisks.reduce(
+        (sum, fs) => sum + (fs.total_bytes - fs.available_bytes),
+        0,
+    );
+
     return {
         id: payload?.id,
         name: payload?.name,
@@ -318,6 +384,9 @@ function normalizeStatsPayload(
             ip: toString(statsSource.ip ?? payload?.ip) || staticField('host_ip'),
             host_connections: toNumber(statsSource.host_connections),
             host_cpu: toNumber(statsSource.host_cpu),
+            host_disks: hostDisks,
+            host_disk_total_bytes: hostDiskTotalBytes,
+            host_disk_used_bytes: hostDiskUsedBytes,
             host_ip: staticField('host_ip'),
             host_local_ip: staticField('host_local_ip'),
             host_load_average: normalizeLoadAverage(statsSource.host_load_average),

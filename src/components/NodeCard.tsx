@@ -4,6 +4,8 @@ import { TunnelNode } from '@/types/node';
 import { LocationStrip } from './LocationStrip';
 import { LocationDetails } from './LocationDetails';
 import { LanFingerprintDetails } from './LanFingerprintDetails';
+import { DiskDetails } from './DiskDetails';
+import { fullestFilesystem, percentUsed } from './disk-display';
 import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
 import { StatBar } from './StatBar';
@@ -27,6 +29,7 @@ import {
     Plus,
     Loader2,
     Gauge,
+    HardDrive,
     Network,
     Router,
     Container as ContainerIcon
@@ -217,6 +220,21 @@ export function NodeCard({
     const cpuPercent = clampPercent(node.stats.host_cpu);
     const loadAverageLabel = node.stats.host_load_average.map((value) => value.toFixed(2)).join(' / ');
     const freeMemoryBytes = Math.max(0, node.stats.host_mem_total_bytes - node.stats.host_mem_used_bytes);
+    // Absent for agents older than the field, and for any node restored from the
+    // localStorage cache before the first poll lands — so every consumer below
+    // has to tolerate an empty list rather than assume at least one mount.
+    const disks = node.stats.host_disks ?? [];
+    const diskTotalBytes = node.stats.host_disk_total_bytes ?? 0;
+    const diskUsedBytes = node.stats.host_disk_used_bytes ?? 0;
+    const hasDiskStats = disks.length > 0 && diskTotalBytes > 0;
+    const diskPercent = hasDiskStats ? clampPercent((diskUsedBytes / diskTotalBytes) * 100) : 0;
+    const freeDiskBytes = Math.max(0, diskTotalBytes - diskUsedBytes);
+    // The bar shows the aggregate, but the aggregate is the reassuring number: a
+    // host with a 4 TB array and a full 2 GB /boot reads as barely used. The
+    // fullest single mount is what an operator actually needs, so it drives the
+    // tooltip — and the same helper drives the dashboard's disk alert, so the
+    // two can never name different mounts.
+    const fullestDisk = fullestFilesystem(disks);
     const nodeVersion = node.stats.version?.trim();
     const isIncompatible = node.is_online
         && !!nodeVersion
@@ -273,6 +291,7 @@ export function NodeCard({
 
     const [ipBlurred, setIpBlurred] = useState(false);
     const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+    const [diskDialogOpen, setDiskDialogOpen] = useState(false);
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
@@ -506,8 +525,10 @@ export function NodeCard({
                     </div>
                 </div>
 
-                {/* Primary Stats - Side by Side */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                {/* Primary Stats - Side by Side. Three across once the node
+                    reports disks; two for an older agent, rather than an empty
+                    third column reading 0%. */}
+                <div className={cn('grid gap-3 mb-4', hasDiskStats ? 'grid-cols-3' : 'grid-cols-2')}>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div>
@@ -528,6 +549,35 @@ export function NodeCard({
                             {formatBytes(node.stats.host_mem_used_bytes)} / {formatBytes(node.stats.host_mem_total_bytes)} • Free {formatBytes(freeMemoryBytes)}
                         </TooltipContent>
                     </Tooltip>
+                    {hasDiskStats ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                {/* The only one of the three bars that opens
+                                    something: CPU and memory are a single number
+                                    each, where disk is an aggregate over mounts
+                                    that can disagree with each other. */}
+                                <button
+                                    type="button"
+                                    onClick={() => setDiskDialogOpen(true)}
+                                    className="text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    aria-label={`Storage breakdown for ${node.name || 'this node'}`}
+                                >
+                                    <StatBar label="Disk" value={diskPercent} icon={<HardDrive className="w-4 h-4" />} />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {formatBytes(diskUsedBytes)} / {formatBytes(diskTotalBytes)} • Free {formatBytes(freeDiskBytes)}
+                                {fullestDisk ? (
+                                    <>
+                                        <br />
+                                        Fullest: {fullestDisk.mount} at {percentUsed(fullestDisk).toFixed(1)}%
+                                    </>
+                                ) : null}
+                                <br />
+                                {disks.length === 1 ? '1 mount' : `${disks.length} mounts`} — click for the breakdown
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
                 </div>
 
                 {/* Extended Stats Grid */}
@@ -898,6 +948,24 @@ export function NodeCard({
                             </p>
                         ) : null}
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={diskDialogOpen} onOpenChange={setDiskDialogOpen}>
+                <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <HardDrive className="h-4 w-4" />
+                            Storage
+                        </DialogTitle>
+                        <DialogDescription>
+                            Every filesystem {node.name || 'this node'} reported, largest first.
+                            Bind mounts and subvolumes of one device are counted once, so these
+                            add up to the total on the card.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DiskDetails disks={disks} formatBytes={formatBytes} />
                 </DialogContent>
             </Dialog>
 
