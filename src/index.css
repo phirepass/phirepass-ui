@@ -201,15 +201,32 @@
            specular edge in `--shadow-control` is what makes a button read as a
            physical key rather than a coloured rectangle. Kept here rather than
            inline so the whole control set can be re-lit in one place. */
-        --fill-prominent: linear-gradient(
+        /* Light on a surface, rather than a colour ramp per variant.
+           The earlier form baked one gradient per button colour, which meant a
+           caller overriding just `bg-*` (every destructive confirm in the app
+           does) kept the *previous* variant's gradient painted on top and got a
+           white button where it asked for a red one. A sheen is colour-agnostic:
+           it lightens the top edge and shades the bottom of whatever background
+           is underneath, so overrides compose and there is one ramp to tune
+           instead of four. */
+        --fill-sheen: linear-gradient(
             180deg,
-            hsl(210 24% 100%) 0%,
-            hsl(212 14% 90%) 100%
+            hsl(0 0% 100% / 0.13) 0%,
+            hsl(0 0% 100% / 0.03) 52%,
+            hsl(0 0% 0% / 0.08) 100%
         );
-        --fill-prominent-hover: linear-gradient(
+        --fill-sheen-hover: linear-gradient(
             180deg,
-            hsl(210 24% 100%) 0%,
-            hsl(212 14% 95%) 100%
+            hsl(0 0% 100% / 0.22) 0%,
+            hsl(0 0% 100% / 0.08) 52%,
+            hsl(0 0% 0% / 0.05) 100%
+        );
+        /* Pressed: the light comes from below instead, which is what a key
+           looks like when it is down. */
+        --fill-sheen-pressed: linear-gradient(
+            180deg,
+            hsl(0 0% 0% / 0.12) 0%,
+            hsl(0 0% 0% / 0.04) 100%
         );
         --fill-control: linear-gradient(
             180deg,
@@ -221,25 +238,10 @@
             hsl(0 0% 100% / 0.17) 0%,
             hsl(0 0% 100% / 0.095) 100%
         );
-        --fill-destructive: linear-gradient(
-            180deg,
-            hsl(356 70% 59%) 0%,
-            hsl(356 68% 48%) 100%
-        );
-        --fill-destructive-hover: linear-gradient(
-            180deg,
-            hsl(356 72% 63%) 0%,
-            hsl(356 68% 52%) 100%
-        );
         --fill-accent: linear-gradient(
             180deg,
             hsl(158 60% 46%) 0%,
             hsl(158 62% 37%) 100%
-        );
-        --fill-accent-hover: linear-gradient(
-            180deg,
-            hsl(158 60% 50%) 0%,
-            hsl(158 62% 41%) 100%
         );
         /* The raised element of a segmented control / the knob of a switch. */
         --fill-thumb: linear-gradient(
@@ -553,6 +555,81 @@
 
     .animate-fade-in {
         animation: fade-in 0.2s var(--ease-mac);
+    }
+
+    /*
+     * Notification hero.
+     *
+     * `pp-bloom` is the lit state of the master control: two very wide, very
+     * soft washes rather than a border glow, so the panel reads as having a
+     * light source behind it instead of a coloured outline drawn on it. Only
+     * ever placed on a `relative overflow-hidden` parent.
+     */
+    .pp-bloom {
+        background:
+            radial-gradient(
+                52% 120% at 10% -10%,
+                hsl(var(--accent) / 0.22) 0%,
+                transparent 68%
+            ),
+            radial-gradient(
+                46% 120% at 84% 110%,
+                hsl(var(--info) / 0.14) 0%,
+                transparent 66%
+            );
+    }
+
+    /* The bell rings, briefly, every few seconds — long gaps so it reads as
+       punctuation rather than a spinner. Pivots at the crown, like a real one. */
+    @keyframes pp-bell {
+        0%,
+        60%,
+        100% {
+            transform: rotate(0deg);
+        }
+        64% {
+            transform: rotate(12deg);
+        }
+        68% {
+            transform: rotate(-10deg);
+        }
+        72% {
+            transform: rotate(7deg);
+        }
+        76% {
+            transform: rotate(-4deg);
+        }
+        80% {
+            transform: rotate(0deg);
+        }
+    }
+
+    .animate-bell {
+        transform-origin: 50% 12%;
+        animation: pp-bell 4.5s ease-in-out infinite;
+    }
+
+    /* A notification banner arriving: down and forward, on the macOS curve. */
+    @keyframes pp-banner-in {
+        from {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.96);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    .animate-banner-in {
+        animation: pp-banner-in 0.42s var(--ease-mac) both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .animate-bell,
+        .animate-banner-in {
+            animation: none;
+        }
     }
 
     /* Hide scrollbar but keep functionality */

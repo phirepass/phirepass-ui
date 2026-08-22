@@ -31,20 +31,16 @@ import { CONTACT_TOPICS, CONTACT_TOPIC_LABELS, type ContactTopic } from '@/types
  * The support contact form.
  *
  * Reachable signed out as well as signed in — someone who cannot log in is
- * exactly the person who needs it — so the fields are asked for rather than
- * assumed, and prefilled from the session when there is one. The message is
- * delivered by `POST /api/contact`, which sends it through Resend; nothing is
- * written to the database.
+ * exactly the person who needs it — so every field is asked for rather than
+ * assumed. Name, email and message always open empty: the form no longer seeds
+ * the identity fields from the session, so what is sent is only ever what the
+ * sender typed on this visit. The message is delivered by `POST /api/contact`,
+ * which sends it through Resend; nothing is written to the database.
  */
 
 // Mirrors src/app/lib/contact-input.ts. The server re-checks all of it.
 const LIMITS = { name: 120, email: 254, message: 5000 } as const;
 const MIN_MESSAGE = 10;
-
-export type ContactUser = {
-    name?: string | null;
-    email?: string | null;
-};
 
 type Fields = {
     name: string;
@@ -63,12 +59,9 @@ const EMPTY: Fields = {
 export function ContactSupportDialog({
     open,
     onOpenChange,
-    user,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Prefills the identity fields when the sender is signed in. */
-    user?: ContactUser | null;
 }) {
     const [sending, setSending] = useState(false);
 
@@ -89,7 +82,6 @@ export function ContactSupportDialog({
                     initial state without an effect resetting the fields. */}
                 {open ? (
                     <ContactForm
-                        user={user}
                         sending={sending}
                         onSendingChange={setSending}
                         onSent={() => onOpenChange(false)}
@@ -102,24 +94,20 @@ export function ContactSupportDialog({
 }
 
 function ContactForm({
-    user,
     sending,
     onSendingChange,
     onSent,
     onCancel,
 }: {
-    user?: ContactUser | null;
     sending: boolean;
     onSendingChange: (sending: boolean) => void;
     onSent: () => void;
     onCancel: () => void;
 }) {
     const { toast } = useToast();
-    const [fields, setFields] = useState<Fields>(() => ({
-        ...EMPTY,
-        name: user?.name ?? '',
-        email: user?.email ?? '',
-    }));
+    // Always blank. The dialog mounts this component fresh on each open (see
+    // the note there), so `EMPTY` is the state every visit starts from.
+    const [fields, setFields] = useState<Fields>(EMPTY);
     // Honeypot: hidden from people and from screen readers, so anything in it
     // came from a bot filling every input on the page.
     const [company, setCompany] = useState('');
@@ -345,11 +333,9 @@ function ContactForm({
 export function ContactSupportLink({
     label = 'Contact',
     className,
-    user,
 }: {
     label?: string;
     className?: string;
-    user?: ContactUser | null;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -367,7 +353,7 @@ export function ContactSupportLink({
                 <LinkBadge icon={LifeBuoy} />
                 {label}
             </button>
-            <ContactSupportDialog open={open} onOpenChange={setOpen} user={user} />
+            <ContactSupportDialog open={open} onOpenChange={setOpen} />
         </>
     );
 }

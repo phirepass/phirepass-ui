@@ -8,12 +8,19 @@ import { cn } from "@/lib/utils";
  * macOS push buttons.
  *
  * Three things separate one from a coloured rectangle, and every variant below
- * has all three: a vertical fill that is brighter at the top (`--fill-*`), a
- * specular highlight along the top edge plus a tight contact shadow
+ * has all three: a sheen that lights the top edge and shades the bottom
+ * (`--fill-sheen`), a specular highlight plus a tight contact shadow
  * (`shadow-control`), and a press state that sinks the surface inward
  * (`shadow-control-pressed`) instead of shrinking it. macOS controls do not
  * scale under the pointer — they darken and recess — so nothing here uses
  * `active:scale`.
+ *
+ * The sheen is deliberately colour-agnostic. Callers routinely recolour a
+ * button through `className` — every destructive confirmation in the app is
+ * `buttonVariants()` plus `bg-destructive` — and `tailwind-merge` resolves
+ * background-*colour* conflicts but not background-*image* ones, so a fill
+ * baked per variant would survive the override and paint the old colour over
+ * the new one.
  *
  * `default` stays near-white rather than taking the emerald accent: that green
  * already means "online" on every node card, and a CTA wearing it would compete
@@ -38,20 +45,20 @@ const buttonVariants = cva(
         variants: {
             variant: {
                 default:
-                    "bg-primary bg-[image:var(--fill-prominent)] text-primary-foreground shadow-control hover:bg-[image:var(--fill-prominent-hover)] active:brightness-95 active:shadow-control-pressed",
+                    "bg-primary text-primary-foreground bg-[image:var(--fill-sheen)] shadow-control hover:bg-[image:var(--fill-sheen-hover)] active:bg-[image:var(--fill-sheen-pressed)] active:shadow-control-pressed",
                 destructive:
-                    "bg-destructive bg-[image:var(--fill-destructive)] text-destructive-foreground shadow-control hover:bg-[image:var(--fill-destructive-hover)] active:brightness-95 active:shadow-control-pressed",
+                    "bg-destructive text-destructive-foreground bg-[image:var(--fill-sheen)] shadow-control hover:bg-[image:var(--fill-sheen-hover)] active:bg-[image:var(--fill-sheen-pressed)] active:shadow-control-pressed",
                 accent:
-                    "bg-accent bg-[image:var(--fill-accent)] text-accent-foreground shadow-control hover:bg-[image:var(--fill-accent-hover)] active:brightness-95 active:shadow-control-pressed",
+                    "bg-accent text-accent-foreground bg-[image:var(--fill-sheen)] shadow-control hover:bg-[image:var(--fill-sheen-hover)] active:bg-[image:var(--fill-sheen-pressed)] active:shadow-control-pressed",
                 // The standard macOS push button: a translucent control fill
                 // over whatever it sits on, edged with a hairline.
                 secondary:
-                    "border border-hairline bg-[image:var(--fill-control)] text-secondary-foreground shadow-control hover:bg-[image:var(--fill-control-hover)] active:brightness-95 active:shadow-control-pressed",
+                    "border border-hairline bg-[image:var(--fill-control)] text-secondary-foreground shadow-control hover:bg-[image:var(--fill-control-hover)] active:bg-[image:var(--fill-sheen-pressed)] active:shadow-control-pressed",
                 outline:
-                    "border border-hairline bg-transparent text-foreground hover:border-hairline-strong hover:bg-[image:var(--fill-control)] active:brightness-95",
+                    "border border-hairline bg-transparent text-foreground hover:border-hairline-strong hover:bg-[image:var(--fill-control)] active:bg-[image:var(--fill-sheen-pressed)]",
                 ghost: "text-foreground hover:bg-white/[0.07] active:bg-white/[0.04]",
                 link: "text-foreground underline-offset-4 hover:text-accent hover:underline",
-                glow: "bg-primary bg-[image:var(--fill-prominent)] text-primary-foreground shadow-[var(--shadow-control),var(--glow-primary)] hover:bg-[image:var(--fill-prominent-hover)] active:brightness-95 active:shadow-control-pressed",
+                glow: "bg-primary text-primary-foreground bg-[image:var(--fill-sheen)] shadow-[var(--shadow-control),var(--glow-primary)] hover:bg-[image:var(--fill-sheen-hover)] active:bg-[image:var(--fill-sheen-pressed)] active:shadow-control-pressed",
                 terminal:
                     "border border-hairline bg-[image:var(--fill-control)] font-mono text-foreground shadow-control hover:border-accent/60 hover:text-accent active:shadow-control-pressed",
             },
