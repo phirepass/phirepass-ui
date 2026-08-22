@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { IS_DEV_MODE } from '@/lib/dev-mode';
+import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 import { PhirepassLogo } from '@/components/PhirepassLogo';
 import { ContactSupportDialog } from '@/components/ContactSupportDialog';
 import {
@@ -28,7 +28,7 @@ type NavItem = {
     href: string;
     label: string;
     icon: LucideIcon;
-    /** Hidden outside dev builds; see IS_DEV_MODE. */
+    /** Hidden outside dev builds, and while demo data is on; see `useDevSurfaceVisible`. */
     devOnly?: boolean;
 };
 
@@ -52,7 +52,9 @@ export function Header({ user, onLogout }: HeaderProps) {
     const pathname = usePathname();
     const isActivePath = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
 
-    const navItems = NAV_ITEMS.filter((item) => !item.devOnly || IS_DEV_MODE);
+    const devSurfaces = useDevSurfaceVisible();
+
+    const navItems = NAV_ITEMS.filter((item) => !item.devOnly || devSurfaces);
 
     // Generate initials from name or email
     const getInitials = () => {
@@ -179,14 +181,18 @@ export function Header({ user, onLogout }: HeaderProps) {
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
-                                {/* Profile and Settings are withdrawn for now — the
-                                    menu entries and both routes are disabled together,
-                                    so nothing in the UI points at a 404. */}
+                                {/* Profile is still withdrawn — its route and this
+                                    menu entry are disabled together, so nothing in
+                                    the UI points at a redirect. */}
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/pat-tokens')}>
                                     <KeyRound className="w-4 h-4 mr-2" />
                                     Tokens
                                 </DropdownMenuItem>
-                                {IS_DEV_MODE ? (
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+                                    <Settings className="w-4 h-4 mr-2" />
+                                    Settings
+                                </DropdownMenuItem>
+                                {devSurfaces ? (
                                     <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
                                         <Bell className="w-4 h-4 mr-2" />
                                         Notifications
@@ -282,7 +288,19 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <KeyRound className="w-5 h-5 mr-3" />
                             Tokens
                         </Button>
-                        {IS_DEV_MODE ? (
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                isActivePath('/dashboard/settings') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
+                            )}
+                            aria-current={isActivePath('/dashboard/settings') ? 'page' : undefined}
+                            onClick={() => { router.push('/dashboard/settings'); setMenuOpen(false); }}
+                        >
+                            <Settings className="w-5 h-5 mr-3" />
+                            Settings
+                        </Button>
+                        {devSurfaces ? (
                             <Button
                                 variant="ghost"
                                 className={cn(

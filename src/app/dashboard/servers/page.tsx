@@ -3,7 +3,7 @@
 import { notFound } from 'next/navigation';
 
 import ServersPage from '@/components/servers/ServersPage';
-import { IS_DEV_MODE } from '@/lib/dev-mode';
+import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +17,11 @@ export const dynamic = 'force-dynamic';
  * there would also be served at `/Servers`, outside this gate.
  */
 export default function Page() {
-    // Statically false in a production bundle, so the page and everything it
-    // imports drops out of that build rather than merely being unreachable.
-    if (!IS_DEV_MODE) {
+    // Closed in a production build, and while demo data is on — an unfinished
+    // page has no business in front of an audience. The gate is not a
+    // tree-shake: see the note on the Notifications page for what it is and is
+    // not, and do not put anything here that must not ship.
+    if (!useDevSurfaceVisible()) {
         notFound();
     }
 

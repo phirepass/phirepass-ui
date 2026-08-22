@@ -1,4 +1,5 @@
 import { query } from '@/app/lib/db';
+import { HISTORY_DAYS, buildDaily, windowFrom } from '@/lib/uptime-window';
 import type {
     CheckPoint,
     DailyBucket,
@@ -8,7 +9,6 @@ import type {
     MonitorKind,
     MonitorStatus,
     MonitorSummary,
-    UptimeWindow,
 } from '@/types/monitor';
 
 /**
@@ -19,8 +19,6 @@ import type {
  * detail endpoint need the same assembly, and two copies of the uptime maths
  * would drift.
  */
-
-const HISTORY_DAYS = 30;
 
 /** Individual checks returned with a monitor's detail. */
 const DETAIL_CHECK_LIMIT = 200;
@@ -72,75 +70,6 @@ interface DailyRow {
 /** `timestamptz` arrives from `pg` as a `Date`; the wire contract is ISO strings. */
 function iso(value: Date | null): string | null {
     return value ? value.toISOString() : null;
-}
-
-/**
- * The 30 calendar days ending today, oldest first, with days that recorded
- * nothing left empty rather than absent — the strip draws one bar per entry and
- * a no-data day must render neutral, not vanish.
- */
-function buildDaily(rows: DailyRow[], now: Date): DailyBucket[] {
-    const byDay = new Map(rows.map((row) => [row.day, row]));
-    const buckets: DailyBucket[] = [];
-
-    for (let offset = HISTORY_DAYS - 1; offset >= 0; offset--) {
-        const date = new Date(now);
-        date.setUTCDate(date.getUTCDate() - offset);
-        const day = date.toISOString().slice(0, 10);
-        const row = byDay.get(day);
-
-        const checks = row?.checks ?? 0;
-        const downChecks = row?.down_checks ?? 0;
-        const unknownChecks = row?.unknown_checks ?? 0;
-        const degradedChecks = row?.degraded_checks ?? 0;
-        // Only checks that reached a verdict can score. A day of agent timeouts
-        // has checks > 0 and verdicts === 0, which is `null` uptime rather than
-        // a perfect day.
-        const verdicts = checks - unknownChecks;
-
-        buckets.push({
-            day,
-            checks,
-            down_checks: downChecks,
-            unknown_checks: unknownChecks,
-            degraded_checks: degradedChecks,
-            avg_latency_ms: row?.avg_latency_ms ?? null,
-            uptime_pct: verdicts > 0 ? ((verdicts - downChecks) / verdicts) * 100 : null,
-        });
-    }
-
-    return buckets;
-}
-
-/**
- * Sums the trailing `days` buckets.
- *
- * `checks` counts everything that ran, so a timeout still shows up as a check —
- * but `unknown` is subtracted before the percentage is worked out, so "we could
- * not tell" is never credited as uptime. A day of nothing but timeouts reports
- * `checks: N`, `unknown_checks: N`, and `uptime_pct: null`.
- */
-function windowFrom(daily: DailyBucket[], days: number): UptimeWindow {
-    const slice = daily.slice(-days);
-    const checks = slice.reduce((sum, day) => sum + day.checks, 0);
-    const down = slice.reduce((sum, day) => sum + day.down_checks, 0);
-    const unknown = slice.reduce((sum, day) => sum + day.unknown_checks, 0);
-    const degraded = slice.reduce((sum, day) => sum + day.degraded_checks, 0);
-    const verdicts = checks - unknown;
-    const latencies = slice
-        .map((day) => day.avg_latency_ms)
-        .filter((value): value is number => value !== null);
-
-    return {
-        uptime_pct: verdicts === 0 ? null : ((verdicts - down) / verdicts) * 100,
-        avg_latency_ms: latencies.length === 0
-            ? null
-            : Math.round(latencies.reduce((sum, value) => sum + value, 0) / latencies.length),
-        checks,
-        down_checks: down,
-        unknown_checks: unknown,
-        degraded_checks: degraded,
-    };
 }
 
 function toSummary(

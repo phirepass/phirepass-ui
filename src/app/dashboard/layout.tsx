@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { ReactNode } from "react";
 import { getCachedProfile, setCachedProfile } from "./profile-cache";
+import { useDemoMode } from "@/components/DemoModeProvider";
 import { clearCachedNodes } from "@/lib/nodesCache";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,13 @@ export const dynamic = "force-dynamic";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
     const router = useRouter();
     const { toast } = useToast();
+    const isDemo = useDemoMode();
     const cachedProfile = getCachedProfile();
+    // The URL cleanup below is for the OAuth callback and belongs to the first
+    // load only — this effect now also re-runs when demo mode flips, and
+    // rewriting the address bar under someone who just toggled a switch is not
+    // what that line was written to do.
+    const firstLoadRef = useRef(true);
     const [isLoading, setIsLoading] = useState(!cachedProfile);
     const [isAuthenticated, setIsAuthenticated] = useState(!!cachedProfile);
 
@@ -26,6 +33,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     // Fetch user profile from API using HttpOnly cookies (auth + GitHub token).
     // Skipped if already cached from a previous mount of this layout in this session.
+    //
+    // Re-runs when demo mode changes, because the identity in the header is part
+    // of what demo mode replaces: the provider drops the cached profile as it
+    // installs (and removes) its `fetch` patch, so this asks again and gets
+    // whichever of the two answers is now correct.
     useEffect(() => {
         if (getCachedProfile()) {
             return;
@@ -46,9 +58,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     setIsAuthenticated(true);
                     setIsLoading(false);
                     // Clean URL in case callback left params
-                    if (typeof window !== 'undefined' && window.location.search) {
+                    if (firstLoadRef.current && typeof window !== 'undefined' && window.location.search) {
                         window.history.replaceState({}, document.title, '/dashboard/nodes');
                     }
+                    firstLoadRef.current = false;
                 } else {
                     setIsAuthenticated(false);
                     setIsLoading(false);
@@ -62,7 +75,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             }
         };
         load();
-    }, [router]);
+    }, [router, isDemo]);
 
     // Keep the page scrollbar permanently visible while on /dashboard (styled in
     // src/index.css), so short pages don't shift horizontally against tall ones.

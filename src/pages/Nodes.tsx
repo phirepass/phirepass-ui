@@ -28,6 +28,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
+import { useDemoMode } from '@/components/DemoModeProvider';
+import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
 import { getCachedNodes, setCachedNodes } from '@/lib/nodesCache';
@@ -60,6 +62,7 @@ const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsi
 };
 
 export default function Nodes() {
+    const isDemo = useDemoMode();
     const [initialCachedNodes] = useState(() => getCachedNodes());
     const [nodes, setNodes] = useState<TunnelNode[]>(() => initialCachedNodes ?? []);
     const [loading, setLoading] = useState(() => initialCachedNodes === null);
@@ -334,6 +337,24 @@ export default function Nodes() {
                 </PaginationContent>
             </Pagination>
         );
+    };
+
+    /**
+     * Wraps a card action that needs a live agent.
+     *
+     * Terminals, file browsers, screens and service changes all run over a
+     * WebSocket to the machine itself, and a demo fleet is a fixture with
+     * nothing on the other end. The token endpoint refuses these too, but a
+     * refusal reaching the user as a panel that opens and then fails is a worse
+     * demo than a button that says why it did nothing.
+     */
+    const guardLive = <A extends unknown[]>(action: (...args: A) => void) => (...args: A) => {
+        if (isDemo) {
+            toast.info('Not available in the demo', { description: DEMO_LIVE_ACTION_MESSAGE });
+            return;
+        }
+
+        action(...args);
     };
 
     const handleCreateTunnel = (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
@@ -1619,26 +1640,26 @@ export default function Nodes() {
                                 node={node}
                                 actionsDisabled={!nodesFresh}
                                 statusPending={!nodesFresh}
-                                onCreateTunnel={handleCreateTunnel}
-                                onOpenFiles={handleOpenFiles}
+                                onCreateTunnel={guardLive(handleCreateTunnel)}
+                                onOpenFiles={guardLive(handleOpenFiles)}
                                 onRefreshStats={handleRefreshStats}
                                 onShare={handleShare}
                                 onViewNodeId={handleViewNodeId}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
-                                onOpenScreen={(target, serviceId, serviceName) => void openScreen(target, serviceId, serviceName)}
-                                onEnableRdp={() => openEnableRdpDialog(node)}
-                                onDisableRdp={(serviceId) => openDisableRdpDialog(node, serviceId)}
-                                onEditRdp={(serviceId) => void openEditRdpDialog(node, serviceId)}
-                                onEnableSsh={() => openEnableSshDialog(node)}
-                                onDisableSsh={(serviceId) => openDisableSshDialog(node, serviceId)}
-                                onEditSsh={(serviceId) => void openEditSshDialog(node, serviceId)}
-                                onEnableSftp={() => openEnableSftpDialog(node)}
-                                onDisableSftp={(serviceId) => openDisableSftpDialog(node, serviceId)}
-                                onEditSftp={(serviceId) => void openEditSftpDialog(node, serviceId)}
-                                onEnableHttpProxy={() => openEnableHttpProxyDialog(node)}
-                                onDisableHttpProxy={(serviceId) => openDisableHttpProxyDialog(node, serviceId)}
-                                onEditHttpProxy={(serviceId) => void openEditHttpProxyDialog(node, serviceId)}
+                                onOpenScreen={guardLive((target: TunnelNode, serviceId: string, serviceName?: string | null) => void openScreen(target, serviceId, serviceName))}
+                                onEnableRdp={guardLive(() => openEnableRdpDialog(node))}
+                                onDisableRdp={guardLive((serviceId: string) => openDisableRdpDialog(node, serviceId))}
+                                onEditRdp={guardLive((serviceId: string) => void openEditRdpDialog(node, serviceId))}
+                                onEnableSsh={guardLive(() => openEnableSshDialog(node))}
+                                onDisableSsh={guardLive((serviceId: string) => openDisableSshDialog(node, serviceId))}
+                                onEditSsh={guardLive((serviceId: string) => void openEditSshDialog(node, serviceId))}
+                                onEnableSftp={guardLive(() => openEnableSftpDialog(node))}
+                                onDisableSftp={guardLive((serviceId: string) => openDisableSftpDialog(node, serviceId))}
+                                onEditSftp={guardLive((serviceId: string) => void openEditSftpDialog(node, serviceId))}
+                                onEnableHttpProxy={guardLive(() => openEnableHttpProxyDialog(node))}
+                                onDisableHttpProxy={guardLive((serviceId: string) => openDisableHttpProxyDialog(node, serviceId))}
+                                onEditHttpProxy={guardLive((serviceId: string) => void openEditHttpProxyDialog(node, serviceId))}
                                 onListServices={(kind) => fetchServicesForKind(node.id, kind).then(
                                     (services) => services.map((s) => ({ id: s.id, name: s.name, visibility: s.visibility }))
                                 )}

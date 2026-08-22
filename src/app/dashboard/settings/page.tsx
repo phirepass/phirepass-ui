@@ -1,17 +1,18 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
-import Settings from "@/pages/Settings";
+import SettingsPage from "@/components/settings/SettingsPage";
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Withdrawn for now: the route always 404s and the header no longer links to
- * it — src/proxy.ts turns the request away first, and this is the
- * backstop. The page component below is kept intact so re-enabling is a matter
- * of undoing both plus the menu entry in Header.tsx.
- */
-export default function SettingsPage() {
-    notFound();
+export const metadata: Metadata = {
+    title: "Settings",
+};
 
-    return <Settings />;
+/**
+ * The page component lives in `src/components/settings/`, not `src/pages/` —
+ * that directory is still an active Pages Router root, so a file there would
+ * also be served at `/Settings`, as a second uncontrolled entry point.
+ */
+export default function Page() {
+    return <SettingsPage />;
 }

@@ -23,8 +23,10 @@ Adding a colour means adding a token, not a hex literal.
 ## Monitoring
 
 `/dashboard/monitor` is shipped and reachable in production. `Servers` and
-`Users` remain dev-gated behind `IS_DEV_MODE` (`src/lib/dev-mode.ts`) until RBAC
-can restrict them to the roles that should see them — see `src/lib/rbac.ts`.
+`Users` remain dev-gated behind `useDevSurfaceVisible()`
+(`src/hooks/use-dev-surface.ts`, built on `IS_DEV_MODE`) until RBAC can restrict
+them to the roles that should see them — see `src/lib/rbac.ts`. That hook also
+closes them while demo data is on; see below.
 
 The page component lives in `src/components/monitor/`, **not** `src/pages/` —
 that directory is still an active Pages Router root, so a file there would also
@@ -123,6 +125,91 @@ The form asks for no subject line: the topic select is the whole of it, sent as
 `[Support] Technical issue`, so support mail sorts on a fixed set of values
 instead of on whatever a sender typed. What the message is about is the first
 thing in the body.
+
+## Demo mode
+
+A switch in **Settings** fills the dashboard with a sample fleet: eight nodes
+across seven countries (cloud servers, a shop till, a warehouse gateway, an
+office NAS, a Windows lab box, one offline vault), fourteen uptime monitors
+covering every status the UI can draw, and four PAT tokens. It is for showing
+the product when there is nothing worth showing — an investor room, a booth, a
+screenshot of an account that is not empty.
+
+Three decisions shape it:
+
+- **A user setting, not a deployment flag.** The same production build serves
+  it; there is nothing to configure and no separate demo deployment.
+- **Entirely in the browser.** `DemoModeProvider` patches `window.fetch` while
+  the switch is on and answers the dashboard's own `/api/…` calls from a fixture
+  (`src/lib/demo/`). The server is not involved, no authentication is bypassed,
+  and the account's real data is never read or written.
+- **Including who you are.** `GET /api/profile` is answered from the fixture
+  too, so the header names the person the sample fleet belongs to rather than
+  the presenter — a mismatch otherwise, and a small privacy leak in a room with
+  a projector. The session itself stays real; only the name on screen changes.
+- **Not remembered.** The switch is React state — no cookie, no local storage.
+  Reloading, or opening a second tab, is back on real data, which is the right
+  default for a mode that shows people something untrue.
+
+| Where | What it does |
+|---|---|
+| `src/components/DemoModeProvider.tsx` | The switch, the `fetch` patch, and `useDemoMode()`. |
+| `src/lib/demo/api.ts` | The demo's answer to the API: same status codes, error bodies and validation as `src/app/api/`, or `null` to let the real request go out. |
+| `src/lib/demo/fixtures.ts` | The fleet, described in relative terms — "enrolled 96 days ago", "that outage was nine days back at 21:00", "this certificate has four days left". |
+| `src/lib/demo/store.ts` | Materialises those specs against the clock on every read, and holds the mutations. |
+| `src/components/settings/SettingsPage.tsx` | The switch's home. |
+
+The provider distinguishes what the switch says from what is actually being
+served: the fixture loads on demand, so for a moment after the click `fetch` is
+still the real one. `useDemoMode()` reports the latter, which is what makes
+reacting to it safe — the dashboard layout re-reads the profile when it flips,
+and is guaranteed to be answered by the fixture rather than by the real account.
+`useDemoModeSwitch()`, which only the settings page uses, reports the former so
+the control responds to the click that caused it.
+
+Patching `fetch` is heavier machinery than an API client every page agrees to
+use, and it is deliberate: a patch cannot be *forgotten*. A page calling plain
+`fetch` — as every page here does — would otherwise quietly show the account's
+real nodes beside the sample ones, which is the one failure this mode must not
+have. In exchange the patch is narrow: same-origin `/api/…`, one known route
+table, everything else straight to the network, removed the moment the switch
+goes off. The fixtures load on demand, so nobody who is not giving a demo
+downloads them.
+
+Two properties are worth knowing before editing the fixtures:
+
+- **Nothing is stored with a timestamp.** Every wire object is assembled against
+  `Date.now()`, so the same story tells on any day and a tab left open over
+  lunch does not come back showing a fleet last checked two hours ago. CPU and
+  response times drift on slow sines rather than being redrawn at random, which
+  is the difference between a gauge that looks alive and one that looks broken.
+- **Mutations are real, for as long as the page is open.** Renaming a node,
+  creating a monitor, "check now", pausing, revoking a token — all of it lands
+  in the in-memory store and shows up on the next poll, and none of it survives
+  a reload. Sample nodes are also kept out of the `localStorage` node cache, so
+  they cannot resurface as real ones later.
+
+An outage or slowdown window shorter than a monitor's check interval can fall
+between two checks and leave no trace, so scripted incidents are written
+comfortably longer than the interval. Slow checks never happen by chance: the
+strip paints a whole day amber for a single degraded check, so random spikes
+would turn every bar on the overview amber and the deliberate slowdowns would
+stop meaning anything.
+
+**Dev-gated surfaces are hidden while it is on.** Servers, Users and
+Notifications are unfinished — a mock relay fleet, roles nothing enforces, a
+notification pipeline with no delivery behind it — and a demo is exactly when an
+audience cannot tell a placeholder from a shipped feature. `useDevSurfaceVisible()`
+requires a dev build *and* demo data off, and both the menu entries and the pages
+themselves consult it: hiding a link is not the same as closing the page, so
+turning the switch on while standing on one of them renders the not-found
+boundary.
+
+The one thing the demo cannot fake is a live session — terminal, SFTP, screen,
+tunnels, and service changes all need a WebSocket to an agent that does not
+exist. Those actions toast an explanation instead of opening a panel that then
+fails, and the demo's `/api/auth/websocket-token` refuses with the same message
+as a backstop.
 
 ## Notes
 

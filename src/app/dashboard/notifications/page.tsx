@@ -3,7 +3,7 @@
 import { notFound } from 'next/navigation';
 
 import NotificationsPage from '@/components/notifications/NotificationsPage';
-import { IS_DEV_MODE } from '@/lib/dev-mode';
+import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +19,15 @@ export const dynamic = 'force-dynamic';
  * there would also be served at `/Notifications`, outside this gate.
  *
  * What the gate is, precisely — measured against a production build rather than
- * assumed, because the equivalent comments on the Servers and Users pages
- * overstate it:
+ * assumed:
  *
- *   - `IS_DEV_MODE` is statically `false` in a production bundle, so `notFound()`
- *     always runs there and the visitor gets `app/not-found.tsx`.
+ *   - `IS_DEV_MODE`, inside `useDevSurfaceVisible`, is statically `false` in a
+ *     production bundle, so `notFound()` always runs there and the visitor gets
+ *     `app/not-found.tsx`.
+ *   - The hook's other half closes the page while demo data is on, and that one
+ *     is a live switch rather than a build-time constant: turning demo mode on
+ *     while standing here re-renders into the not-found boundary, which is the
+ *     intent — an unfinished page is exactly what an audience should not see.
  *   - It does *not* tree-shake. `notFound()` throws, but the minifier cannot
  *     know that, so the `return` below stays live and `NotificationsPage` and
  *     everything it imports remain in the built chunks. Nothing here is secret —
@@ -36,7 +40,7 @@ export const dynamic = 'force-dynamic';
  *     that is where it goes.
  */
 export default function Page() {
-    if (!IS_DEV_MODE) {
+    if (!useDevSurfaceVisible()) {
         notFound();
     }
 

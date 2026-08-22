@@ -12,7 +12,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Re-enabling one is: delete it from this list, drop the `notFound()` call in
  * its page, and restore its entry in Header.tsx.
  */
-const WITHDRAWN_ROUTES = ["/dashboard/profile", "/dashboard/settings"];
+const WITHDRAWN_ROUTES = ["/dashboard/profile"];
 
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -30,5 +30,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
     // Scoped tightly so no other request pays for this.
-    matcher: ["/dashboard/profile/:path*", "/dashboard/settings/:path*"],
+    matcher: ["/dashboard/profile/:path*"],
 };

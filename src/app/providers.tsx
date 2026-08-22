@@ -1,6 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { DemoModeProvider } from '@/components/DemoModeProvider';
 import { RuntimeConfigProvider } from '@/components/RuntimeConfigProvider';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,11 +14,13 @@ export default function ClientProviders({ children }: { children: ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <RuntimeConfigProvider>
-                <TooltipProvider>
-                    <Toaster />
-                    <Sonner />
-                    {children}
-                </TooltipProvider>
+                <DemoModeProvider>
+                    <TooltipProvider>
+                        <Toaster />
+                        <Sonner />
+                        {children}
+                    </TooltipProvider>
+                </DemoModeProvider>
             </RuntimeConfigProvider>
         </QueryClientProvider>
     );
