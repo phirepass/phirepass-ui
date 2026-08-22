@@ -130,6 +130,50 @@ export default function NotificationsPage() {
         setDevices((payload.devices ?? []).map((row) => toDevice(row, currentHash)));
     }, []);
 
+    const loadPreferences = useCallback(async (): Promise<NotificationPreferences | null> => {
+        const response = await fetch('/api/notifications/preferences', { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error(`preferences ${response.status}`);
+        }
+        const payload = await response.json() as { preferences?: NotificationPreferences };
+        return payload.preferences ?? null;
+    }, []);
+
+    /**
+     * Writes the whole set, optimistically.
+     *
+     * The switch moves first because a toggle that waits on a round trip feels
+     * broken, and rolls back to `previous` if the write fails — leaving it in
+     * the new position after a failed save would be a lie about what is stored.
+     */
+    const persist = useCallback(async (
+        next: NotificationPreferences,
+        previous: NotificationPreferences,
+    ) => {
+        setPreferences(next);
+
+        try {
+            const response = await fetch('/api/notifications/preferences', {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ preferences: next }),
+            });
+            if (!response.ok) {
+                throw new Error(`preferences ${response.status}`);
+            }
+
+            // The server resolves against the catalogue, so take its answer
+            // rather than assuming ours matched.
+            const payload = await response.json() as { preferences?: NotificationPreferences };
+            if (payload.preferences) setPreferences(payload.preferences);
+        } catch (error) {
+            console.warn('[notifications] failed to save preferences', error);
+            setPreferences(previous);
+            toast.error('Could not save your preferences');
+        }
+    }, []);
+
     useEffect(() => {
         let disposed = false;
 
@@ -138,11 +182,14 @@ export default function NotificationsPage() {
             setPermission(permissionState());
 
             try {
-                await refresh();
+                // Both, together: a half-loaded page that shows real devices
+                // beside default preferences looks like the saved ones were lost.
+                const [, saved] = await Promise.all([refresh(), loadPreferences()]);
+                if (!disposed && saved) setPreferences(saved);
             } catch (error) {
-                console.warn('[notifications] failed to load devices', error);
+                console.warn('[notifications] failed to load', error);
                 if (!disposed) {
-                    toast.error('Could not load your registered devices');
+                    toast.error('Could not load your notification settings');
                 }
             } finally {
                 if (!disposed) setLoading(false);
@@ -151,7 +198,7 @@ export default function NotificationsPage() {
 
         void load();
         return () => { disposed = true; };
-    }, [refresh]);
+    }, [refresh, loadPreferences]);
 
     /** This browser is subscribed — the only sense in which delivery is "on" here. */
     const enabled = useMemo(() => devices.some((device) => device.is_current), [devices]);
@@ -414,7 +461,7 @@ export default function NotificationsPage() {
     };
 
     const applyToggle = (event: NotificationEventDefinition, next: boolean) => {
-        setPreferences((prev) => ({ ...prev, [event.id]: next }));
+        void persist({ ...preferences, [event.id]: next }, preferences);
     };
 
     const toggleEvent = (event: NotificationEventDefinition, next: boolean) => {
@@ -437,15 +484,13 @@ export default function NotificationsPage() {
     };
 
     const toggleCategory = (category: NotificationCategory, next: boolean) => {
-        setPreferences((prev) => {
-            const updated = { ...prev };
-            for (const event of NOTIFICATION_EVENTS) {
-                if (event.category === category) {
-                    updated[event.id] = next;
-                }
+        const updated = { ...preferences };
+        for (const event of NOTIFICATION_EVENTS) {
+            if (event.category === category) {
+                updated[event.id] = next;
             }
-            return updated;
-        });
+        }
+        void persist(updated, preferences);
     };
 
     const permissionTile = permission === 'granted'
@@ -655,8 +700,8 @@ export default function NotificationsPage() {
                                     What to notify me about
                                 </h2>
                                 <p className="mt-0.5 text-[13px] text-muted-foreground">
-                                    Chosen here, but not stored yet — these reset on reload, and nothing
-                                    dispatches on them automatically.
+                                    Saved to your account and applied to every registered device. Nothing
+                                    dispatches on them automatically yet.
                                 </p>
                             </div>
                             <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">

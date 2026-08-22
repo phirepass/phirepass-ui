@@ -53,7 +53,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         }
 
         const result = await query(
-            `UPDATE push_subscriptions SET label = $1
+            `UPDATE notification_subscriptions SET label = $1
               WHERE id = $2 AND user_id = $3
               RETURNING id`,
             [label, id, user.id],
@@ -83,7 +83,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }
         }
 
         const result = await query(
-            'DELETE FROM push_subscriptions WHERE id = $1 AND user_id = $2',
+            'DELETE FROM notification_subscriptions WHERE id = $1 AND user_id = $2',
             [id, user.id],
         );
 

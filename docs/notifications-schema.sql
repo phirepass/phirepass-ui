@@ -19,9 +19,46 @@
 -- It is written to be re-runnable (IF NOT EXISTS throughout).
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- push_subscriptions — one row per browser that has accepted notifications
+-- Rename: push_subscriptions → notification_subscriptions
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS push_subscriptions (
+--
+-- The table was originally named for its mechanism (Web Push). It is named for
+-- its role now, so it sits with `notification_preferences` rather than beside
+-- it under a different vocabulary.
+--
+-- Guarded on both sides so this file stays re-runnable: it fires only when the
+-- old name exists and the new one does not. On a fresh database nothing matches
+-- and the CREATE below does the work instead.
+--
+-- Renaming a table does not rename the indexes and constraints hanging off it,
+-- so those are renamed explicitly — otherwise a fresh install and a migrated one
+-- end up with the same table and differently named constraints, which is exactly
+-- the sort of drift that makes the next migration fail on one and not the other.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_tables
+         WHERE schemaname = 'public' AND tablename = 'push_subscriptions'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM pg_tables
+         WHERE schemaname = 'public' AND tablename = 'notification_subscriptions'
+    ) THEN
+        ALTER TABLE push_subscriptions RENAME TO notification_subscriptions;
+
+        ALTER INDEX IF EXISTS push_subscriptions_pkey
+            RENAME TO notification_subscriptions_pkey;
+        ALTER INDEX IF EXISTS push_subscriptions_endpoint_key
+            RENAME TO notification_subscriptions_endpoint_key;
+        ALTER INDEX IF EXISTS push_subscriptions_user_id_idx
+            RENAME TO notification_subscriptions_user_id_idx;
+    END IF;
+END
+$$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- notification_subscriptions — one row per browser that accepted notifications
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notification_subscriptions (
     id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id        uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -51,5 +88,30 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 
 -- Every read is "the current user's devices", so the user_id index is the one
 -- that matters. The endpoint already has a unique index from the constraint.
-CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx
-    ON push_subscriptions (user_id, last_active_at DESC);
+CREATE INDEX IF NOT EXISTS notification_subscriptions_user_id_idx
+    ON notification_subscriptions (user_id, last_active_at DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- notification_preferences — which events a person wants, per account
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- One row per user, holding a jsonb object of `event id -> boolean`, rather than
+-- a row per event or a column per event. The event catalogue is defined in code
+-- (src/types/notification.ts) and is expected to grow; a column-per-event schema
+-- would need a migration every time one is added, and a row-per-event table
+-- would need backfilling for every existing user before the new event had an
+-- answer.
+--
+-- With jsonb, the stored object is a set of *overrides*: anything absent falls
+-- back to that event's `defaultEnabled` in code. So adding an event ships with
+-- its intended default already applied to everyone, and no data migration.
+CREATE TABLE IF NOT EXISTS notification_preferences (
+    user_id    uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Constrained to an object so a stray array or scalar cannot be written and
+    -- then crash every read of this row.
+    events     jsonb NOT NULL DEFAULT '{}'::jsonb
+                   CHECK (jsonb_typeof(events) = 'object'),
+
+    updated_at timestamptz NOT NULL DEFAULT now()
+);

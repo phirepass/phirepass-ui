@@ -1,11 +1,13 @@
 /**
  * Push notification settings.
  *
- * There is nothing behind this yet — no `push_subscriptions` table, no VAPID
- * keys, no delivery worker. What *is* meant to outlive the mock is the
- * catalogue below.
+ * Subscriptions and preferences are real — `notification_subscriptions` and
+ * `notification_preferences`, both in docs/notifications-schema.sql. What does
+ * not exist is a *dispatcher*: nothing watches for these conditions and sends,
+ * so the only thing that pushes today is the manual test in
+ * `/api/notifications/test`.
  *
- * It is deliberately two events long. Agent connect and disconnect are the only
+ * The catalogue below is deliberately two events long. Agent connect and disconnect are the only
  * conditions the system can already report without building a detector first:
  * the server holds the agent's WebSocket, so it knows the moment one drops or
  * comes back, and the dashboard is already rendering that as `is_online` on

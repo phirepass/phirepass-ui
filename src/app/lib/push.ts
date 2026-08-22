@@ -68,7 +68,7 @@ export function endpointHash(endpoint: string): string {
 export async function listSubscriptions(userId: string): Promise<StoredSubscription[]> {
     const result = await query(
         `SELECT id, endpoint, p256dh, auth, label, platform, browser, created_at, last_active_at
-           FROM push_subscriptions
+           FROM notification_subscriptions
           WHERE user_id = $1
           ORDER BY last_active_at DESC`,
         [userId],
@@ -131,12 +131,12 @@ export async function sendToUser(userId: string, payload: PushPayload): Promise<
     }));
 
     if (dead.length > 0) {
-        await query('DELETE FROM push_subscriptions WHERE id = ANY($1::uuid[])', [dead]);
+        await query('DELETE FROM notification_subscriptions WHERE id = ANY($1::uuid[])', [dead]);
     }
 
     if (sent > 0) {
         await query(
-            `UPDATE push_subscriptions SET last_active_at = now()
+            `UPDATE notification_subscriptions SET last_active_at = now()
               WHERE user_id = $1 AND id <> ALL($2::uuid[])`,
             [userId, dead],
         );

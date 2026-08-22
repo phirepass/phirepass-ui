@@ -4,7 +4,7 @@ import { NOTIFICATION_EVENTS, type NotificationPreferences } from '@/types/notif
  * Default event preferences.
  *
  * All that is left of what used to be `mockNotifications.ts`. Devices are real
- * now — they come from `push_subscriptions` via `/api/notifications/devices` —
+ * now — they come from `notification_subscriptions` via `/api/notifications/devices` —
  * but preferences have no column yet, so they start from these defaults on every
  * load and the page says as much rather than implying they were saved.
  */
