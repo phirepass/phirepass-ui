@@ -87,21 +87,21 @@ const Webhooks = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Webhook className="h-4 w-4" />
             Total Requests
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">{requests.length}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <CheckCircle2 className="h-4 w-4 text-green-500" />
             Successful
             </div>
             <p className="text-2xl font-bold text-green-500 mt-1">{successCount}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <XCircle className="h-4 w-4 text-red-500" />
             Errors
@@ -113,12 +113,12 @@ const Webhooks = () => {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
             placeholder="Search by path or tunnel..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="h-9 rounded-full pl-9"
             />
         </div>
         <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
@@ -131,7 +131,7 @@ const Webhooks = () => {
         </div>
 
         {/* Request List */}
-        <div className="border border-border rounded-lg overflow-hidden">
+        <div className="border border-hairline rounded-lg overflow-hidden">
         <ScrollArea className="h-[600px]">
             <Table>
             <TableHeader>

@@ -38,8 +38,8 @@ const ServerLocationMap = dynamic(
 
 function Row({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-1.5 last:border-0">
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
             <span className="min-w-0 truncate text-right font-mono text-sm text-foreground">{value}</span>
         </div>
     );
@@ -75,10 +75,10 @@ export function ServerDetailDialog({ server, onClose }: ServerDetailDialogProps)
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                             Addressing
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="FQDN" value={server.fqdn} />
                             <Row label="Public" value={`${server.public_ip}:${server.port}`} />
                             <Row label="Private" value={server.private_ip} />
@@ -87,10 +87,10 @@ export function ServerDetailDialog({ server, onClose }: ServerDetailDialogProps)
                     </div>
 
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                             Host &amp; load
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="Host" value={server.host_name} />
                             <Row label="OS" value={server.host_os_info} />
                             <Row
@@ -107,10 +107,10 @@ export function ServerDetailDialog({ server, onClose }: ServerDetailDialogProps)
                     </div>
 
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                             Carrying
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="Nodes" value={String(server.nodes)} />
                             <Row label="Clients" value={String(server.connections)} />
                             <Row label="Sessions" value={String(server.sessions)} />
@@ -118,10 +118,10 @@ export function ServerDetailDialog({ server, onClose }: ServerDetailDialogProps)
                     </div>
 
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                             Lifetime
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="Uptime" value={formatUptime(server.uptime_secs)} />
                             <Row label="Last keepalive" value={formatRelativeTime(server.last_seen_at)} />
                             <Row
@@ -134,14 +134,14 @@ export function ServerDetailDialog({ server, onClose }: ServerDetailDialogProps)
 
                 {plottable ? (
                     <div>
-                        <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                             <MapPin className="h-3.5 w-3.5" />
                             Location
                             <span className="ml-auto normal-case tracking-normal text-muted-foreground/80">
                                 {flagFromCountryCode(server.location?.country_code)} {place}
                             </span>
                         </p>
-                        <div className="h-64 w-full overflow-hidden rounded-lg border border-border">
+                        <div className="h-64 w-full overflow-hidden rounded-lg border border-hairline">
                             <ServerLocationMap
                                 latitude={server.location!.latitude!}
                                 longitude={server.location!.longitude!}

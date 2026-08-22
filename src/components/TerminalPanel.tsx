@@ -81,12 +81,12 @@ export function TerminalPanel({
                 'fixed inset-y-0 right-0 bg-card shadow-2xl z-50 flex flex-col overflow-hidden transition-[width] duration-300',
                 isFullScreen
                     ? 'w-full border-0 rounded-none'
-                    : 'w-full md:w-[600px] lg:w-[800px] border-l border-border rounded-none md:rounded-l-2xl',
+                    : 'w-full md:w-[600px] lg:w-[800px] border-l border-hairline rounded-none md:rounded-l-2xl',
                 isOpen ? 'animate-slide-in-right' : 'hidden'
             )}
         >
             {/* Header */}
-            <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-border bg-secondary/50">
+            <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-hairline bg-secondary/50">
                 <div className="flex items-center gap-2">
                     <div className="flex gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-destructive" />
@@ -114,7 +114,7 @@ export function TerminalPanel({
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto">
+            <div className="flex items-center gap-1 px-2 py-2 border-b border-hairline bg-background overflow-x-auto">
                 {tabs.map((tab) => (
                     <div
                         key={tab.id}
@@ -149,7 +149,7 @@ export function TerminalPanel({
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                             <Plus className="w-4 h-4" />
                         </Button>
-                        <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[160px]">
+                        <div className="absolute top-full left-0 mt-1 bg-popover border border-hairline rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[160px]">
                             {onlineNodes.map((node) => (
                                 <button
                                     key={node.id}

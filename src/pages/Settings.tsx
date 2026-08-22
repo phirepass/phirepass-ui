@@ -56,7 +56,7 @@ export default function Settings() {
 
         <div className="space-y-6">
         {/* Notifications */}
-        <div className="gradient-card border border-border rounded-xl p-6">
+        <div className="gradient-card border border-hairline rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Bell className="w-5 h-5 text-primary" />
@@ -98,7 +98,7 @@ export default function Settings() {
                     type="number"
                     value={settings.alertThreshold}
                     onChange={(e) => setSettings({ ...settings, alertThreshold: parseInt(e.target.value) })}
-                    className="w-20 bg-secondary border border-border rounded-lg px-3 py-2 text-foreground text-sm text-center"
+                    className="w-20 bg-secondary border border-hairline rounded-lg px-3 py-2 text-foreground text-sm text-center"
                     min={50}
                     max={100}
                 />
@@ -109,7 +109,7 @@ export default function Settings() {
         </div>
 
         {/* Security */}
-        <div className="gradient-card border border-border rounded-xl p-6">
+        <div className="gradient-card border border-hairline rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-primary" />
@@ -141,7 +141,7 @@ export default function Settings() {
                     type="number"
                     value={settings.sessionTimeout}
                     onChange={(e) => setSettings({ ...settings, sessionTimeout: parseInt(e.target.value) })}
-                    className="w-20 bg-secondary border border-border rounded-lg px-3 py-2 text-foreground text-sm text-center"
+                    className="w-20 bg-secondary border border-hairline rounded-lg px-3 py-2 text-foreground text-sm text-center"
                     min={5}
                     max={120}
                 />
@@ -152,7 +152,7 @@ export default function Settings() {
         </div>
 
         {/* API Keys */}
-        <div className="gradient-card border border-border rounded-xl p-6">
+        <div className="gradient-card border border-hairline rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Key className="w-5 h-5 text-primary" />
@@ -182,7 +182,7 @@ export default function Settings() {
         </div>
 
         {/* Appearance */}
-        <div className="gradient-card border border-border rounded-xl p-6">
+        <div className="gradient-card border border-hairline rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
                 <Moon className="w-5 h-5 text-primary" />

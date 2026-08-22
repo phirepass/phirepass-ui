@@ -131,7 +131,7 @@ export default function Monitoring() {
             case 'running':
                 return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Running</Badge>;
             case 'pending':
-                return <Badge className="bg-muted text-muted-foreground border-border">Pending</Badge>;
+                return <Badge className="bg-muted text-muted-foreground border-hairline">Pending</Badge>;
             default:
                 return <Badge variant="secondary">Unknown</Badge>;
         }
@@ -149,7 +149,7 @@ export default function Monitoring() {
 
             {/* Stats Overview */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="p-4 bg-card border border-border rounded-lg">
+                <div className="p-4 bg-card border border-hairline rounded-lg">
                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Globe className="h-4 w-4 text-green-500" />
                         Sites Up
@@ -158,7 +158,7 @@ export default function Monitoring() {
                         {mockUptimeMonitors.filter(m => m.status === 'up').length}/{mockUptimeMonitors.length}
                     </p>
                 </div>
-                <div className="p-4 bg-card border border-border rounded-lg">
+                <div className="p-4 bg-card border border-hairline rounded-lg">
                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Shield className="h-4 w-4 text-blue-500" />
                         SSL Valid
@@ -167,7 +167,7 @@ export default function Monitoring() {
                         {mockSslCertificates.filter(c => c.status === 'valid').length}/{mockSslCertificates.length}
                     </p>
                 </div>
-                <div className="p-4 bg-card border border-border rounded-lg">
+                <div className="p-4 bg-card border border-hairline rounded-lg">
                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Server className="h-4 w-4 text-purple-500" />
                         DNS OK
@@ -176,7 +176,7 @@ export default function Monitoring() {
                         {mockDnsMonitors.filter(d => d.status === 'match').length}/{mockDnsMonitors.length}
                     </p>
                 </div>
-                <div className="p-4 bg-card border border-border rounded-lg">
+                <div className="p-4 bg-card border border-hairline rounded-lg">
                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <Clock className="h-4 w-4 text-yellow-500" />
                         Crons OK
@@ -185,7 +185,7 @@ export default function Monitoring() {
                         {mockCronJobs.filter(c => c.status === 'success').length}/{mockCronJobs.length}
                     </p>
                 </div>
-                <div className="p-4 bg-card border border-border rounded-lg">
+                <div className="p-4 bg-card border border-hairline rounded-lg">
                     <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <GitBranch className="h-4 w-4 text-cyan-500" />
                         CI/CD OK
@@ -216,11 +216,11 @@ export default function Monitoring() {
                         </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="border border-hairline rounded-lg overflow-hidden">
                         {mockUptimeMonitors.map((monitor, index) => (
                             <div
                                 key={monitor.id}
-                                className={`p-4 bg-card flex items-center justify-between ${index !== mockUptimeMonitors.length - 1 ? 'border-b border-border' : ''}`}
+                                className={`p-4 bg-card flex items-center justify-between ${index !== mockUptimeMonitors.length - 1 ? 'border-b border-hairline' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     {getStatusIcon(monitor.status)}
@@ -267,11 +267,11 @@ export default function Monitoring() {
                         </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="border border-hairline rounded-lg overflow-hidden">
                         {mockSslCertificates.map((cert, index) => (
                             <div
                                 key={cert.id}
-                                className={`p-4 bg-card flex items-center justify-between ${index !== mockSslCertificates.length - 1 ? 'border-b border-border' : ''}`}
+                                className={`p-4 bg-card flex items-center justify-between ${index !== mockSslCertificates.length - 1 ? 'border-b border-hairline' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     {getStatusIcon(cert.status)}
@@ -314,11 +314,11 @@ export default function Monitoring() {
                         </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="border border-hairline rounded-lg overflow-hidden">
                         {mockDnsMonitors.map((dns, index) => (
                             <div
                                 key={dns.id}
-                                className={`p-4 bg-card flex items-center justify-between ${index !== mockDnsMonitors.length - 1 ? 'border-b border-border' : ''}`}
+                                className={`p-4 bg-card flex items-center justify-between ${index !== mockDnsMonitors.length - 1 ? 'border-b border-hairline' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     {getStatusIcon(dns.status)}
@@ -361,11 +361,11 @@ export default function Monitoring() {
                         </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="border border-hairline rounded-lg overflow-hidden">
                         {mockCronJobs.map((cron, index) => (
                             <div
                                 key={cron.id}
-                                className={`p-4 bg-card flex items-center justify-between ${index !== mockCronJobs.length - 1 ? 'border-b border-border' : ''}`}
+                                className={`p-4 bg-card flex items-center justify-between ${index !== mockCronJobs.length - 1 ? 'border-b border-hairline' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     {getStatusIcon(cron.status)}
@@ -409,11 +409,11 @@ export default function Monitoring() {
                         </Button>
                     </div>
 
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="border border-hairline rounded-lg overflow-hidden">
                         {mockCicdPipelines.map((pipeline, index) => (
                             <div
                                 key={pipeline.id}
-                                className={`p-4 bg-card flex flex-col md:flex-row md:items-center justify-between gap-4 ${index !== mockCicdPipelines.length - 1 ? 'border-b border-border' : ''}`}
+                                className={`p-4 bg-card flex flex-col md:flex-row md:items-center justify-between gap-4 ${index !== mockCicdPipelines.length - 1 ? 'border-b border-hairline' : ''}`}
                             >
                                 <div className="flex items-center gap-4">
                                     {getStatusIcon(pipeline.status)}

@@ -68,7 +68,7 @@ export function LocationStrip({
     );
 
     const shared = cn(
-        'relative block h-20 w-full overflow-hidden rounded-lg border border-border/60',
+        'relative block h-20 w-full overflow-hidden rounded-lg border border-hairline',
         className
     );
 

@@ -196,7 +196,7 @@ export function ShareNodeDialog({ open, onOpenChange, node, onManageShares }: Sh
                     </div>
 
                     {/* Node Info Preview */}
-                    <div className="rounded-lg border border-border bg-secondary/50 p-3 space-y-1">
+                    <div className="rounded-lg border border-hairline bg-secondary/50 p-3 space-y-1">
                         <p className="text-sm font-medium">{node.stats.host_name}</p>
                         <p className="text-xs text-muted-foreground">{node.ip} • {node.stats.host_os_info}</p>
                         <div className="flex flex-wrap gap-1 mt-2">

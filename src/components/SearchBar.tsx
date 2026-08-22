@@ -28,21 +28,21 @@ export function SearchBar({
     return (
         <div className={cn('flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between', className)}>
             <div className="relative flex-1 w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder={placeholder}
                     aria-label={ariaLabel ?? placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2 rounded-lg border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-ring/60 transition-all"
+                    className="h-9 w-full rounded-full border border-hairline bg-input/80 pl-9 pr-9 text-sm shadow-sunken transition-[box-shadow,border-color] duration-150 ease-mac placeholder:text-muted-foreground focus:border-accent/40 focus:outline-none focus:ring-[3px] focus:ring-ring/45"
                 />
                 {value ? (
                     <button
                         type="button"
                         aria-label="Clear search"
                         onClick={() => onChange('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
@@ -76,10 +76,10 @@ export function FilterChips<T extends string>({ options, value, onChange, label 
                         onClick={() => onChange(option.value)}
                         className={cn(
                             'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
                             isActive
-                                ? 'border-accent/50 bg-accent/15 text-accent'
-                                : 'border-border text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground'
+                                ? 'border-accent/40 bg-accent/15 text-accent shadow-[inset_0_1px_0_0_var(--specular)]'
+                                : 'border-hairline text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
                         )}
                     >
                         {option.label}

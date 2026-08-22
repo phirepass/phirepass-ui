@@ -52,7 +52,7 @@ function FileTable({ path, tunnel, selectable = true, selectedFiles, onToggleFil
     <div className="flex-1 flex flex-col min-h-0">
     {/* Path bar */}
     {tunnel && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-background shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-hairline bg-background shrink-0">
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onNavigate('/')}>
             <Home className="w-4 h-4" />
         </Button>
@@ -79,7 +79,7 @@ function FileTable({ path, tunnel, selectable = true, selectedFiles, onToggleFil
         {tunnel ? (
         <table className="w-full text-sm">
             <thead className="sticky top-0 bg-secondary/80 backdrop-blur-sm">
-            <tr className="text-left text-xs text-muted-foreground uppercase tracking-wider">
+            <tr className="text-left text-[11px] font-medium text-muted-foreground">
                 {selectable && <th className="px-3 py-2 w-8"></th>}
                 <th className="px-3 py-2">Name</th>
                 <th className="px-3 py-2 w-20">Size</th>
@@ -92,7 +92,7 @@ function FileTable({ path, tunnel, selectable = true, selectedFiles, onToggleFil
                 <tr
                 key={file.name}
                 className={cn(
-                    'border-b border-border/50 hover:bg-secondary/50 cursor-pointer transition-colors',
+                    'border-b border-hairline hover:bg-secondary/50 cursor-pointer transition-colors',
                     selectable && selectedFiles.has(file.name) && 'bg-primary/10'
                 )}
                 onClick={() => selectable && file.name !== '..' && onToggleFile(file.name)}
@@ -105,7 +105,7 @@ function FileTable({ path, tunnel, selectable = true, selectedFiles, onToggleFil
                         type="checkbox"
                         checked={selectedFiles.has(file.name)}
                         onChange={() => onToggleFile(file.name)}
-                        className="rounded border-border"
+                        className="rounded border-hairline"
                         />
                     )}
                     </td>
@@ -180,9 +180,9 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full md:w-[800px] lg:w-[1100px] bg-card border-l border-border shadow-2xl z-50 animate-slide-in-right flex flex-col">
+    <div className="fixed inset-y-0 right-0 w-full md:w-[800px] lg:w-[1100px] bg-card border-l border-hairline shadow-2xl z-50 animate-slide-in-right flex flex-col">
     {/* Header */}
-    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50 shrink-0">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-secondary/50 shrink-0">
         <div className="flex items-center gap-3">
         <div className="p-2 rounded-lg bg-primary/10">
             <HardDrive className="w-5 h-5 text-primary" />
@@ -203,7 +203,7 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
 
     {/* Mode Tabs */}
     <Tabs value={mode} onValueChange={(v) => setMode(v as 'browse' | 'transfer')} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-full justify-start rounded-none border-b border-border bg-background px-4 shrink-0">
+        <TabsList className="w-full justify-start rounded-none border-b border-hairline bg-background px-4 shrink-0">
         <TabsTrigger value="browse" className="gap-2">
             <Folder className="w-4 h-4" />
             Browse & Download
@@ -217,13 +217,13 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
         {/* Browse Mode */}
         <TabsContent value="browse" className="flex-1 flex flex-col m-0 min-h-0">
         {/* Tunnel Selector */}
-        <div className="flex items-center gap-4 p-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-4 p-4 border-b border-hairline shrink-0">
             <div className="flex-1">
-            <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+            <label className="text-[11px] font-medium text-muted-foreground mb-2 block">
                 Select Tunnel
             </label>
             <select
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-secondary border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={sourceTunnel?.id || ''}
                 onChange={(e) => {
                 setSourceTunnel(tunnels.find((t) => t.id === e.target.value) || null);
@@ -249,7 +249,7 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
         />
 
         {/* Actions */}
-        <div className="flex items-center justify-between gap-4 p-4 border-t border-border bg-secondary/50 shrink-0">
+        <div className="flex items-center justify-between gap-4 p-4 border-t border-hairline bg-secondary/50 shrink-0">
             <div className="text-sm text-muted-foreground">
             {selectedFiles.size > 0 && `${selectedFiles.size} item(s) selected`}
             </div>
@@ -269,13 +269,13 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
         {/* Transfer Mode */}
         <TabsContent value="transfer" className="flex-1 flex flex-col m-0 min-h-0">
         {/* Tunnel Selectors */}
-        <div className="flex items-center gap-4 p-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-4 p-4 border-b border-hairline shrink-0">
             <div className="flex-1">
-            <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+            <label className="text-[11px] font-medium text-muted-foreground mb-2 block">
                 Source Tunnel
             </label>
             <select
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-secondary border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={sourceTunnel?.id || ''}
                 onChange={(e) => {
                 setSourceTunnel(tunnels.find((t) => t.id === e.target.value) || null);
@@ -296,11 +296,11 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
             </div>
 
             <div className="flex-1">
-            <label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+            <label className="text-[11px] font-medium text-muted-foreground mb-2 block">
                 Destination Tunnel
             </label>
             <select
-                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full bg-secondary border border-hairline rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 value={destTunnel?.id || ''}
                 onChange={(e) => setDestTunnel(tunnels.find((t) => t.id === e.target.value) || null)}
             >
@@ -319,8 +319,8 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
         {/* Dual Pane File Browser */}
         <div className="flex-1 flex min-h-0">
             {/* Source Pane */}
-            <div className="flex-1 flex flex-col border-r border-border min-h-0">
-            <div className="px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground shrink-0">
+            <div className="flex-1 flex flex-col border-r border-hairline min-h-0">
+            <div className="px-3 py-2 bg-muted/50 border-b border-hairline text-xs font-medium text-muted-foreground shrink-0">
                 Source: {sourceTunnel?.nodeName || 'Not selected'}
             </div>
             <FileTable
@@ -335,7 +335,7 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
 
             {/* Destination Pane */}
             <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-3 py-2 bg-muted/50 border-b border-border text-xs font-medium text-muted-foreground shrink-0">
+            <div className="px-3 py-2 bg-muted/50 border-b border-hairline text-xs font-medium text-muted-foreground shrink-0">
                 Destination: {destTunnel?.nodeName || 'Not selected'}
             </div>
             <FileTable
@@ -350,7 +350,7 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
         </div>
 
         {/* Transfer Actions */}
-        <div className="flex items-center justify-between gap-4 p-4 border-t border-border bg-secondary/50 shrink-0">
+        <div className="flex items-center justify-between gap-4 p-4 border-t border-hairline bg-secondary/50 shrink-0">
             <div className="text-sm text-muted-foreground">
             {selectedFiles.size > 0 && `${selectedFiles.size} item(s) selected for transfer`}
             </div>

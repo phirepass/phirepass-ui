@@ -103,9 +103,9 @@ export function MonitorCard({
         <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
             <div
                 className={cn(
-                    'group gradient-card border border-border rounded-xl p-5 bg-card relative h-full flex flex-col',
+                    'group gradient-card mac-squircle border border-hairline rounded-xl p-5 relative h-full flex flex-col',
                     'transition-transform duration-300',
-                    'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.08)]',
+                    'hover:border-hairline-strong hover:shadow-window-raised',
                     monitor.paused && 'opacity-70'
                 )}
             >
@@ -160,7 +160,7 @@ export function MonitorCard({
                                 <button
                                     type="button"
                                     onClick={() => onOpen(monitor)}
-                                    className="min-w-0 truncate text-left font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                                    className="min-w-0 truncate text-left font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 rounded"
                                 >
                                     {monitor.name}
                                 </button>
@@ -171,7 +171,7 @@ export function MonitorCard({
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                                            className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
                                             aria-label={`Open actions for ${monitor.name}`}
                                         >
                                             <MoreVertical className="w-4 h-4" />
@@ -179,11 +179,11 @@ export function MonitorCard({
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                         align="end"
-                                        className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                                        className="w-56 rounded-xl border-hairline bg-popover/95 p-2 shadow-xl backdrop-blur"
                                     >
                                         <DropdownMenuLabel className="px-2 py-1">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                                                <span className="text-[11px] font-medium text-muted-foreground">
                                                     Monitor
                                                 </span>
                                                 <span className={cn('text-[11px] font-medium', statusStyle.text)}>
@@ -285,7 +285,7 @@ export function MonitorCard({
                         <TooltipTrigger asChild>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 text-muted-foreground">
                                         <Activity className="w-4 h-4" />
                                         Uptime 24h
                                     </span>
@@ -331,7 +331,7 @@ export function MonitorCard({
                         <TooltipTrigger asChild>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 text-muted-foreground">
                                         <Gauge className="w-4 h-4" />
                                         Latency
                                     </span>
@@ -444,7 +444,7 @@ export function MonitorCard({
                     </Tooltip>
                 ) : null}
 
-                <div className="relative z-10 flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
+                <div className="relative z-10 flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-hairline">
                     <span className="truncate text-muted-foreground/60 first-letter:uppercase">
                         {monitor.last_error ?? (monitor.last_checked_at ? 'No errors reported' : 'Awaiting first check')}
                     </span>
@@ -460,7 +460,7 @@ export function MonitorCard({
                           */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span className="cursor-help text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <span className="cursor-help text-[11px] font-medium text-muted-foreground">
                                     Last 30 days
                                 </span>
                             </TooltipTrigger>

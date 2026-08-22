@@ -210,7 +210,7 @@ export default function DeviceAuth() {
                 </div>
 
                 {/* Authorization Card */}
-                <div className="gradient-card border border-border rounded-2xl p-8">
+                <div className="gradient-card border border-hairline rounded-2xl p-8">
                     {status === 'pending' && (
                         <div className="space-y-6">
                             <div className="text-center">

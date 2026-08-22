@@ -57,9 +57,9 @@ export function AuthShowcase() {
             </p>
 
             {/* Terminal mockup — the real agent CLI, shared with the landing page. */}
-            <div className="gradient-card border border-border rounded-xl p-1 mb-12 max-w-md" aria-hidden="true">
+            <div className="gradient-card border border-hairline rounded-xl p-1 mb-12 max-w-md" aria-hidden="true">
                 <div className="bg-secondary/50 rounded-lg overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-hairline">
                         <div className="w-3 h-3 rounded-full bg-destructive/60" />
                         <div className="w-3 h-3 rounded-full bg-warning/60" />
                         <div className="w-3 h-3 rounded-full bg-success/60" />

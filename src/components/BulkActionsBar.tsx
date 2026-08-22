@@ -40,11 +40,11 @@ export function BulkActionsBar({
     return (
         <div className={cn(
             "fixed bottom-6 left-1/2 -translate-x-1/2 z-30",
-            "bg-card border border-border rounded-xl shadow-xl",
+            "bg-card border border-hairline rounded-xl shadow-xl",
             "px-4 py-3 flex items-center gap-4",
             "animate-fade-in"
         )}>
-            <div className="flex items-center gap-2 pr-4 border-r border-border">
+            <div className="flex items-center gap-2 pr-4 border-r border-hairline">
                 <span className="text-sm font-medium text-foreground">
                     {selectedNodes.length} selected
                 </span>

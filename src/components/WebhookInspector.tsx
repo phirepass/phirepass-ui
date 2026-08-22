@@ -78,8 +78,8 @@ export const WebhookInspector = ({ request, onClose, onReplay }: WebhookInspecto
   };
 
   return (
-    <Card className="fixed inset-4 md:inset-auto md:fixed md:right-4 md:top-20 md:bottom-4 md:w-[600px] z-50 flex flex-col shadow-2xl border-border">
-    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4 border-b border-border shrink-0">
+    <Card className="fixed inset-4 md:inset-auto md:fixed md:right-4 md:top-20 md:bottom-4 md:w-[600px] z-50 flex flex-col shadow-2xl border-hairline">
+    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4 border-b border-hairline shrink-0">
         <div className="space-y-2">
         <div className="flex items-center gap-2">
             <Badge className={`${getMethodColor(request.method)} font-mono`}>
@@ -124,7 +124,7 @@ export const WebhookInspector = ({ request, onClose, onReplay }: WebhookInspecto
 
     <CardContent className="flex-1 overflow-hidden p-0">
         <Tabs defaultValue="request" className="h-full flex flex-col">
-        <TabsList className="w-full justify-start rounded-none border-b border-border px-4">
+        <TabsList className="w-full justify-start rounded-none border-b border-hairline px-4">
             <TabsTrigger value="request">Request</TabsTrigger>
             <TabsTrigger value="response">Response</TabsTrigger>
             <TabsTrigger value="headers">Headers</TabsTrigger>

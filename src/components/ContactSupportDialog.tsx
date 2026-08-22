@@ -360,7 +360,7 @@ export function ContactSupportLink({
                 onClick={() => setOpen(true)}
                 className={cn(
                     'group inline-flex items-center gap-2 align-middle transition-colors hover:text-foreground',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full',
+                    'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 rounded-full',
                     className,
                 )}
             >

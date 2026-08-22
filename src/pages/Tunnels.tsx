@@ -221,28 +221,28 @@ const Tunnels = () => {
                 <TabsContent value="http" className="space-y-6">
                     {/* Stats Overview */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Globe className="h-4 w-4" />
                                 Active Tunnels
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{activeHttpTunnels}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Terminal className="h-4 w-4" />
                                 Total Requests
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{totalHttpRequests.toLocaleString()}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowDownToLine className="h-4 w-4" />
                                 Data In
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalHttpBytesIn)}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowUpFromLine className="h-4 w-4" />
                                 Data Out
@@ -254,12 +254,12 @@ const Tunnels = () => {
                     {/* Filters */}
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search tunnels..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
+                                className="h-9 rounded-full pl-9"
                             />
                         </div>
                         <Tabs value={httpFilter} onValueChange={(v) => setHttpFilter(v as typeof httpFilter)}>
@@ -295,28 +295,28 @@ const Tunnels = () => {
                 <TabsContent value="tcp" className="space-y-6">
                     {/* Stats Overview */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Database className="h-4 w-4" />
                                 Active Tunnels
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{activeTcpTunnels}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Users className="h-4 w-4" />
                                 Active Connections
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{totalConnections}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowDownToLine className="h-4 w-4" />
                                 Data In
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalTcpBytesIn)}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowUpFromLine className="h-4 w-4" />
                                 Data Out
@@ -328,12 +328,12 @@ const Tunnels = () => {
                     {/* Filters */}
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search tunnels..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
+                                className="h-9 rounded-full pl-9"
                             />
                         </div>
                         <Tabs value={tcpFilter} onValueChange={(v) => setTcpFilter(v as typeof tcpFilter)}>
@@ -369,28 +369,28 @@ const Tunnels = () => {
                 <TabsContent value="ssh" className="space-y-6">
                     {/* Stats Overview */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Terminal className="h-4 w-4" />
                                 Active Tunnels
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{activeSshTunnels}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <Users className="h-4 w-4" />
                                 Active Sessions
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{totalSessions}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowDownToLine className="h-4 w-4" />
                                 Data In
                             </div>
                             <p className="text-2xl font-bold text-foreground mt-1">{formatBytes(totalSshBytesIn)}</p>
                         </div>
-                        <div className="p-4 bg-card border border-border rounded-lg">
+                        <div className="p-4 bg-card border border-hairline rounded-lg">
                             <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                 <ArrowUpFromLine className="h-4 w-4" />
                                 Data Out
@@ -402,12 +402,12 @@ const Tunnels = () => {
                     {/* Filters */}
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder="Search tunnels..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
+                                className="h-9 rounded-full pl-9"
                             />
                         </div>
                         <Tabs value={sshFilter} onValueChange={(v) => setSshFilter(v as typeof sshFilter)}>

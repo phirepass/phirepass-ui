@@ -329,7 +329,7 @@ const Landing = () => {
                                 <Button
                                     variant="outline"
                                     size="lg"
-                                    className="text-lg px-8 py-6 border-border hover:border-accent/50 hover:bg-accent/5"
+                                    className="text-lg px-8 py-6 border-hairline hover:border-accent/50 hover:bg-accent/5"
                                     onClick={() =>
                                         document
                                             .getElementById("how-it-works")
@@ -367,8 +367,8 @@ const Landing = () => {
                             className="relative flex flex-col gap-5 lg:block animate-fade-in lg:w-full lg:max-w-xl lg:justify-self-start"
                             aria-hidden="true"
                         >
-                            <div className="rounded-2xl border border-border bg-card/90 backdrop-blur-sm shadow-2xl shadow-accent/10 overflow-hidden lg:rotate-1 hover:rotate-0 transition-transform duration-500">
-                                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/40">
+                            <div className="rounded-2xl border border-hairline bg-card/90 backdrop-blur-sm shadow-2xl shadow-accent/10 overflow-hidden lg:rotate-1 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-hairline bg-secondary/40">
                                     <span className="w-3 h-3 rounded-full bg-destructive/60" />
                                     <span className="w-3 h-3 rounded-full bg-warning/60" />
                                     <span className="w-3 h-3 rounded-full bg-success/60" />
@@ -401,8 +401,8 @@ const Landing = () => {
 
                             {/* A live SSH session over the top corner: the agent below
                                 connects, this is what you get for it. */}
-                            <div className="w-full lg:absolute lg:-top-14 lg:-right-4 lg:w-72 rounded-xl border border-border bg-card shadow-2xl shadow-accent/10 overflow-hidden lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
-                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border bg-secondary/50">
+                            <div className="w-full lg:absolute lg:-top-14 lg:-right-4 lg:w-72 rounded-xl border border-hairline bg-card shadow-2xl shadow-accent/10 overflow-hidden lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
+                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-hairline bg-secondary/50">
                                     <span className="w-2 h-2 rounded-full bg-destructive/60" />
                                     <span className="w-2 h-2 rounded-full bg-warning/60" />
                                     <span className="w-2 h-2 rounded-full bg-success/60" />
@@ -430,7 +430,7 @@ const Landing = () => {
 
                             {/* A monitor card riding along the corner: the second half of
                                 the product, visible without another paragraph about it. */}
-                            <div className="w-full lg:absolute lg:-bottom-8 lg:-left-8 lg:w-64 rounded-xl border border-border bg-card shadow-2xl shadow-accent/10 p-4 lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
+                            <div className="w-full lg:absolute lg:-bottom-8 lg:-left-8 lg:w-64 rounded-xl border border-hairline bg-card shadow-2xl shadow-accent/10 p-4 lg:-rotate-2 hover:rotate-0 transition-transform duration-500">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Globe className="w-4 h-4 text-accent shrink-0" />
                                     <span className="text-xs font-medium truncate">Internal API</span>
@@ -504,7 +504,7 @@ const Landing = () => {
                             <CarouselContent>
                                 {productShots.map((shot, index) => (
                                     <CarouselItem key={shot.src}>
-                                        <div className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 overflow-hidden">
+                                        <div className="rounded-2xl border border-hairline bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 overflow-hidden">
                                             {/* Only the first slide preloads. `priority` on
                                                 all three preloaded ~2.9MB of PNG for a
                                                 section below the fold, competing with the
@@ -564,7 +564,7 @@ const Landing = () => {
                         {capabilities.map((cap, index) => (
                             <div
                                 key={cap.title}
-                                className="group p-8 rounded-2xl border border-border bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all duration-300"
+                                className="group p-8 rounded-2xl border border-hairline bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all duration-300"
                                 style={{ animationDelay: `${index * 100}ms` }}
                             >
                                 <div className={`w-14 h-14 rounded-xl ${colorStyles[cap.color].bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
@@ -605,7 +605,7 @@ const Landing = () => {
                         <div>
                             <div
                                 aria-hidden="true"
-                                className="rounded-2xl border border-border bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 p-6"
+                                className="rounded-2xl border border-hairline bg-card/80 backdrop-blur-sm shadow-2xl shadow-accent/5 p-6"
                             >
                                 <div className="flex items-start gap-3 mb-6">
                                     <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
@@ -618,7 +618,7 @@ const Landing = () => {
                                         </p>
                                     </div>
                                     <div className="ml-auto flex items-center gap-2 shrink-0">
-                                        <span className="px-2 py-1 rounded-full border border-border bg-secondary/60 text-[11px] text-muted-foreground">
+                                        <span className="px-2 py-1 rounded-full border border-hairline bg-secondary/60 text-[11px] text-muted-foreground">
                                             Internal
                                         </span>
                                         <span className="flex items-center gap-2 px-2.5 py-1 rounded-full border border-success/35 bg-success/10">
@@ -651,7 +651,7 @@ const Landing = () => {
                                     <span>Today</span>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-4">
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-hairline pt-4">
                                     {[
                                         ["Checked", "2m ago"],
                                         ["Every", "15 minutes"],
@@ -689,7 +689,7 @@ const Landing = () => {
                         {monitoringFacts.map((fact) => (
                             <span
                                 key={fact}
-                                className="px-3 py-1.5 rounded-full border border-border bg-card/30 text-xs text-muted-foreground"
+                                className="px-3 py-1.5 rounded-full border border-hairline bg-card/30 text-xs text-muted-foreground"
                             >
                                 {fact}
                             </span>
@@ -713,7 +713,7 @@ const Landing = () => {
                             {securityPoints.map((point) => (
                                 <div
                                     key={point.title}
-                                    className="p-6 rounded-xl border border-border bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all"
+                                    className="p-6 rounded-xl border border-hairline bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all"
                                 >
                                     <point.icon className={`w-8 h-8 ${colorStyles[point.color].text} mb-4`} />
                                     <h3 className="font-semibold text-foreground mb-2">{point.title}</h3>
@@ -739,7 +739,7 @@ const Landing = () => {
                         {targetMarkets.map((market) => (
                             <div
                                 key={market.title}
-                                className="p-6 rounded-xl border border-border bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all text-center"
+                                className="p-6 rounded-xl border border-hairline bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all text-center"
                             >
                                 <market.icon className="w-8 h-8 text-accent mx-auto mb-4" />
                                 <h3 className="font-semibold text-foreground mb-2">{market.title}</h3>
@@ -788,7 +788,7 @@ const Landing = () => {
                                     { icon: Activity, label: "Uptime Monitor", desc: "Internal & external", color: "success" },
                                     { icon: MonitorPlay, label: "RDP Desktop", desc: "Windows, in-browser", color: "destructive" },
                                 ].map((item) => (
-                                    <div key={item.label} className="min-h-32 rounded-xl border border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
+                                    <div key={item.label} className="min-h-32 rounded-xl border border-hairline bg-card/50 p-5 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
                                         <item.icon className={`w-8 h-8 ${colorStyles[item.color as keyof typeof colorStyles].text}`} />
                                         <div className="text-center">
                                             <span className="text-sm font-medium block leading-tight">{item.label}</span>
@@ -813,7 +813,7 @@ const Landing = () => {
                             <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
 
                             <div className="relative flex flex-col items-center">
-                                <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-border bg-card/70 px-3 py-1.5 backdrop-blur-sm">
+                                <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-hairline bg-card/70 px-3 py-1.5 backdrop-blur-sm">
                                     <PhirepassLogo className="h-5 w-5" />
                                     <span className="text-xs font-medium tracking-wide text-muted-foreground">
                                         Install the agent once
@@ -844,7 +844,7 @@ const Landing = () => {
                                     <Button
                                         variant="ghost"
                                         size="lg"
-                                        className="group h-14 px-9 text-base font-medium border border-border bg-card/50 backdrop-blur-sm hover:border-accent/40 hover:bg-accent/5"
+                                        className="group h-14 px-9 text-base font-medium border border-hairline bg-card/50 backdrop-blur-sm hover:border-accent/40 hover:bg-accent/5"
                                         onClick={() =>
                                             document
                                                 .getElementById("how-it-works")
@@ -872,7 +872,7 @@ const Landing = () => {
                 {/* Darker than the page it closes, so the footer reads as a
                     separate band rather than more page. The background gradients
                     stop at its solid fill. */}
-                <footer className="py-12 border-t border-border bg-[hsl(222_28%_3%)]">
+                <footer className="py-12 border-t border-hairline bg-[hsl(222_28%_3%)]">
                     {/* `container mx-auto px-4` — the same shell the dashboard uses
                         (Header.tsx, Nodes.tsx), so the footer lines up with the
                         signed-in pages. */}
@@ -880,7 +880,7 @@ const Landing = () => {
                         <LegalLinks withGithub withContact />
 
                         {/* Name and copyright close the page, on their own last line. */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-border/60 pt-6 text-center">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-hairline pt-6 text-center">
                             <div className="flex items-center gap-3">
                                 <PhirepassLogo className="w-8 h-8" />
                                 <span className="font-semibold">Phirepass</span>

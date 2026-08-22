@@ -38,7 +38,7 @@ export function SshTunnelCard({ tunnel, onDelete, onOpenTerminal, onOpenSftp, is
   };
 
   return (
-    <div className={`bg-card border border-border rounded-lg p-5 hover:border-primary/50 transition-colors h-full flex flex-col ${tunnel.status === 'inactive' ? 'opacity-60' : ''}`}>
+    <div className={`bg-card border border-hairline rounded-lg p-5 hover:border-primary/50 transition-colors h-full flex flex-col ${tunnel.status === 'inactive' ? 'opacity-60' : ''}`}>
     {/* Header */}
     <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">

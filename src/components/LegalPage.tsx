@@ -24,7 +24,7 @@ export function LegalPage({
 }) {
     return (
         <div className="min-h-screen bg-background">
-            <header className="border-b border-border">
+            <header className="border-b border-hairline">
                 <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3">
                         <PhirepassLogo className="w-8 h-8" />
@@ -53,12 +53,12 @@ export function LegalPage({
 
             {/* Same band as the landing page's footer: darker than the page, so
                 it closes the document rather than trailing off. */}
-            <footer className="border-t border-border bg-[hsl(222_28%_3%)]">
+            <footer className="border-t border-hairline bg-[hsl(222_28%_3%)]">
                 {/* Same order as the landing footer: links first, the name and
                     copyright closing on the last line. */}
                 <div className="max-w-3xl mx-auto px-6 py-12 flex flex-col gap-8">
                     <LegalLinks termsLabel="Terms of Service" privacyLabel="Privacy Policy" withGithub withContact />
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-border/60 pt-6 text-center">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 gap-y-2 border-t border-hairline pt-6 text-center">
                         <Link href="/" className="flex items-center gap-3">
                             <PhirepassLogo className="w-8 h-8" />
                             <span className="font-semibold">Phirepass</span>

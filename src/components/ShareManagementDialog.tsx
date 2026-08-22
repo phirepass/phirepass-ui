@@ -210,7 +210,7 @@ export function ShareManagementDialog({ open, onOpenChange, node }: ShareManagem
             case 'expired':
                 return <Badge className="bg-destructive/20 text-destructive border-destructive/30">Expired</Badge>;
             case 'used':
-                return <Badge className="bg-muted text-muted-foreground border-border">Used</Badge>;
+                return <Badge className="bg-muted text-muted-foreground border-hairline">Used</Badge>;
             default:
                 return null;
         }
@@ -317,7 +317,7 @@ export function ShareManagementDialog({ open, onOpenChange, node }: ShareManagem
                                     <div
                                         key={share.id}
                                         className={cn(
-                                            "flex items-center justify-between p-4 rounded-lg border border-border bg-card",
+                                            "flex items-center justify-between p-4 rounded-lg border border-hairline bg-card",
                                             share.status === 'expired' && "opacity-60"
                                         )}
                                     >
@@ -430,7 +430,7 @@ export function ShareManagementDialog({ open, onOpenChange, node }: ShareManagem
                                     <div
                                         key={link.id}
                                         className={cn(
-                                            "flex items-center justify-between p-4 rounded-lg border border-border bg-card",
+                                            "flex items-center justify-between p-4 rounded-lg border border-hairline bg-card",
                                             (link.status === 'expired' || link.status === 'used') && "opacity-60"
                                         )}
                                     >

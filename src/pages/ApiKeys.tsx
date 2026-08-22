@@ -252,14 +252,14 @@ const ApiKeys = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Key className="h-4 w-4" />
             Active Keys
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">{activeKeys.length}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Shield className="h-4 w-4" />
             Revoked Keys

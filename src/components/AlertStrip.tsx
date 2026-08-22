@@ -61,7 +61,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                 return (
                     <div
                         key={alert.id}
-                        className={cn('flex items-start gap-3 p-3 rounded-lg border transition-all', styles.panel)}
+                        className={cn('mac-squircle flex items-start gap-3 rounded-xl border p-3 shadow-[inset_0_1px_0_0_var(--specular)] transition-all', styles.panel)}
                     >
                         <div
                             className={cn(
@@ -76,7 +76,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-medium text-sm">{alert.title}</h4>
                                 {alert.tag ? (
-                                    <span className="text-xs font-mono bg-secondary px-1.5 py-0.5 rounded text-muted-foreground">
+                                    <span className="rounded-[5px] border border-hairline bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                                         {alert.tag}
                                     </span>
                                 ) : null}

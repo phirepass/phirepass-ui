@@ -227,9 +227,9 @@ const getStatusBadge = (status: string) => {
     case 'running':
     return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Running</Badge>;
     case 'pending':
-    return <Badge className="bg-muted text-muted-foreground border-border">Pending</Badge>;
+    return <Badge className="bg-muted text-muted-foreground border-hairline">Pending</Badge>;
     case 'skipped':
-    return <Badge className="bg-muted text-muted-foreground border-border">Skipped</Badge>;
+    return <Badge className="bg-muted text-muted-foreground border-hairline">Skipped</Badge>;
     default:
     return null;
   }
@@ -270,7 +270,7 @@ export function PipelineDetailsDialog({ pipeline, open, onOpenChange }: Pipeline
         </DialogHeader>
 
         {/* Pipeline Info */}
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-b border-border pb-4">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-b border-hairline pb-4">
         <div className="flex items-center gap-2">
             <GitBranch className="w-4 h-4" />
             <span className="font-mono">{pipeline.repo}</span>
@@ -305,7 +305,7 @@ export function PipelineDetailsDialog({ pipeline, open, onOpenChange }: Pipeline
                 <div className="absolute left-[19px] top-10 w-0.5 h-[calc(100%-24px)] bg-border" />
                 )}
 
-                <div className="border border-border rounded-lg overflow-hidden bg-card">
+                <div className="border border-hairline rounded-lg overflow-hidden bg-card">
                 {/* Step Header */}
                 <button
                     onClick={() => toggleStep(step.id)}
@@ -341,8 +341,8 @@ export function PipelineDetailsDialog({ pipeline, open, onOpenChange }: Pipeline
 
                 {/* Logs */}
                 {expandedSteps.has(step.id) && (
-                    <div className="border-t border-border bg-background/50">
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+                    <div className="border-t border-hairline bg-background/50">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-hairline bg-muted/30">
                         <span className="text-xs text-muted-foreground font-medium">Build Logs</span>
                         <Button
                         variant="ghost"
@@ -382,7 +382,7 @@ export function PipelineDetailsDialog({ pipeline, open, onOpenChange }: Pipeline
         </ScrollArea>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center justify-between pt-4 border-t border-hairline">
         <Button variant="outline" size="sm" className="gap-2">
             <ExternalLink className="w-4 h-4" />
             View in GitHub

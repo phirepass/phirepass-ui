@@ -50,7 +50,7 @@ export const RequestLogsTable = ({ logs }: RequestLogsTableProps) => {
   }
 
   return (
-    <ScrollArea className="h-[300px] rounded-md border border-border">
+    <ScrollArea className="h-[300px] rounded-md border border-hairline">
     <Table>
         <TableHeader>
         <TableRow className="hover:bg-transparent">

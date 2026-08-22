@@ -22,11 +22,11 @@ export function PageHeader({ title, description, actions, badge, className }: Pa
         <div className={cn('flex flex-col md:flex-row md:items-center md:justify-between gap-4', className)}>
             <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+                    <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.024em] text-foreground">{title}</h1>
                     {badge}
                 </div>
                 {description ? (
-                    <p className="text-muted-foreground mt-0.5">{description}</p>
+                    <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
                 ) : null}
             </div>
             {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

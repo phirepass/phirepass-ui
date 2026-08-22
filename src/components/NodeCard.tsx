@@ -371,10 +371,10 @@ export function NodeCard({
             <div
                 ref={cardRef}
                 className={cn(
-                    'group gradient-card border rounded-xl p-5 bg-card relative h-full flex flex-col',
-                    'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]',
-                    'border-border',
-                    'transition-transform duration-300',
+                    'group gradient-card mac-squircle border rounded-xl p-5 relative h-full flex flex-col',
+                    'hover:border-hairline-strong hover:shadow-window-raised',
+                    'border-hairline',
+                    'transition-[box-shadow,border-color] duration-200 ease-mac',
                     (isConfirmedOffline || isResolving || isIncompatible) && 'select-none'
                 )}
             >
@@ -427,7 +427,7 @@ export function NodeCard({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
                                                 aria-label={`Open actions for ${node.name}`}
                                             >
                                                 <MoreVertical className="w-4 h-4" />
@@ -435,11 +435,11 @@ export function NodeCard({
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
                                             align="end"
-                                            className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                                            className="w-56 p-2"
                                         >
                                             <DropdownMenuLabel className="px-2 py-1">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Node actions</span>
+                                                    <span className="text-[11px] font-medium text-muted-foreground">Node actions</span>
                                                     <span className={cn(
                                                         'text-[11px] font-medium',
                                                         isIncompatible
@@ -525,7 +525,7 @@ export function NodeCard({
                                 </TooltipContent>
                             </Tooltip>
                         ) : null}
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded whitespace-nowrap">
+                        <span className="whitespace-nowrap rounded-[6px] border border-hairline bg-white/[0.06] px-2 py-1 text-xs text-muted-foreground">
                             {node.is_online ? node.stats.host_os_info : 'Unknown'}
                         </span>
                     </div>
@@ -575,7 +575,7 @@ export function NodeCard({
                                 <button
                                     type="button"
                                     onClick={() => setDiskDialogOpen(true)}
-                                    className="w-full rounded-lg border border-border/60 bg-secondary/30 p-3 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="mac-squircle w-full rounded-lg border border-hairline bg-white/[0.035] p-3 text-left shadow-[inset_0_1px_0_0_var(--specular)] transition-colors hover:border-hairline-strong hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
                                     aria-label={`Storage breakdown for ${node.name || 'this node'}`}
                                 >
                                     <StatBar
@@ -819,7 +819,7 @@ export function NodeCard({
                     </Tooltip>
                 ) : null}
 
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-border/50">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-hairline">
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span className="text-muted-foreground/60">
@@ -838,7 +838,7 @@ export function NodeCard({
                     as the place you add them. */}
                 <div className="mt-auto">
                     <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Services</span>
+                        <span className="text-[11px] font-medium text-muted-foreground">Services</span>
                         {totalServiceCount > 0 ? (
                             <span className="font-mono text-[11px] text-muted-foreground/70">{totalServiceCount} configured</span>
                         ) : null}
@@ -865,12 +865,12 @@ export function NodeCard({
                                                 ? `Open ${label} on ${node.name}`
                                                 : `Add a ${label} service to ${node.name}`}
                                             className={cn(
-                                                'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors',
-                                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                                'mac-squircle flex items-center gap-2.5 rounded-[9px] border px-3 py-2.5 text-left transition-colors',
+                                                'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
                                                 'disabled:cursor-not-allowed disabled:opacity-50',
                                                 configured
                                                     ? tint.tile
-                                                    : 'border-dashed border-border/60 hover:border-border hover:bg-secondary/30'
+                                                    : 'border-dashed border-hairline hover:border-hairline-strong hover:bg-white/[0.05]'
                                             )}
                                         >
                                             <Icon className={cn(
@@ -1022,7 +1022,7 @@ export function NodeCard({
                     </DialogHeader>
 
                     {locationDialogOpen && plottable ? (
-                        <div className="h-72 w-full overflow-hidden rounded-lg border border-border">
+                        <div className="h-72 w-full overflow-hidden rounded-lg border border-hairline">
                             <NodeLocationDetailMap
                                 latitude={publicIpInfo.latitude}
                                 longitude={publicIpInfo.longitude}
@@ -1039,13 +1039,13 @@ export function NodeCard({
                     {hasLanDetails ? (
                         <div className="space-y-4">
                             <section>
-                                <h4 className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                                <h4 className="mb-2 text-[11px] font-medium text-muted-foreground">
                                     Public address
                                 </h4>
                                 <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
                             </section>
-                            <section className="border-t border-border/50 pt-4">
-                                <h4 className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                            <section className="border-t border-hairline pt-4">
+                                <h4 className="mb-2 text-[11px] font-medium text-muted-foreground">
                                     Local network
                                 </h4>
                                 <LanFingerprintDetails

@@ -103,7 +103,7 @@ export function Header({ user, onLogout }: HeaderProps) {
 
     return (
         <>
-            <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+            <header className="sticky top-0 z-40 border-b border-hairline bg-[image:var(--fill-toolbar)] mac-material pt-[env(safe-area-inset-top)]">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <PhirepassLogo className="w-8 h-8" />
@@ -113,8 +113,8 @@ export function Header({ user, onLogout }: HeaderProps) {
                         </Link>
                     </div>
 
-                    {/* Desktop Nav — the active route carries an accent underline
-                        rather than a filled pill, so the bar stays quiet. */}
+                    {/* Desktop Nav — the current route is a raised toolbar
+                        item, the way macOS marks selection in a toolbar. */}
                     <div className="hidden md:flex items-center gap-1">
                         <nav className="flex items-center gap-1" aria-label="Main">
                             {navItems.map((item) => {
@@ -126,11 +126,11 @@ export function Header({ user, onLogout }: HeaderProps) {
                                         href={item.href}
                                         aria-current={active ? 'page' : undefined}
                                         className={cn(
-                                            'relative flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
-                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            'relative flex h-9 items-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium tracking-[-0.01em] mac-squircle transition-[background-image,background-color,box-shadow,color] duration-150 ease-mac',
+                                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
                                             active
-                                                ? 'text-foreground'
-                                                : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                                                ? 'border-hairline bg-[image:var(--fill-control)] text-foreground shadow-control [&_svg]:text-accent'
+                                                : 'border-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
                                         )}
                                     >
                                         <item.icon className="h-4 w-4" />
@@ -140,36 +140,27 @@ export function Header({ user, onLogout }: HeaderProps) {
                                                 dev
                                             </span>
                                         ) : null}
-                                        <span
-                                            aria-hidden
-                                            className={cn(
-                                                // Sits on the header's bottom border: 64px bar, 36px link,
-                                                // so 14px of slack below the link reaches the rule.
-                                                'absolute inset-x-2 -bottom-[14px] h-0.5 rounded-full transition-opacity',
-                                                active ? 'bg-accent opacity-100' : 'opacity-0'
-                                            )}
-                                        />
                                     </Link>
                                 );
                             })}
                         </nav>
-                        <div className="mx-3 w-px h-6 bg-border" />
+                        <div className="mx-3 h-6 w-px bg-hairline" />
                         <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-3 rounded-lg px-1 py-1 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <button className="flex items-center gap-2.5 rounded-[9px] px-1.5 py-1 mac-squircle transition-colors duration-150 ease-mac hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
                                     {user?.avatar ? (
                                         <img
                                             src={user.avatar}
                                             alt={displayName}
-                                            className="w-8 h-8 rounded-full ring-1 ring-border"
+                                            className="h-8 w-8 rounded-full object-cover ring-1 ring-hairline"
                                         />
                                     ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent shadow-control">
                                             <span className="text-xs font-bold text-primary-foreground">{getInitials()}</span>
                                         </div>
                                     )}
                                     <div
-                                        className={cn('text-sm text-left', identityBlurred && 'blur-sm select-none')}
+                                        className={cn('text-left', identityBlurred && 'blur-sm select-none')}
                                         onPointerDown={(e) => {
                                             const now = Date.now();
                                             if (now - identityClickTimer.current < 400) {
@@ -182,8 +173,8 @@ export function Header({ user, onLogout }: HeaderProps) {
                                             }
                                         }}
                                     >
-                                        <p className="font-medium leading-tight">{displayName}</p>
-                                        <p className="text-muted-foreground text-xs leading-tight">{displayEmail}</p>
+                                        <p className="text-[13px] font-medium leading-tight tracking-[-0.01em]">{displayName}</p>
+                                        <p className="text-[11px] leading-tight text-muted-foreground">{displayEmail}</p>
                                     </div>
                                 </button>
                             </DropdownMenuTrigger>
@@ -234,7 +225,7 @@ export function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Dropdown */}
             <div
                 className={cn(
-                    'md:hidden fixed left-0 right-0 top-[calc(4rem_+_env(safe-area-inset-top))] z-[60] border-t border-border bg-card overflow-y-auto transition-all duration-300 ease-out',
+                    'md:hidden fixed left-0 right-0 top-[calc(4rem_+_env(safe-area-inset-top))] z-[60] overflow-y-auto border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material transition-all duration-300 ease-mac',
                     menuOpen
                         ? 'max-h-[calc(100dvh_-_4rem_-_env(safe-area-inset-top))] opacity-100 translate-y-0'
                         : 'max-h-0 opacity-0 -translate-y-4 pointer-events-none'
@@ -255,7 +246,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                             variant="ghost"
                             className={cn(
                                 'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath(item.href) && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
+                                isActivePath(item.href) && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath(item.href) ? 'page' : undefined}
                             onClick={() => { router.push(item.href); setMenuOpen(false); }}
@@ -269,12 +260,12 @@ export function Header({ user, onLogout }: HeaderProps) {
                             ) : null}
                         </Button>
                     ))}
-                    <div className="border-t border-border my-2 pt-2">
+                    <div className="my-2 border-t border-hairline pt-2">
                         <Button
                             variant="ghost"
                             className={cn(
                                 'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/pat-tokens') && 'bg-secondary text-foreground border-l-2 border-accent rounded-l-none'
+                                isActivePath('/dashboard/pat-tokens') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
                             onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}

@@ -76,8 +76,8 @@ function formatDuration(startIso: string, endIso: string | null): string {
 
 function Row({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-baseline justify-between gap-4 py-1.5 border-b border-border/40 last:border-0">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="flex items-baseline justify-between gap-4 py-1.5 border-b border-hairline last:border-0">
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
             <span className="min-w-0 truncate font-mono text-sm text-foreground">{value}</span>
         </div>
     );
@@ -184,8 +184,8 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                         { label: '7 days', window: current.window_7d },
                         { label: '30 days', window: current.window_30d },
                     ]).map((entry) => (
-                        <div key={entry.label} className="rounded-lg border border-border bg-card/60 p-3">
-                            <p className="text-xs uppercase tracking-wider text-muted-foreground">{entry.label}</p>
+                        <div key={entry.label} className="rounded-lg border border-hairline bg-card/60 p-3">
+                            <p className="text-[11px] font-medium text-muted-foreground">{entry.label}</p>
                             <p className="mt-1 text-xl font-bold tabular-nums">
                                 {formatUptime(entry.window.uptime_pct)}
                             </p>
@@ -197,17 +197,17 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                 </div>
 
                 <div>
-                    <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Last 30 days</p>
+                    <p className="mb-2 text-[11px] font-medium text-muted-foreground">Last 30 days</p>
                     <UptimeStrip daily={current.daily} />
                 </div>
 
                 {/* Response time */}
                 <div>
-                    <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                         Response time ({chartData.length} recent checks)
                     </p>
                     {chartData.length < 2 ? (
-                        <div className="rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed border-hairline px-4 py-10 text-center text-sm text-muted-foreground">
                             {loading ? 'Loading history...' : 'Not enough checks recorded yet to plot a trend.'}
                         </div>
                     ) : (
@@ -271,14 +271,14 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                     map is never built for a monitor that has no location. */}
                 {plottable ? (
                     <div>
-                        <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                             <MapPin className="h-3.5 w-3.5" />
                             Target location
                             <span className="ml-auto normal-case tracking-normal text-muted-foreground/80">
                                 {flagFromCountryCode(current.location?.country_code)} {targetLocation}
                             </span>
                         </p>
-                        <div className="h-64 w-full overflow-hidden rounded-lg border border-border">
+                        <div className="h-64 w-full overflow-hidden rounded-lg border border-hairline">
                             <MonitorLocationMap
                                 latitude={current.location!.latitude!}
                                 longitude={current.location!.longitude!}
@@ -293,11 +293,11 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                 <div className="grid gap-4 md:grid-cols-2">
                     {/* Certificate / domain facts */}
                     <div>
-                        <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             Certificate &amp; registration
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             {current.cert_expires_at || current.domain_expires_at ? (
                                 <>
                                     {current.cert_subject ? <Row label="Subject" value={current.cert_subject} /> : null}
@@ -322,7 +322,7 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
 
                     {/* Incidents */}
                     <div>
-                        <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                             <AlertTriangle className="h-3.5 w-3.5" />
                             Incidents
                         </p>
@@ -339,7 +339,7 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                                         className={cn(
                                             'rounded-lg border px-3 py-2 text-sm',
                                             incident.resolved_at
-                                                ? 'border-border bg-secondary/40'
+                                                ? 'border-hairline bg-secondary/40'
                                                 : 'border-destructive/40 bg-destructive/10'
                                         )}
                                     >
@@ -371,11 +371,11 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
 
                 {/* Recent checks */}
                 <div>
-                    <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Recent checks</p>
-                    <div className="max-h-56 overflow-y-auto rounded-lg border border-border">
+                    <p className="mb-2 text-[11px] font-medium text-muted-foreground">Recent checks</p>
+                    <div className="max-h-56 overflow-y-auto rounded-lg border border-hairline">
                         <table className="w-full text-left text-xs">
                             <thead className="sticky top-0 bg-card">
-                                <tr className="border-b border-border text-muted-foreground">
+                                <tr className="border-b border-hairline text-muted-foreground">
                                     <th className="px-3 py-2 font-medium">Time</th>
                                     <th className="px-3 py-2 font-medium">Status</th>
                                     <th className="px-3 py-2 font-medium">Latency</th>
@@ -384,7 +384,7 @@ export function MonitorDetailDialog({ monitor, onClose, onCheckNow }: MonitorDet
                             </thead>
                             <tbody>
                                 {[...(detail?.checks ?? [])].reverse().slice(0, 60).map((check, index) => (
-                                    <tr key={`${check.checked_at}-${index}`} className="border-b border-border/40 last:border-0">
+                                    <tr key={`${check.checked_at}-${index}`} className="border-b border-hairline last:border-0">
                                         <td className="whitespace-nowrap px-3 py-1.5 font-mono text-muted-foreground">
                                             {new Date(check.checked_at).toLocaleTimeString()}
                                         </td>

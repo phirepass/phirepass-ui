@@ -73,8 +73,8 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
     return (
         <div
             className={cn(
-                'group gradient-card border border-border rounded-xl p-4 bg-card flex flex-col gap-2.5',
-                'relative transition-colors hover:border-primary/40',
+                'group gradient-card mac-squircle border border-hairline rounded-xl p-4 flex flex-col gap-2.5',
+                'relative transition-[box-shadow,border-color] duration-200 ease-mac hover:border-hairline-strong hover:shadow-window-raised',
                 !isActive && 'opacity-70'
             )}
         >
@@ -106,7 +106,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                 <button
                     type="button"
                     onClick={() => onViewDetails?.(token)}
-                    className="min-w-0 flex-1 truncate rounded text-left text-sm font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="min-w-0 flex-1 truncate rounded text-left text-sm font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
                 >
                     {token.name}
                 </button>
@@ -118,7 +118,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                            className="h-7 w-7 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
                             aria-label={`Open actions for ${token.name}`}
                         >
                             <MoreVertical className="w-4 h-4" />
@@ -126,7 +126,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                         align="end"
-                        className="w-52 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                        className="w-52 rounded-xl border-hairline bg-popover/95 p-2 shadow-xl backdrop-blur"
                     >
                         <DropdownMenuItem onClick={() => onViewDetails?.(token)}>
                             <Info className="mr-2 w-4 h-4" />
@@ -196,7 +196,7 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
             {/* The two dates that answer "where is this token in its life?" are
                 labelled and given their own row — unlabelled ages next to an
                 expiry read as three interchangeable timestamps. */}
-            <dl className="relative z-10 grid grid-cols-2 gap-x-3 border-t border-border/40 pt-2 text-[11px]">
+            <dl className="relative z-10 grid grid-cols-2 gap-x-3 border-t border-hairline pt-2 text-[11px]">
                 <div className="min-w-0">
                     <dt className="text-muted-foreground/70">Created</dt>
                     <Tooltip>

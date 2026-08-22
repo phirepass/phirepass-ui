@@ -84,7 +84,7 @@ export function MonitorVantageField({
 
     if (!supported) {
         return (
-            <div className="flex items-start gap-2 rounded-lg border border-border bg-card/40 px-3 py-2.5">
+            <div className="flex items-start gap-2 rounded-lg border border-hairline bg-card/40 px-3 py-2.5">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">
                     Domain checks are answered by the registry over RDAP and never connect to the
@@ -173,7 +173,7 @@ export function MonitorVantageField({
             </div>
 
             {nodeId ? (
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-3 py-2.5">
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-hairline px-3 py-2.5">
                     <div className="min-w-0">
                         <p className="text-sm font-medium">Treat an offline agent as an outage</p>
                         <p className="text-xs text-muted-foreground">

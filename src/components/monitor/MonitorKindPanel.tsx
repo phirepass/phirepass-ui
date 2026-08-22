@@ -88,7 +88,7 @@ export function MonitorKindPanel({ summary, onAdd }: MonitorKindPanelProps) {
     const hasHistory = daily.some((day) => day.checks > 0);
 
     return (
-        <section className="relative flex flex-col overflow-hidden rounded-xl border border-border gradient-card">
+        <section className="gradient-card mac-squircle relative flex flex-col overflow-hidden rounded-xl border border-hairline">
             {/* ── watermark ────────────────────────────────────────────
                 The kind's own icon, oversized, as the panel's ground. It is
                 what makes three otherwise-identical cards tell themselves
@@ -177,7 +177,7 @@ export function MonitorKindPanel({ summary, onAdd }: MonitorKindPanelProps) {
                     {/* ── part-to-whole ────────────────────────────────── */}
                     <div className="relative mt-4 px-5">
                         <div className="mb-2 flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            <span className="text-[10px] font-medium text-muted-foreground">
                                 Status
                             </span>
                             <span className={cn('flex items-center gap-1.5 text-xs font-medium', lead.tone)}>
@@ -191,7 +191,7 @@ export function MonitorKindPanel({ summary, onAdd }: MonitorKindPanelProps) {
                     {/* ── change over time ─────────────────────────────── */}
                     <div className="relative mt-5 px-5">
                         <div className="mb-2 flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            <span className="text-[10px] font-medium text-muted-foreground">
                                 Last 14 days
                             </span>
                             {!hasHistory ? (
@@ -231,7 +231,7 @@ export function MonitorKindPanel({ summary, onAdd }: MonitorKindPanelProps) {
                         ) : null}
                     </div>
 
-                    <div className="relative mt-5 border-t border-border/60 p-3">
+                    <div className="relative mt-5 border-t border-hairline p-3">
                         <Button asChild size="sm" variant="ghost" className="w-full justify-between">
                             <Link href={`/dashboard/monitors/${kind}`}>
                                 View all {total}

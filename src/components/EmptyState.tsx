@@ -19,11 +19,11 @@ export function EmptyState({ icon: Icon, title, description, action, className }
     return (
         <div
             className={cn(
-                'rounded-xl border border-dashed border-border/70 bg-card/30 px-6 py-14 text-center',
+                'mac-squircle rounded-xl border border-dashed border-hairline-strong bg-white/[0.02] px-6 py-14 text-center',
                 className
             )}
         >
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-hairline bg-white/[0.06] text-muted-foreground mac-squircle">
                 <Icon className="h-6 w-6" />
             </div>
             <h3 className="text-lg font-medium text-foreground">{title}</h3>

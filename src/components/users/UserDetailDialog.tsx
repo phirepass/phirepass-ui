@@ -17,8 +17,8 @@ import { USER_STATUS_STYLES, displayName, formatDate, formatRelativeTime, initia
 
 function Row({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-1.5 last:border-0">
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
             <span className="min-w-0 truncate text-right font-mono text-sm text-foreground">{value}</span>
         </div>
     );
@@ -54,8 +54,8 @@ export function UserDetailDialog({ user, onClose }: UserDetailDialogProps) {
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Account</p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">Account</p>
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="Username" value={user.username} />
                             <Row label="Role" value={ROLE_LABELS[user.role]} />
                             <Row label="Joined" value={formatDate(user.created_at)} />
@@ -69,10 +69,10 @@ export function UserDetailDialog({ user, onClose }: UserDetailDialogProps) {
                     </div>
 
                     <div>
-                        <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        <p className="mb-2 text-[11px] font-medium text-muted-foreground">
                             Authentication
                         </p>
-                        <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                        <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                             <Row label="Provider" value={AUTH_PROVIDER_LABELS[user.provider]} />
                             <Row label="MFA" value={user.mfa_enabled ? 'Enabled' : 'Not enabled'} />
                             <Row label="Nodes" value={String(user.nodes_count)} />
@@ -81,7 +81,7 @@ export function UserDetailDialog({ user, onClose }: UserDetailDialogProps) {
                     </div>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-lg border border-border bg-card/60 px-4 py-3 text-sm">
+                <div className="flex items-start gap-3 rounded-lg border border-hairline bg-card/60 px-4 py-3 text-sm">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                     <p className="text-muted-foreground">
                         <span className="font-medium text-foreground">{ROLE_LABELS[user.role]}</span> —{' '}

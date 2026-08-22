@@ -100,14 +100,14 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
                     'fixed inset-y-0 right-0 min-h-0 min-w-0 bg-card shadow-2xl z-50 flex flex-col overflow-hidden will-change-transform pointer-events-auto transition-[transform,width] duration-[620ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
                     isFullScreen
                         ? 'w-full border-0 rounded-none'
-                        : 'w-full md:w-[700px] lg:w-[900px] border-l border-border rounded-none md:rounded-l-2xl'
+                        : 'w-full md:w-[700px] lg:w-[900px] border-l border-hairline rounded-none md:rounded-l-2xl'
                 )}
                 style={{
                     transform: isPanelVisible ? 'translateX(0)' : 'translateX(110%)',
                 }}
             >
                     {/* Header */}
-                    <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-border bg-secondary/50">
+                    <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-hairline bg-secondary/50">
                         <div className="flex items-center gap-2">
                             <Folder className="w-5 h-5 text-primary" />
                             <div>
@@ -131,7 +131,7 @@ export function FilePanel({ isOpen, onClose, nodes, tabs, activeTabId, onSelectT
                     </div>
 
                     {tabs.length > 0 && (
-                        <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto">
+                        <div className="flex items-center gap-1 px-2 py-2 border-b border-hairline bg-background overflow-x-auto">
                             {tabs.map((tab) => {
                                 const label = tab.serviceName?.trim() || tab.nodeName;
                                 return (

@@ -67,9 +67,9 @@ export function ServerCard({
         <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
             <div
                 className={cn(
-                    'group gradient-card border border-border rounded-xl p-5 bg-card relative h-full flex flex-col',
+                    'group gradient-card mac-squircle border border-hairline rounded-xl p-5 relative h-full flex flex-col',
                     'transition-transform duration-300',
-                    'hover:border-primary/50 hover:shadow-[0_0_30px_hsl(var(--primary)/0.08)]',
+                    'hover:border-hairline-strong hover:shadow-window-raised',
                     server.status === 'offline' && 'opacity-70'
                 )}
             >
@@ -88,7 +88,7 @@ export function ServerCard({
                             <button
                                 type="button"
                                 onClick={() => onOpen(server)}
-                                className="min-w-0 truncate rounded text-left font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                className="min-w-0 truncate rounded text-left font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
                             >
                                 {server.fqdn}
                             </button>
@@ -97,7 +97,7 @@ export function ServerCard({
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                                        className="h-8 w-8 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
                                         aria-label={`Open actions for ${server.fqdn}`}
                                     >
                                         <MoreVertical className="h-4 w-4" />
@@ -105,11 +105,11 @@ export function ServerCard({
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
                                     align="end"
-                                    className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                                    className="w-56 rounded-xl border-hairline bg-popover/95 p-2 shadow-xl backdrop-blur"
                                 >
                                     <DropdownMenuLabel className="px-2 py-1">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                                            <span className="text-[11px] font-medium text-muted-foreground">
                                                 Server
                                             </span>
                                             <span className={cn('text-[11px] font-medium', statusStyle.text)}>
@@ -205,7 +205,7 @@ export function ServerCard({
                         <TooltipTrigger asChild>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 text-muted-foreground">
                                         <Cpu className="h-4 w-4" />
                                         CPU
                                     </span>
@@ -236,7 +236,7 @@ export function ServerCard({
                         <TooltipTrigger asChild>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                    <span className="flex items-center gap-1.5 text-muted-foreground">
                                         <Activity className="h-4 w-4" />
                                         Memory
                                     </span>
@@ -306,7 +306,7 @@ export function ServerCard({
                     </Tooltip>
                 ) : null}
 
-                <div className="mt-auto flex items-center justify-between border-t border-border/50 px-1 pt-3 text-xs text-muted-foreground">
+                <div className="mt-auto flex items-center justify-between border-t border-hairline px-1 pt-3 text-xs text-muted-foreground">
                     <span className="truncate text-muted-foreground/60">
                         Last keepalive {formatRelativeTime(server.last_seen_at)}
                     </span>

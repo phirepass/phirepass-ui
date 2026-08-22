@@ -304,7 +304,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
 
             <div className="absolute inset-0 flex justify-end pointer-events-none">
                 <div className={cn(
-                    'h-full min-h-0 min-w-0 bg-card shadow-2xl flex flex-col overflow-hidden border-border will-change-transform pointer-events-auto transition-[transform,width,border-radius] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    'h-full min-h-0 min-w-0 bg-card shadow-2xl flex flex-col overflow-hidden border-hairline will-change-transform pointer-events-auto transition-[transform,width,border-radius] ease-[cubic-bezier(0.22,1,0.36,1)]',
                     isFullScreen
                         ? 'w-full border-0 rounded-none'
                         : 'w-full md:w-[700px] lg:w-[900px] border-l rounded-none md:rounded-l-2xl'
@@ -313,7 +313,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
                         transitionDuration: `${panelTransitionDurationMs}ms`,
                         transform: isPanelVisible ? 'translateX(0)' : 'translateX(110%)',
                     }}>
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/50 shrink-0">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-secondary/50 shrink-0">
                         <div className="flex items-center gap-2">
                             <Terminal className="w-5 h-5 text-primary" />
                             <div>
@@ -353,7 +353,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
                     </div>
 
                     {cachedSessions.length > 0 && (
-                        <div className="flex items-center gap-1 px-2 py-2 border-b border-border bg-background overflow-x-auto shrink-0">
+                        <div className="flex items-center gap-1 px-2 py-2 border-b border-hairline bg-background overflow-x-auto shrink-0">
                             {cachedSessions.map((session) => {
                                 const key = sessionKey(session.nodeId, session.serviceId);
                                 const label = session.serviceName?.trim() || session.nodeName || session.nodeId;
@@ -412,7 +412,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
                         )}
 
                         {token && activeSessionKey && (cachedSessions.length > 0 || activeConnectionState === 'disconnected') && (
-                            <div className="relative h-full w-full min-h-0 min-w-0 border border-border overflow-hidden bg-black/20">
+                            <div className="relative h-full w-full min-h-0 min-w-0 border border-hairline overflow-hidden bg-black/20">
                                 {activeConnectionState !== 'connected' && (
                                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
                                         {activeConnectionState === 'disconnected' ? (

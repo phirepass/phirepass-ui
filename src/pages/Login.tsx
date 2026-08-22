@@ -134,7 +134,7 @@ export default function Login() {
                             {/* Divider */}
                             <div className="relative">
                                 <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-border" />
+                                    <div className="w-full border-t border-hairline" />
                                 </div>
                                 <div className="relative flex justify-center text-xs uppercase">
                                     <span className="bg-background px-3 text-muted-foreground">or</span>
@@ -150,7 +150,7 @@ export default function Login() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="you@example.com"
-                                        className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                                        className="w-full bg-secondary/50 border border-hairline rounded-xl px-4 py-3.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                                         required
                                         disabled
                                     />
@@ -164,7 +164,7 @@ export default function Login() {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             placeholder="••••••••"
-                                            className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3.5 pr-12 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                                            className="w-full bg-secondary/50 border border-hairline rounded-xl px-4 py-3.5 pr-12 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
                                             required
                                             disabled
                                         />

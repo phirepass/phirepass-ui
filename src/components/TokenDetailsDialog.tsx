@@ -39,8 +39,8 @@ const SCOPE_DESCRIPTIONS: Record<PatTokenScope, string> = {
 
 function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
     return (
-        <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-2 last:border-0">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-2 last:border-0">
+            <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
             <span className={cn('min-w-0 truncate font-mono text-sm text-foreground', tone)}>{value}</span>
         </div>
     );
@@ -90,7 +90,7 @@ export function TokenDetailsDialog({ token, onClose }: TokenDetailsDialogProps) 
                     </div>
                 ) : null}
 
-                <div className="rounded-lg border border-border bg-card/60 px-3 py-1">
+                <div className="rounded-lg border border-hairline bg-card/60 px-3 py-1">
                     <Row label="Status" value={token.status} tone={cn('capitalize', statusTone)} />
                     <Row label="Token ID" value={token.token_id} />
                     <Row label="Created" value={formatAbsoluteTime(token.created_at)} />
@@ -108,14 +108,14 @@ export function TokenDetailsDialog({ token, onClose }: TokenDetailsDialogProps) 
 
                 <div>
                     <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wider text-muted-foreground">Scopes</span>
+                        <span className="text-[11px] font-medium text-muted-foreground">Scopes</span>
                         <span className="font-mono text-[11px] text-muted-foreground/70">
                             {scopes.length} granted
                         </span>
                     </div>
                     <div className="space-y-2">
                         {scopes.length === 0 ? (
-                            <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border/60 px-3 py-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-hairline px-3 py-3 text-sm text-muted-foreground">
                                 <KeyRound className="h-4 w-4 shrink-0 text-muted-foreground/60" />
                                 No scopes granted
                             </div>

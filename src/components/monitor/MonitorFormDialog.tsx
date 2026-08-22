@@ -199,10 +199,10 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                         title={enabled ? undefined : 'Not available yet'}
                                         className={cn(
                                             'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
-                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                            !enabled && 'cursor-not-allowed border-border/60 bg-secondary/20 opacity-55',
+                                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
+                                            !enabled && 'cursor-not-allowed border-hairline bg-secondary/20 opacity-55',
                                             enabled && active && 'border-accent/50 bg-accent/10',
-                                            enabled && !active && 'border-border hover:border-border hover:bg-secondary/40'
+                                            enabled && !active && 'border-hairline hover:border-hairline-strong hover:bg-secondary/40'
                                         )}
                                     >
                                         <Icon
@@ -215,7 +215,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                         <span className="flex items-center gap-1.5 text-xs font-medium">
                                             {MONITOR_KIND_LABELS[option]}
                                             {enabled ? null : (
-                                                <span className="rounded border border-border px-1 py-px text-[9px] uppercase tracking-wide text-muted-foreground">
+                                                <span className="rounded border border-hairline px-1 py-px text-[9px] font-medium text-muted-foreground">
                                                     soon
                                                 </span>
                                             )}
@@ -251,7 +251,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                 {kind === 'http' ? (
                                     <span
                                         aria-hidden
-                                        className="ml-1 pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                                        className="ml-1 pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 select-none rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground"
                                     >
                                         {method}
                                     </span>
@@ -351,7 +351,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                     </div>
 
                     {showAdvanced ? (
-                        <div className="space-y-4 rounded-lg border border-border bg-card/40 p-4">
+                        <div className="space-y-4 rounded-lg border border-hairline bg-card/40 p-4">
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <Label htmlFor="monitor-timeout">Timeout (ms)</Label>
@@ -458,7 +458,7 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                                    <div className="flex items-center justify-between rounded-lg border border-hairline px-3 py-2.5">
                                         <div>
                                             <p className="text-sm font-medium">Follow redirects</p>
                                             <p className="text-xs text-muted-foreground">

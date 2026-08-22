@@ -164,7 +164,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
                             </p>
 
                             {/* PAT Generation */}
-                            <div className="rounded-lg border border-border bg-background/50 p-4 space-y-3">
+                            <div className="rounded-lg border border-hairline bg-background/50 p-4 space-y-3">
                                 <h4 className="text-sm font-medium flex items-center gap-2">
                                     <KeyRound className="h-4 w-4" /> Personal Access Token (PAT)
                                 </h4>
@@ -296,7 +296,7 @@ export function AddNodeDialog({ open, onOpenChange }: AddNodeDialogProps) {
                 </div>
 
                 {/* Navigation */}
-                <div className="flex justify-between pt-4 border-t border-border">
+                <div className="flex justify-between pt-4 border-t border-hairline">
                     <Button
                         variant="outline"
                         onClick={handleBack}

@@ -32,7 +32,7 @@ import { USER_STATUS_STYLES, displayName, formatRelativeTime, initials, isDorman
 const ROLE_STYLES: Record<Role, string> = {
     owner: 'border-violet/40 bg-violet/10 text-violet',
     admin: 'border-accent/40 bg-accent/10 text-accent',
-    member: 'border-border bg-secondary text-muted-foreground',
+    member: 'border-hairline bg-secondary text-muted-foreground',
 };
 
 interface UserRowProps {
@@ -75,7 +75,7 @@ export function UserRow({
     return (
         <div
             className={cn(
-                'grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-border bg-card p-4',
+                'grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-hairline bg-card p-4',
                 'transition-colors hover:border-primary/40 md:grid-cols-[auto_2fr_1fr_1fr_1fr_auto]',
                 user.status === 'suspended' && 'opacity-70'
             )}
@@ -93,12 +93,12 @@ export function UserRow({
                     <button
                         type="button"
                         onClick={() => onOpen(user)}
-                        className="min-w-0 truncate rounded text-left font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="min-w-0 truncate rounded text-left font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
                     >
                         {displayName(user)}
                     </button>
                     {isSelf ? (
-                        <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                             you
                         </span>
                     ) : null}
@@ -151,7 +151,7 @@ export function UserRow({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                        className="h-8 w-8 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
                         aria-label={`Open actions for ${displayName(user)}`}
                     >
                         <MoreVertical className="h-4 w-4" />
@@ -159,11 +159,11 @@ export function UserRow({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                     align="end"
-                    className="w-56 rounded-xl border-border/70 bg-popover/95 p-2 shadow-xl backdrop-blur"
+                    className="w-56 rounded-xl border-hairline bg-popover/95 p-2 shadow-xl backdrop-blur"
                 >
                     <DropdownMenuLabel className="px-2 py-1">
                         <div className="flex items-center justify-between">
-                            <span className="text-xs uppercase tracking-wider text-muted-foreground">Account</span>
+                            <span className="text-[11px] font-medium text-muted-foreground">Account</span>
                             <span className={cn('text-[11px] font-medium', statusStyle.text)}>
                                 {statusStyle.label}
                             </span>

@@ -18,8 +18,8 @@ export type StatTone =
  * Tailwind cannot resolve class names assembled at runtime.
  */
 const TONE_STYLES: Record<StatTone, { icon: string; well: string }> = {
-    neutral: { icon: 'text-muted-foreground', well: 'bg-secondary' },
-    primary: { icon: 'text-primary', well: 'bg-secondary' },
+    neutral: { icon: 'text-muted-foreground', well: 'bg-white/[0.06]' },
+    primary: { icon: 'text-primary', well: 'bg-white/[0.06]' },
     accent: { icon: 'text-accent', well: 'bg-accent/10' },
     success: { icon: 'text-success', well: 'bg-success/10' },
     danger: { icon: 'text-destructive', well: 'bg-destructive/10' },
@@ -66,13 +66,13 @@ export function StatTiles({ tiles, className, columns = 4 }: StatTilesProps) {
                 const tone = TONE_STYLES[tile.tone ?? 'neutral'];
 
                 const body = (
-                    <div className="gradient-card border border-border rounded-xl p-4 flex items-center gap-4 transition-colors hover:border-border/80">
-                        <div className={cn('p-3 rounded-lg shrink-0', tone.well, tone.icon)}>
+                    <div className="gradient-card mac-squircle flex items-center gap-3.5 rounded-xl border border-hairline p-4 transition-[box-shadow,border-color] duration-200 ease-mac hover:border-hairline-strong hover:shadow-window-raised">
+                        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] mac-squircle', tone.well, tone.icon)}>
                             <tile.icon className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-2xl font-bold leading-tight tabular-nums">{tile.value}</p>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider truncate">
+                            <p className="text-[22px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{tile.value}</p>
+                            <p className="truncate text-[12px] text-muted-foreground">
                                 {tile.label}
                             </p>
                         </div>

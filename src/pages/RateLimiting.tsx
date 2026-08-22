@@ -158,28 +158,28 @@ const RateLimiting = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Ban className="h-4 w-4" />
             Total Blocked
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">{stats.totalBlocked.toLocaleString()}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Shield className="h-4 w-4" />
             Blocked Today
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">{stats.blockedToday}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Activity className="h-4 w-4" />
             Throttled
             </div>
             <p className="text-2xl font-bold text-foreground mt-1">{stats.requestsThrottled.toLocaleString()}</p>
         </div>
-        <div className="p-4 bg-card border border-border rounded-lg">
+        <div className="p-4 bg-card border border-hairline rounded-lg">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <AlertTriangle className="h-4 w-4" />
             Top Blocked IPs

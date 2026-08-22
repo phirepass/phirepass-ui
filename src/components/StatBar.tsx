@@ -41,7 +41,7 @@ export function StatBar({ label, value, unit = '%', variant = 'default', icon }:
   return (
     <div className="space-y-1">
     <div className="flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-muted-foreground uppercase tracking-wider">
+        <span className="flex items-center gap-1.5 text-muted-foreground">
         {icon}
         {label}
         </span>
@@ -49,9 +49,12 @@ export function StatBar({ label, value, unit = '%', variant = 'default', icon }:
         {displayValue}{unit}
         </span>
     </div>
-    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+    <div className="h-1.5 overflow-hidden rounded-full bg-black/30 shadow-sunken">
         <div
-        className={cn('h-full rounded-full transition-all duration-500', barColors[colorVariant])}
+        className={cn(
+            'h-full rounded-full shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.24)] transition-all duration-500 ease-mac',
+            barColors[colorVariant]
+        )}
         style={{ width: `${Math.min(value, 100)}%` }}
         />
     </div>

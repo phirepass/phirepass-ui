@@ -1589,13 +1589,13 @@ export default function Nodes() {
                     {/* Actions Bar */}
                     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                         <div className="relative flex-1 w-full sm:max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                             <input
                                 type="text"
                                 placeholder="Search nodes..."
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setNodesPage(1); }}
-                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-background/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                                className="h-9 w-full rounded-full border border-hairline bg-input/80 pl-9 pr-4 text-sm shadow-sunken transition-[box-shadow,border-color] duration-150 ease-mac placeholder:text-muted-foreground focus:border-accent/40 focus:outline-none focus:ring-[3px] focus:ring-ring/45"
                             />
                         </div>
 
