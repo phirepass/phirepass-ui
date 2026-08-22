@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Trash2 } from 'lucide-react';
+import { Clock, Pencil, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -20,6 +20,7 @@ interface DeviceCardProps {
     device: RegisteredDevice;
     /** True while delivery is paused account-wide; the card dims but stays legible. */
     paused: boolean;
+    onRename: (device: RegisteredDevice) => void;
     onRevoke: (device: RegisteredDevice) => void;
 }
 
@@ -33,7 +34,7 @@ interface DeviceCardProps {
  * colour as the icon, so a phone and a laptop are distinguishable from across
  * the room, before any text is read.
  */
-export function DeviceCard({ device, paused, onRevoke }: DeviceCardProps) {
+export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardProps) {
     const platform = DEVICE_PLATFORM_STYLES[device.platform];
     const Icon = platform.icon;
     const stale = isStaleDevice(device);
@@ -103,20 +104,37 @@ export function DeviceCard({ device, paused, onRevoke }: DeviceCardProps) {
                     </div>
                 </div>
 
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:text-destructive"
-                            aria-label={`Revoke notifications for ${device.name}`}
-                            onClick={() => onRevoke(device)}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Revoke this subscription</TooltipContent>
-                </Tooltip>
+                <div className="flex shrink-0 items-center gap-1">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:text-foreground"
+                                aria-label={`Rename ${device.name}`}
+                                onClick={() => onRename(device)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Rename this device</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:text-destructive"
+                                aria-label={`Revoke notifications for ${device.name}`}
+                                onClick={() => onRevoke(device)}
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Revoke this subscription</TooltipContent>
+                    </Tooltip>
+                </div>
             </div>
 
             <div className="relative flex items-center justify-between gap-3 border-t border-hairline px-4 py-2.5">

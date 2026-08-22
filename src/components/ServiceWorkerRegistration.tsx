@@ -3,15 +3,26 @@
 import { useEffect } from 'react';
 
 /**
- * Registers the service worker that makes the dashboard installable.
+ * Registers the service worker that makes the dashboard installable — and, since
+ * a push subscription is bound to a service worker registration, the one that
+ * receives notifications.
  *
- * Production only. In development the worker would sit between the browser and
- * the dev server's HMR requests, and a stale registration is a genuinely
- * confusing thing to debug — so local builds stay untouched. It renders nothing.
+ * This used to be production-only, on the grounds that a stale registration is a
+ * confusing thing to debug locally. That reasoning lost to a harder constraint:
+ * the notifications page is dev-gated, so if the worker never registers in
+ * development then the one place the feature is reachable is the one place it
+ * cannot work. It now registers everywhere.
+ *
+ * The original worry is largely answered by the worker itself — its fetch
+ * handler only intercepts requests with `mode === 'navigate'`, and only when the
+ * network rejects outright, so HMR, API calls and WebSockets never reach it. If
+ * a stale registration does need clearing: Application → Service Workers →
+ * Unregister, or `navigator.serviceWorker.getRegistrations()` then `.unregister()`.
+ *
+ * It renders nothing.
  */
 export function ServiceWorkerRegistration() {
     useEffect(() => {
-        if (process.env.NODE_ENV !== 'production') return;
         if (!('serviceWorker' in navigator)) return;
 
         const register = () => {

@@ -87,16 +87,26 @@ export const DEVICE_PLATFORM_LABELS: Record<DevicePlatform, string> = {
  * One browser that has accepted a push subscription. The subscription is
  * per-browser, not per-person, which is why the same laptop appears twice if
  * you register in both Safari and Chrome.
+ *
+ * The view model behind a row in the device list, assembled from
+ * `GET /api/notifications/devices` — see `docs/notifications-schema.sql` for
+ * what is actually stored.
  */
 export interface RegisteredDevice {
     id: string;
-    /** Editable label; seeded from the user agent at registration. */
+    /**
+     * sha-256 of the push endpoint, truncated. The endpoint itself is a
+     * capability URL and never leaves the server; this is what lets the page
+     * work out which row is the browser it is running in.
+     */
+    endpoint_hash: string;
+    /** Display label, seeded from the user agent at registration. */
     name: string;
     platform: DevicePlatform;
     browser: string;
     registered_at: string;
     /** Last time this subscription was confirmed still valid. */
     last_active_at: string;
-    /** The browser this page is currently open in. */
+    /** Derived on the client by matching `endpoint_hash`; never sent by the API. */
     is_current: boolean;
 }
