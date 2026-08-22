@@ -1,7 +1,6 @@
+import { AlertStrip, type AlertEntry } from "@/components/AlertStrip";
 import { TunnelNode } from "@/types/node";
-import { AlertTriangle, XCircle, Info, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
+
 import { displayedFilesystem, percentUsed } from "./disk-display";
 
 // Higher than the card's own 70/90 tinting on purpose. The bar is glanceable
@@ -10,44 +9,45 @@ import { displayedFilesystem, percentUsed } from "./disk-display";
 const DISK_HIGH_PERCENT = 85;
 const DISK_CRITICAL_PERCENT = 95;
 
-interface Alert {
-    id: string;
-    type: "error" | "warning" | "info";
-    title: string;
-    message: string;
-    nodeId?: string;
-    nodeName?: string;
-    timestamp: Date;
-}
+const CPU_HIGH_PERCENT = 75;
+const CPU_CRITICAL_PERCENT = 90;
 
 interface MonitoringAlertsProps {
     nodes: TunnelNode[];
-    onDismiss?: (alertId: string) => void;
 }
 
-function generateAlerts(nodes: TunnelNode[]): Alert[] {
-    const alerts: Alert[] = [];
+/**
+ * What the node list has to say about the fleet's health, rendered through the
+ * shared `AlertStrip`.
+ *
+ * It used to draw its own copy of that markup, which had drifted: raw
+ * `yellow-500` where the rest of the app uses the `warning` token, and a close
+ * button that only appeared if a caller passed `onDismiss` — which none did, so
+ * these lines could not be closed at all. Everything below is now just the
+ * decision of *what* is worth saying; the strip owns how it looks and how it is
+ * dismissed.
+ */
+function buildAlerts(nodes: TunnelNode[]): AlertEntry[] {
+    const alerts: AlertEntry[] = [];
 
-    nodes.filter(node => !!node.stats).forEach((node) => {
-        if (node.stats.host_cpu > 90) {
+    for (const node of nodes.filter((candidate) => !!candidate.stats)) {
+        const label = `${node.name} (${node.stats.host_name})`;
+
+        if (node.stats.host_cpu > CPU_CRITICAL_PERCENT) {
             alerts.push({
                 id: `cpu-${node.id}`,
-                type: "error",
-                title: "Critical CPU Usage",
+                level: 'error',
+                title: 'Critical CPU usage',
                 message: `CPU usage at ${node.stats.host_cpu.toFixed(2)}%`,
-                nodeId: node.id,
-                nodeName: `${node.name} (${node.stats.host_name})`,
-                timestamp: new Date(),
+                tag: label,
             });
-        } else if (node.stats.host_cpu > 75) {
+        } else if (node.stats.host_cpu > CPU_HIGH_PERCENT) {
             alerts.push({
                 id: `cpu-warn-${node.id}`,
-                type: 'warning',
-                title: 'High CPU Usage',
-                    message: `CPU usage at ${node.stats.host_cpu.toFixed(2)}%`,
-                nodeId: node.id,
-                nodeName: node.stats.host_name,
-                timestamp: new Date(),
+                level: 'warning',
+                title: 'High CPU usage',
+                message: `CPU usage at ${node.stats.host_cpu.toFixed(2)}%`,
+                tag: label,
             });
         }
 
@@ -71,149 +71,31 @@ function generateAlerts(nodes: TunnelNode[]): Alert[] {
         if (fullest && diskPercent >= DISK_CRITICAL_PERCENT) {
             alerts.push({
                 id: `disk-${node.id}`,
-                type: 'error',
-                title: 'Critical Disk Usage',
+                level: 'error',
+                title: 'Critical disk usage',
                 message: `${fullest.mount} is ${diskPercent.toFixed(1)}% full`,
-                nodeId: node.id,
-                nodeName: `${node.name} (${node.stats.host_name})`,
-                timestamp: new Date(),
+                tag: label,
             });
         } else if (fullest && diskPercent >= DISK_HIGH_PERCENT) {
             alerts.push({
                 id: `disk-warn-${node.id}`,
-                type: 'warning',
-                title: 'High Disk Usage',
+                level: 'warning',
+                title: 'High disk usage',
                 message: `${fullest.mount} is ${diskPercent.toFixed(1)}% full`,
-                nodeId: node.id,
-                nodeName: node.stats.host_name,
-                timestamp: new Date(),
+                tag: label,
             });
         }
-
-        // Offline node alert
-        //if (!node.isOnline) {
-            /*
-            alerts.push({
-                id: `offline-${node.id}`,
-                type: 'error',
-                title: 'Node Offline',
-                message: `Last seen: ${node.lastSeen}`,
-                nodeId: node.id,
-                nodeName: node.name,
-                timestamp: new Date(),
-            });
-            */
-        //}
-
-        // High ping alert
-        //if (node.stats.ping > 200) {
-            /*
-            alerts.push({
-                id: `ping-${node.id}`,
-                type: 'warning',
-                title: 'High Latency',
-                message: `Ping at ${node.stats.ping}ms`,
-                nodeId: node.id,
-                nodeName: node.name,
-                timestamp: new Date(),
-            });
-            */
-        //}
-    });
-
-    return alerts.sort((a, b) => {
-        const order = { error: 0, warning: 1, info: 2 };
-        return order[a.type] - order[b.type];
-    });
-}
-
-export function MonitoringAlerts({ nodes, onDismiss }: MonitoringAlertsProps) {
-    const alerts = generateAlerts(nodes);
-
-    // Render nothing at all rather than an empty wrapper: the page lays its
-    // sections out with `space-y-6`, which still spends a gap on a zero-height
-    // child, pushing the search bar below where the same row sits on every other
-    // page.
-    if (alerts.length === 0) {
-        return null;
     }
 
-    return (
-        <div className="space-y-2">
-            {/*
-            <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary" />
-                    Alerts
-                    <span className="bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
-                        {alerts.length}
-                    </span>
-                </h3>
-            </div>
-            */}
+    // Worst first, so the line that needs acting on is the one at the top.
+    const severity = { error: 0, warning: 1, info: 2 } as const;
+    return alerts.sort((a, b) => severity[a.level] - severity[b.level]);
+}
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {alerts.map((alert) => (
-                    <div
-                        key={alert.id}
-                        className={cn(
-                            "flex items-start gap-3 p-3 rounded-lg border transition-all",
-                            alert.type === "error" &&
-                                "bg-destructive/10 border-destructive/30",
-                            alert.type === "warning" &&
-                                "bg-yellow-500/10 border-yellow-500/30",
-                            alert.type === "info" &&
-                                "bg-primary/10 border-primary/30"
-                        )}
-                    >
-                        <div
-                            className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                                alert.type === "error" && "bg-destructive/20",
-                                alert.type === "warning" && "bg-yellow-500/20",
-                                alert.type === "info" && "bg-primary/20"
-                            )}
-                        >
-                            {alert.type === "error" && (
-                                <XCircle className="w-4 h-4 text-destructive" />
-                            )}
-                            {alert.type === "warning" && (
-                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                            )}
-                            {alert.type === "info" && (
-                                <Info className="w-4 h-4 text-primary" />
-                            )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h4 className="font-medium text-sm">
-                                    {alert.title}
-                                </h4>
-                                {alert.nodeName && (
-                                    <span className="text-xs bg-secondary px-1.5 py-0.5 rounded text-muted-foreground">
-                                        {alert.nodeName}
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                                {alert.message}
-                            </p>
-                        </div>
-
-                        {onDismiss && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 flex-shrink-0"
-                                onClick={() => onDismiss(alert.id)}
-                            >
-                                <X className="w-3 h-3" />
-                            </Button>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+export function MonitoringAlerts({ nodes }: MonitoringAlertsProps) {
+    // `AlertStrip` renders nothing for an empty list, which matters here beyond
+    // tidiness: the page lays its sections out with `space-y-6`, and a
+    // zero-height child still spends a gap, pushing the search bar below where
+    // the same row sits on every other page.
+    return <AlertStrip alerts={buildAlerts(nodes)} />;
 }
