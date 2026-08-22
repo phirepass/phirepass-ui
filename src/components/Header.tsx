@@ -192,15 +192,13 @@ export function Header({ user, onLogout }: HeaderProps) {
                                     <Settings className="w-4 h-4 mr-2" />
                                     Settings
                                 </DropdownMenuItem>
-                                {devSurfaces ? (
-                                    <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
-                                        <Bell className="w-4 h-4 mr-2" />
-                                        Notifications
-                                        <span className="ml-auto rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                            dev
-                                        </span>
-                                    </DropdownMenuItem>
-                                ) : null}
+                                <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
+                                    <Bell className="w-4 h-4 mr-2" />
+                                    Notifications
+                                    <span className="ml-auto rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
+                                        dev
+                                    </span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setContactOpen(true)}>
                                     <LifeBuoy className="w-4 h-4 mr-2" />
                                     Contact us
@@ -300,23 +298,21 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <Settings className="w-5 h-5 mr-3" />
                             Settings
                         </Button>
-                        {devSurfaces ? (
-                            <Button
-                                variant="ghost"
-                                className={cn(
-                                    'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
-                                    isActivePath('/dashboard/notifications') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
-                                )}
-                                aria-current={isActivePath('/dashboard/notifications') ? 'page' : undefined}
-                                onClick={() => { router.push('/dashboard/notifications'); setMenuOpen(false); }}
-                            >
-                                <Bell className="w-5 h-5 mr-3" />
-                                Notifications
-                                <span className="ml-2 rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                    dev
-                                </span>
-                            </Button>
-                        ) : null}
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                isActivePath('/dashboard/notifications') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
+                            )}
+                            aria-current={isActivePath('/dashboard/notifications') ? 'page' : undefined}
+                            onClick={() => { router.push('/dashboard/notifications'); setMenuOpen(false); }}
+                        >
+                            <Bell className="w-5 h-5 mr-3" />
+                            Notifications
+                            <span className="ml-2 rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
+                                dev
+                            </span>
+                        </Button>
                         <Button
                             variant="ghost"
                             className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]"
