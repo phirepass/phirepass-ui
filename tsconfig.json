@@ -13,6 +13,9 @@
         "skipLibCheck": true,
         "allowJs": true,
         "noEmit": true,
+        // `node --test` runs the .ts files directly, and Node's ESM resolver needs
+        // the explicit extension on the import. Safe alongside `noEmit`.
+        "allowImportingTsExtensions": true,
         "incremental": true,
         "esModuleInterop": true,
         "isolatedModules": true,

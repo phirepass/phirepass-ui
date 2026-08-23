@@ -32,16 +32,58 @@ export function permissionState(): NotificationPermission {
 
 /**
  * VAPID public keys travel as base64url; `applicationServerKey` wants bytes.
+ *
+ * `atob` rather than `window.atob` so this module can be exercised outside a
+ * browser — the two are the same function, and the pure half of this file is
+ * where the key comparison below is tested.
  */
 function urlBase64ToUint8Array(base64Url: string): Uint8Array {
     const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
     const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const raw = window.atob(base64);
+    const raw = atob(base64);
     const output = new Uint8Array(raw.length);
     for (let i = 0; i < raw.length; i += 1) {
         output[i] = raw.charCodeAt(i);
     }
     return output;
+}
+
+/**
+ * Whether a subscription the browser already holds was created under the key
+ * this server now signs with.
+ *
+ * A subscription is bound at `subscribe()` time to the `applicationServerKey`
+ * it was given, and the push service enforces that binding forever: a push
+ * signed by any other key is refused with `403 permission denied: invalid JWT
+ * provided`. Nothing about that refusal says the subscription is stale — it
+ * reads as a credential problem — and it is deliberately not treated as
+ * evidence the subscription is dead, so the row survives and every later
+ * notification to that browser is refused the same way.
+ *
+ * Reusing an existing subscription without this check is what makes a VAPID
+ * key rotation permanent: the browser keeps handing back the subscription made
+ * under the old key, the server keeps storing it, and no amount of fixing the
+ * environment ever reaches it.
+ *
+ * `existing` is `subscription.options.applicationServerKey`, which is:
+ *   - `undefined` on a browser too old to expose `options` at all. Nothing can
+ *     be concluded, so the subscription is kept — re-subscribing on a hunch
+ *     would churn an endpoint that may well be fine.
+ *   - `null` when the subscription carries no application server key. It cannot
+ *     be pushed to with VAPID under any key, so it has to be replaced.
+ */
+export function subscribedWithKey(
+    existing: ArrayBuffer | null | undefined,
+    vapidPublicKey: string,
+): boolean {
+    if (existing === undefined) return true;
+    if (existing === null) return false;
+
+    const wanted = urlBase64ToUint8Array(vapidPublicKey);
+    const held = new Uint8Array(existing);
+
+    if (held.length !== wanted.length) return false;
+    return held.every((byte, index) => byte === wanted[index]);
 }
 
 export async function currentSubscription(): Promise<PushSubscription | null> {
@@ -59,6 +101,10 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
  * Returns `null` when the person declines. A denial is sticky: the browser will
  * not ask again for this origin, so the caller has to say so rather than
  * offering the button a second time.
+ *
+ * A subscription the browser already holds is reused only when it was issued
+ * under `vapidPublicKey`; one made under a different key is dropped and
+ * replaced, because the push service refuses it for good.
  */
 export async function subscribe(vapidPublicKey: string): Promise<PushSubscription | null> {
     if (pushSupport() !== 'ok') return null;
@@ -71,7 +117,15 @@ export async function subscribe(vapidPublicKey: string): Promise<PushSubscriptio
 
     const registration = await navigator.serviceWorker.ready;
     const existing = await registration.pushManager.getSubscription();
-    if (existing) return existing;
+    if (existing) {
+        // Only if it was issued under the key this server signs with — see
+        // `subscribedWithKey`. Handing back one made under an older key
+        // registers an endpoint the push service will refuse for good.
+        if (subscribedWithKey(existing.options?.applicationServerKey, vapidPublicKey)) {
+            return existing;
+        }
+        await existing.unsubscribe();
+    }
 
     return registration.pushManager.subscribe({
         userVisibleOnly: true,

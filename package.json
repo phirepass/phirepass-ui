@@ -11,6 +11,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint .",
+        "test": "node --test 'src/**/*.test.ts'",
         "postinstall": "node scripts/fix-phirepass-widgets-wasm.mjs"
     },
     "dependencies": {
