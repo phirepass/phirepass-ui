@@ -1,22 +1,9 @@
 import { verifyToken } from '@/app/lib/auth';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 import { TEST_EVENT, testWebhookPayload } from '@/app/lib/notification-test';
 import { sendToWebhook } from '@/app/lib/webhooks';
 
 export const dynamic = 'force-dynamic';
-
-/*
- * Still dev-gated, unlike the rest of /api/notifications.
- *
- * The push routes shipped when the page did; these did not, because the channel
- * they serve is switched off in the UI (`WEBHOOKS_ENABLED` in
- * NotificationsPage.tsx). Nothing dispatches on events automatically yet, so an
- * endpoint registered today would only ever receive what someone pressed "test"
- * for — and an API that is unreachable from the product should not be reachable
- * from the internet either. The gate comes off in the same change that flips
- * that constant.
- */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,9 +20,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * the body, and the endpoint's row now carries them too.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const { id } = await ctx.params;

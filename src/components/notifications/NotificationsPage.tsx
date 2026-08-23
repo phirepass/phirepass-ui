@@ -90,19 +90,6 @@ function toDevice(row: DeviceResponse, currentHash: string | null): RegisteredDe
     };
 }
 
-/**
- * Whether the webhook channel is reachable from this page.
- *
- * On: the tab is selectable, its content mounts and fetches, and the
- * account-wide test fires at both channels. Kept as a single switch rather
- * than being inlined — setting it to `false` puts the tab back to visible but
- * disabled with a "soon" chip, which is what the page showed while the
- * dispatch path was still being built. The tab is never removed: the page is
- * organised around there being two channels, and hiding one would make the
- * remaining tab look like a stray control.
- */
-const WEBHOOKS_ENABLED: boolean = true;
-
 /** The count beside a tab label. Muted, so the label stays the thing read first. */
 function ChannelCount({ value }: { value: number }) {
     return (
@@ -516,7 +503,7 @@ export default function NotificationsPage() {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: WEBHOOKS_ENABLED ? 'all' : 'web.push' }),
+                body: JSON.stringify({ channel: 'all' }),
             });
             if (!response.ok) {
                 throw new Error(`test ${response.status}`);
@@ -640,19 +627,9 @@ export default function NotificationsPage() {
                                         {NOTIFICATION_CHANNEL_LABELS['web.push']}
                                         <ChannelCount value={devices.length} />
                                     </TabsTrigger>
-                                    <TabsTrigger
-                                        value="webhook"
-                                        className="gap-2"
-                                        disabled={!WEBHOOKS_ENABLED}
-                                    >
+                                    <TabsTrigger value="webhook" className="gap-2">
                                         {NOTIFICATION_CHANNEL_LABELS.webhook}
-                                        {WEBHOOKS_ENABLED ? (
-                                            <ChannelCount value={webhooks.length} />
-                                        ) : (
-                                            <span className="rounded-full bg-white/[0.08] px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                                soon
-                                            </span>
-                                        )}
+                                        <ChannelCount value={webhooks.length} />
                                     </TabsTrigger>
                                 </TabsList>
                             </div>

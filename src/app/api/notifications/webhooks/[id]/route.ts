@@ -1,6 +1,5 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 import {
     WebhookUrlError,
@@ -41,9 +40,6 @@ const MAX_LABEL = 120;
  * would be enough to redirect someone else's deliveries at a URL of your own.
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const { id } = await ctx.params;
@@ -140,9 +136,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
  * account or never existed, so this cannot be used to probe for valid ids.
  */
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const { id } = await ctx.params;

@@ -1,6 +1,5 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 import {
     WebhookUrlError,
@@ -40,9 +39,6 @@ const MAX_ENDPOINTS = 20;
  * usable one is to rotate it, which invalidates the old one at the same time.
  */
 export async function GET(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const rows = await listWebhooks(user.id);
@@ -63,9 +59,6 @@ export async function GET(req: Request) {
  * endpoint that is already delivering would break the receiver that holds it.
  */
 export async function POST(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const body = await req.json().catch(() => ({}));

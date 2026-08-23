@@ -1,6 +1,7 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { randomBytes } from 'crypto';
 
 import { query } from '@/app/lib/db';
+import { signBody, verifySignature } from '@/app/lib/webhook-signature';
 import { IS_DEV_MODE } from '@/lib/dev-mode';
 
 /**
@@ -41,6 +42,10 @@ export function generateSecret(): string {
 export function secretHint(secret: string): string {
     return secret.slice(-4);
 }
+
+// Re-exported so every existing importer keeps one place to reach for, while
+// the scheme itself lives somewhere a receiver can use without a database.
+export { signBody, verifySignature };
 
 export class WebhookUrlError extends Error {}
 
@@ -170,28 +175,6 @@ export interface WebhookDelivery {
 
 /** A receiver that has not answered in ten seconds is not going to. */
 const TIMEOUT_MS = 10_000;
-
-/**
- * Signs the exact bytes that are sent, over `timestamp.body`.
- *
- * The timestamp is inside the signed material rather than beside it so a
- * captured delivery cannot be replayed later with its own header rewritten —
- * the receiver checks the age and the signature covers the age it checked.
- */
-export function signBody(secret: string, timestamp: string, body: string): string {
-    return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
-}
-
-/**
- * Constant-time compare for a receiver written against this same module.
- * Exported because the shape of the check is half the contract: a `===` here is
- * a timing oracle on the signature.
- */
-export function verifySignature(secret: string, timestamp: string, body: string, signature: string): boolean {
-    const expected = Buffer.from(signBody(secret, timestamp, body));
-    const given = Buffer.from(signature);
-    return expected.length === given.length && timingSafeEqual(expected, given);
-}
 
 /**
  * Delivers one body to one endpoint and records the outcome on its row.
