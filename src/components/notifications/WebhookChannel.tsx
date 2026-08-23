@@ -24,11 +24,11 @@ import { WebhookFormDialog, WebhookSecretDialog, type WebhookFormValues } from '
 
 interface WebhookChannelProps {
     /**
-     * Reports the current list upward. The page needs the count for its stat
-     * tiles and for deciding whether the account has *any* destination at all,
-     * which is the thing that makes the event switches meaningful — but nothing
-     * above needs to own the CRUD, so it stays here.
-     */
+    * Reports the current list upward. The page needs the count for its stat
+    * tiles and for deciding whether the account has *any* destination at all,
+    * which is the thing that makes the event switches meaningful — but nothing
+    * above needs to own the CRUD, so it stays here.
+    */
     onEndpointsChange: (endpoints: WebhookEndpoint[]) => void;
     /** Bumped by the page after an account-wide test, to pull in new statuses. */
     refreshSignal: number;
@@ -142,9 +142,9 @@ export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChan
     };
 
     /**
-     * Pausing and resuming, optimistically — the switch moves first and rolls
-     * back on failure, matching how the event preferences behave.
-     */
+    * Pausing and resuming, optimistically — the switch moves first and rolls
+    * back on failure, matching how the event preferences behave.
+    */
     const toggle = async (endpoint: WebhookEndpoint, next: boolean) => {
         setEndpoints((current) => current.map((row) => (
             row.id === endpoint.id ? { ...row, enabled: next } : row

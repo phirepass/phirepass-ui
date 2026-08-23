@@ -29,7 +29,7 @@ const CATEGORY_ORDER: NotificationCategory[] = ['nodes'];
 interface EventPreferenceListProps {
     preferences: NotificationPreferences;
     /** True while delivery is off account-wide: the switches keep their state
-     *  but stop being actionable, because changing them would decide nothing. */
+    *  but stop being actionable, because changing them would decide nothing. */
     disabled: boolean;
     onToggle: (event: NotificationEventDefinition, next: boolean) => void;
     onToggleCategory: (category: NotificationCategory, next: boolean) => void;

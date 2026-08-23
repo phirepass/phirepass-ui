@@ -242,11 +242,11 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
                         <div>
                             <Label htmlFor="monitor-target">{TARGET_LABELS[kind]}</Label>
                             {/*
-                              * The method is fixed to GET while the advanced
-                              * panel is disabled, so it is shown in the field
-                              * rather than left implicit — the request being
-                              * made is part of what the URL means.
-                              */}
+                            * The method is fixed to GET while the advanced
+                            * panel is disabled, so it is shown in the field
+                            * rather than left implicit — the request being
+                            * made is part of what the URL means.
+                            */}
                             <div className="relative mt-1.5">
                                 {kind === 'http' ? (
                                     <span
@@ -334,11 +334,11 @@ export function MonitorFormDialog({ monitor, onClose, onSubmit }: MonitorFormDia
 
                     <div>
                         {/*
-                          * Disabled rather than removed: the panel below is
-                          * complete and still typechecked, so re-enabling it is
-                          * a one-line change once the backend honours the
-                          * fields it sets.
-                          */}
+                        * Disabled rather than removed: the panel below is
+                        * complete and still typechecked, so re-enabling it is
+                        * a one-line change once the backend honours the
+                        * fields it sets.
+                        */}
                         <button
                             type="button"
                             disabled

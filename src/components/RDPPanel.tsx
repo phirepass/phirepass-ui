@@ -29,11 +29,11 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
     }, []);
 
     /**
-     * Puts the active session into browser fullscreen, which is also what lets
-     * the widget claim the shortcuts the browser normally keeps (Ctrl+W,
-     * Alt+Tab). It has to be driven from a click: browsers only grant
-     * fullscreen — and therefore the keyboard lock — to a user gesture.
-     */
+    * Puts the active session into browser fullscreen, which is also what lets
+    * the widget claim the shortcuts the browser normally keeps (Ctrl+W,
+    * Alt+Tab). It has to be driven from a click: browsers only grant
+    * fullscreen — and therefore the keyboard lock — to a user gesture.
+    */
     const toggleWidgetFullScreen = useCallback(() => {
         if (!activeTabId) {
             return;

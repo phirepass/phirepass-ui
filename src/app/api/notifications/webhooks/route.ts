@@ -101,10 +101,10 @@ export async function POST(req: Request) {
         // the duplicate — cheaper and race-free compared to checking first.
         const result = await query(
             `INSERT INTO notification_webhooks (user_id, label, url, secret)
-                  VALUES ($1, $2, $3, $4)
-             ON CONFLICT (user_id, url) DO NOTHING
-               RETURNING id, label, url, secret, enabled, created_at,
-                         last_sent_at, last_status, last_error, fail_count`,
+                VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, url) DO NOTHING
+                RETURNING id, label, url, secret, enabled, created_at,
+                        last_sent_at, last_status, last_error, fail_count`,
             [user.id, label, url, secret],
         );
 

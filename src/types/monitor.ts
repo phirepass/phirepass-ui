@@ -37,32 +37,32 @@ export interface Monitor {
     updated_at: string;
 
     /**
-     * Which vantage point runs the probe. `null` is the server fleet — the
-     * target as the public internet sees it. A node id runs the probe on that
-     * agent instead, which is the only way to watch a service that is not
-     * reachable from outside its own network.
-     *
-     * Only ever one of the caller's own nodes; the API scopes the list by the
-     * authenticated user.
-     */
+    * Which vantage point runs the probe. `null` is the server fleet — the
+    * target as the public internet sees it. A node id runs the probe on that
+    * agent instead, which is the only way to watch a service that is not
+    * reachable from outside its own network.
+    *
+    * Only ever one of the caller's own nodes; the API scopes the list by the
+    * authenticated user.
+    */
     node_id: string | null;
     /**
-     * Denormalised so a card can name the agent without fetching the node list.
-     * Null when `node_id` is null, or when the node has since been deleted.
-     */
+    * Denormalised so a card can name the agent without fetching the node list.
+    * Null when `node_id` is null, or when the node has since been deleted.
+    */
     node_name: string | null;
     /**
-     * What an offline agent means for this monitor.
-     *
-     * `false` (the default) records `unknown` and stays quiet — the probe never
-     * ran, so nothing was learned about the target, and an agent restart is not
-     * an outage of the thing it watches. `true` records `down` and alerts,
-     * treating the agent's own availability as part of what is being watched.
-     *
-     * Either way a check is written, so history stays continuous and a gap is
-     * visible on the strip; the flag decides the verdict, not whether one is
-     * recorded.
-     */
+    * What an offline agent means for this monitor.
+    *
+    * `false` (the default) records `unknown` and stays quiet — the probe never
+    * ran, so nothing was learned about the target, and an agent restart is not
+    * an outage of the thing it watches. `true` records `down` and alerts,
+    * treating the agent's own availability as part of what is being watched.
+    *
+    * Either way a check is written, so history stays continuous and a gap is
+    * visible on the strip; the flag decides the verdict, not whether one is
+    * recorded.
+    */
     agent_offline_is_outage: boolean;
 
     last_status: MonitorStatus | null;
@@ -78,13 +78,13 @@ export interface Monitor {
     domain_registrar: string | null;
 
     /**
-     * Where the probe target resolves to, geolocated from the address the check
-     * actually connected to.
-     *
-     * `null` whenever there is nothing public to place: a target on a private
-     * range, a hostname that does not resolve, or a `domain` monitor, which asks
-     * a registry about a name and never opens a connection at all.
-     */
+    * Where the probe target resolves to, geolocated from the address the check
+    * actually connected to.
+    *
+    * `null` whenever there is nothing public to place: a target on a private
+    * range, a hostname that does not resolve, or a `domain` monitor, which asks
+    * a registry about a name and never opens a connection at all.
+    */
     location: PublicIpLocation | null;
 }
 
@@ -96,23 +96,23 @@ export interface UptimeWindow {
     checks: number;
     down_checks: number;
     /**
-     * Checks that reached no verdict — an agent that timed out, disconnected,
-     * or shed the probe.
-     *
-     * A subset of `checks`, so a timeout still increments the count: it did
-     * happen, and hiding it makes a broken agent look like an idle one. It is
-     * subtracted out of the `uptime_pct` denominator instead, so "we could not
-     * tell" is never scored as uptime.
-     */
+    * Checks that reached no verdict — an agent that timed out, disconnected,
+    * or shed the probe.
+    *
+    * A subset of `checks`, so a timeout still increments the count: it did
+    * happen, and hiding it makes a broken agent look like an idle one. It is
+    * subtracted out of the `uptime_pct` denominator instead, so "we could not
+    * tell" is never scored as uptime.
+    */
     unknown_checks: number;
     /**
-     * Checks that answered correctly but too slowly.
-     *
-     * Not subtracted from uptime — a slow success is still a success — but
-     * counted so the strip can show it. Without this a monitor that has been
-     * degraded all day computes to 100% and draws solid green, which is the
-     * whole reason `degraded` exists as a state.
-     */
+    * Checks that answered correctly but too slowly.
+    *
+    * Not subtracted from uptime — a slow success is still a success — but
+    * counted so the strip can show it. Without this a monitor that has been
+    * degraded all day computes to 100% and draws solid green, which is the
+    * whole reason `degraded` exists as a state.
+    */
     degraded_checks: number;
 }
 
@@ -145,9 +145,9 @@ export interface CheckPoint {
     status_code: number | null;
     error: string | null;
     /**
-     * Machine-readable category behind the verdict, e.g. `agent_timeout`,
-     * `agent_disconnected`, `target_unreachable`. Null for an ordinary result.
-     */
+    * Machine-readable category behind the verdict, e.g. `agent_timeout`,
+    * `agent_disconnected`, `target_unreachable`. Null for an ordinary result.
+    */
     reason: string | null;
 }
 
@@ -191,13 +191,13 @@ export interface MonitorKindSummary {
     total: number;
     counts: MonitorStatusCounts;
     /**
-     * Uptime across every check this kind recorded in the last 24 hours.
-     *
-     * Pooled over checks, not averaged over monitors: a kind holding one busy
-     * monitor and nine idle ones should report what actually happened, and a
-     * mean of per-monitor percentages would let a single quiet monitor swing it.
-     * `null` when nothing reached a verdict in the window.
-     */
+    * Uptime across every check this kind recorded in the last 24 hours.
+    *
+    * Pooled over checks, not averaged over monitors: a kind holding one busy
+    * monitor and nine idle ones should report what actually happened, and a
+    * mean of per-monitor percentages would let a single quiet monitor swing it.
+    * `null` when nothing reached a verdict in the window.
+    */
     uptime_24h_pct: number | null;
     /** The worst monitor of this kind right now, or null when all are healthy. */
     worst: {
@@ -209,13 +209,13 @@ export interface MonitorKindSummary {
     /** The soonest expiry of this kind, regardless of its warning window. */
     next_expiry: MonitorExpiryRef | null;
     /**
-     * Fourteen days of history for the panel's strip, oldest first, aggregated
-     * across every monitor of this kind.
-     *
-     * Days that recorded nothing are present and empty rather than absent — the
-     * strip draws one bar per entry, so a missing day would compress the
-     * timeline and stop the bars lining up with dates.
-     */
+    * Fourteen days of history for the panel's strip, oldest first, aggregated
+    * across every monitor of this kind.
+    *
+    * Days that recorded nothing are present and empty rather than absent — the
+    * strip draws one bar per entry, so a missing day would compress the
+    * timeline and stop the bars lining up with dates.
+    */
     daily: DailyBucket[];
 }
 
@@ -238,12 +238,12 @@ export interface MonitorOverview {
     counts: MonitorStatusCounts;
     kinds: MonitorKindSummary[];
     /**
-     * Everything down, degraded, or near expiry — capped.
-     *
-     * Bounded because the alert strip is a summary, not an inventory: a fleet
-     * with four hundred simultaneous outages does not need four hundred rows to
-     * communicate that, and the cap is what keeps this endpoint's cost flat.
-     */
+    * Everything down, degraded, or near expiry — capped.
+    *
+    * Bounded because the alert strip is a summary, not an inventory: a fleet
+    * with four hundred simultaneous outages does not need four hundred rows to
+    * communicate that, and the cap is what keeps this endpoint's cost flat.
+    */
     problems: MonitorProblem[];
     /** True when `problems` hit the cap and more exist. */
     problems_truncated: boolean;

@@ -26,15 +26,15 @@ interface DemoModeContextValue {
     /** What the switch says. Flips the instant it is clicked. */
     requested: boolean;
     /**
-     * Whether the fixture is actually being served — the patch is installed.
-     *
-     * Distinct from `requested` because the fixture is loaded on demand, so
-     * there is a moment after the click when the switch is on and `fetch` is
-     * still the real one. Everything that reacts to demo mode reads *this*,
-     * which is what makes the reaction safe: anything refetching because demo
-     * mode came on is guaranteed to be answered by the fixture rather than by
-     * the account's own data.
-     */
+    * Whether the fixture is actually being served — the patch is installed.
+    *
+    * Distinct from `requested` because the fixture is loaded on demand, so
+    * there is a moment after the click when the switch is on and `fetch` is
+    * still the real one. Everything that reacts to demo mode reads *this*,
+    * which is what makes the reaction safe: anything refetching because demo
+    * mode came on is guaranteed to be answered by the fixture rather than by
+    * the account's own data.
+    */
     active: boolean;
     setRequested: (requested: boolean) => void;
 }

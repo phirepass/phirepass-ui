@@ -50,8 +50,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
         const result = await query(
             `UPDATE notification_subscriptions SET label = $1
-              WHERE id = $2 AND user_id = $3
-              RETURNING id`,
+            WHERE id = $2 AND user_id = $3
+            RETURNING id`,
             [label, id, user.id],
         );
 

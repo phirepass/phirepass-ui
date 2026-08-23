@@ -124,11 +124,11 @@ export default function NotificationsPage() {
     const [channel, setChannel] = useState<NotificationChannel>('web.push');
     const [devices, setDevices] = useState<RegisteredDevice[]>([]);
     /**
-     * Mirrored up from `WebhookChannel`, which owns them. The page needs the
-     * count for its summary strip and for one question the channels cannot
-     * answer separately: whether the account has any destination at all, which
-     * is what decides if the event switches decide anything.
-     */
+    * Mirrored up from `WebhookChannel`, which owns them. The page needs the
+    * count for its summary strip and for one question the channels cannot
+    * answer separately: whether the account has any destination at all, which
+    * is what decides if the event switches decide anything.
+    */
     const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
     const [preferences, setPreferences] = useState<NotificationPreferences>(createDefaultPreferences);
 
@@ -150,13 +150,13 @@ export default function NotificationsPage() {
     const [criticalTarget, setCriticalTarget] = useState<NotificationEventDefinition | null>(null);
 
     /**
-     * Re-reads the device list and works out which row is this browser.
-     *
-     * The hash comparison is the only link between the two: the server never
-     * returns endpoints, so the page hashes its own subscription and looks for a
-     * match. No subscription means no row can be current, which is exactly the
-     * state after revoking this device from another tab.
-     */
+    * Re-reads the device list and works out which row is this browser.
+    *
+    * The hash comparison is the only link between the two: the server never
+    * returns endpoints, so the page hashes its own subscription and looks for a
+    * match. No subscription means no row can be current, which is exactly the
+    * state after revoking this device from another tab.
+    */
     const refresh = useCallback(async () => {
         const response = await fetch('/api/notifications/devices', { credentials: 'include' });
         if (!response.ok) {
@@ -181,12 +181,12 @@ export default function NotificationsPage() {
     }, []);
 
     /**
-     * Writes the whole set, optimistically.
-     *
-     * The switch moves first because a toggle that waits on a round trip feels
-     * broken, and rolls back to `previous` if the write fails — leaving it in
-     * the new position after a failed save would be a lie about what is stored.
-     */
+    * Writes the whole set, optimistically.
+    *
+    * The switch moves first because a toggle that waits on a round trip feels
+    * broken, and rolls back to `previous` if the write fails — leaving it in
+    * the new position after a failed save would be a lie about what is stored.
+    */
     const persist = useCallback(async (
         next: NotificationPreferences,
         previous: NotificationPreferences,
@@ -254,11 +254,11 @@ export default function NotificationsPage() {
     );
 
     /**
-     * Any destination at all, on either channel. The event switches are about
-     * *what* is worth sending, so they only mean something once there is
-     * somewhere for it to go — and a browser that is not subscribed is no
-     * reason to grey them out if a webhook is registered.
-     */
+    * Any destination at all, on either channel. The event switches are about
+    * *what* is worth sending, so they only mean something once there is
+    * somewhere for it to go — and a browser that is not subscribed is no
+    * reason to grey them out if a webhook is registered.
+    */
     const destinations = devices.length + webhooks.length;
     const activeWebhooks = useMemo(
         () => webhooks.filter((endpoint) => endpoint.enabled).length,
@@ -504,14 +504,14 @@ export default function NotificationsPage() {
     };
 
     /**
-     * Fires a real notification at every destination on the account, on both
-     * channels at once.
-     *
-     * The two halves are reported separately rather than added together: "3
-     * delivered" across two phones and a Slack relay would hide that the relay
-     * was the one that refused, and knowing *which* channel is broken is the
-     * entire reason to press this.
-     */
+    * Fires a real notification at every destination on the account, on both
+    * channels at once.
+    *
+    * The two halves are reported separately rather than added together: "3
+    * delivered" across two phones and a Slack relay would hide that the relay
+    * was the one that refused, and knowing *which* channel is broken is the
+    * entire reason to press this.
+    */
     const sendTest = async () => {
         setTestPulse((n) => n + 1);
         try {

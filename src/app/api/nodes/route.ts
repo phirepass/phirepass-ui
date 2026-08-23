@@ -533,9 +533,9 @@ export async function GET(req: Request) {
         try {
             const monitorCounts = await query(
                 `SELECT node_id, count(*)::int AS total
-                 FROM monitors
-                 WHERE user_id = $1 AND node_id IS NOT NULL
-                 GROUP BY node_id`,
+                FROM monitors
+                WHERE user_id = $1 AND node_id IS NOT NULL
+                GROUP BY node_id`,
                 [user.id]
             );
             monitorCountByNode = new Map<string, number>(
@@ -621,11 +621,11 @@ export async function PATCH(req: Request) {
 
         const duplicateNameResult = await query(
             `SELECT 1
-             FROM nodes
-             WHERE user_id = $1
-               AND id <> $2
-               AND LOWER(TRIM(name)) = LOWER($3)
-             LIMIT 1`,
+            FROM nodes
+            WHERE user_id = $1
+                AND id <> $2
+                AND LOWER(TRIM(name)) = LOWER($3)
+            LIMIT 1`,
             [user.id, id, name]
         );
 
@@ -635,9 +635,9 @@ export async function PATCH(req: Request) {
 
         const result = await query(
             `UPDATE nodes
-             SET name = $1
-             WHERE id = $2 AND user_id = $3
-             RETURNING id, name`,
+            SET name = $1
+            WHERE id = $2 AND user_id = $3
+            RETURNING id, name`,
             [name, id, user.id]
         );
 
@@ -672,8 +672,8 @@ export async function DELETE(req: Request) {
 
         const result = await query(
             `DELETE FROM nodes
-             WHERE id = $1 AND user_id = $2
-             RETURNING id`,
+            WHERE id = $1 AND user_id = $2
+            RETURNING id`,
             [id, user.id]
         );
 

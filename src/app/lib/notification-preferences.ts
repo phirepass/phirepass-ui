@@ -62,11 +62,11 @@ export async function savePreferences(
 
     const result = await query(
         `INSERT INTO notification_preferences (user_id, events)
-              VALUES ($1, $2::jsonb)
-         ON CONFLICT (user_id) DO UPDATE
-                 SET events = EXCLUDED.events,
-                     updated_at = now()
-           RETURNING events`,
+            VALUES ($1, $2::jsonb)
+        ON CONFLICT (user_id) DO UPDATE
+                SET events = EXCLUDED.events,
+                    updated_at = now()
+            RETURNING events`,
         [userId, JSON.stringify(cleaned)],
     );
 

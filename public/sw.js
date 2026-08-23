@@ -84,8 +84,14 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
         self.registration.showNotification(title, {
             body: payload.body || '',
+            // The large icon in the shade: full colour, shown as drawn.
             icon: '/icon-192.png',
-            badge: '/icon-192.png',
+            // The status-bar mark, and a different kind of asset entirely.
+            // Android discards the colour and tints the alpha channel, so a
+            // full-colour tile arrives as a solid white rectangle — badge-96
+            // is the mark as a transparent silhouette. iOS ignores both of
+            // these and uses the home-screen icon (src/app/apple-icon.png).
+            badge: '/badge-96.png',
             // Same tag replaces rather than stacks, so a node flapping does not
             // bury the rest of the shade under twenty identical banners.
             tag: payload.tag || 'phirepass',

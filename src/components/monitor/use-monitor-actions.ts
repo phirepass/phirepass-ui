@@ -69,9 +69,9 @@ export function useMonitorActions(refresh: () => Promise<void>): MonitorActions 
     const cancelDelete = useCallback(() => setMonitorToDelete(null), []);
 
     /**
-     * Throws on failure so `MonitorFormDialog` can surface the API's own message
-     * inside the form, next to the fields that caused it.
-     */
+    * Throws on failure so `MonitorFormDialog` can surface the API's own message
+    * inside the form, next to the fields that caused it.
+    */
     const submitMonitor = useCallback(async (input: MonitorInput): Promise<boolean> => {
         const target = editing;
         const response = await fetch(
@@ -133,10 +133,10 @@ export function useMonitorActions(refresh: () => Promise<void>): MonitorActions 
     }, [refresh]);
 
     /**
-     * Brings the next check forward. Only a server holding that agent's socket
-     * can dispatch a probe, so this returns once the monitor is marked due — the
-     * result lands on a later poll, which is why the toast says "queued".
-     */
+    * Brings the next check forward. Only a server holding that agent's socket
+    * can dispatch a probe, so this returns once the monitor is marked due — the
+    * result lands on a later poll, which is why the toast says "queued".
+    */
     const checkNow = useCallback(async (monitor: MonitorSummary) => {
         setCheckingId(monitor.id);
         try {

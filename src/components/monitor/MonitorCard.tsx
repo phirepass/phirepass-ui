@@ -139,13 +139,13 @@ export function MonitorCard({
                 <div className="relative z-30">
                     <div className="min-w-0 flex-1">
                         {/*
-                          * The dot sits *inside* the title row rather than beside
-                          * the whole header block, so `items-center` aligns it to
-                          * the title itself. Positioning it from the outside meant
-                          * a hand-tuned top margin that drifted the moment the
-                          * row's height changed — and the row's height is set by
-                          * the 32px action button, not by the title.
-                          */}
+                        * The dot sits *inside* the title row rather than beside
+                        * the whole header block, so `items-center` aligns it to
+                        * the title itself. Positioning it from the outside meant
+                        * a hand-tuned top margin that drifted the moment the
+                        * row's height changed — and the row's height is set by
+                        * the 32px action button, not by the title.
+                        */}
                         <div className="flex items-center justify-between gap-2 min-w-0">
                             <div className="flex min-w-0 items-center gap-3">
                                 <span
@@ -246,10 +246,10 @@ export function MonitorCard({
                         <TooltipContent>{monitor.target}</TooltipContent>
                     </Tooltip>
                     {/*
-                      * Only agent-run monitors are badged. Server vantage is the
-                      * default and marking it too would put a label on every card
-                      * to say nothing.
-                      */}
+                    * Only agent-run monitors are badged. Server vantage is the
+                    * default and marking it too would put a label on every card
+                    * to say nothing.
+                    */}
                     {monitor.node_id ? (
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -455,9 +455,9 @@ export function MonitorCard({
                 <div className="relative z-10 mt-auto">
                     <div className="mb-2 flex items-center justify-between">
                         {/*
-                          * Both labels are deliberately terse, so each carries
-                          * its own report on hover rather than being widened.
-                          */}
+                        * Both labels are deliberately terse, so each carries
+                        * its own report on hover rather than being widened.
+                        */}
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <span className="cursor-help text-[11px] font-medium text-muted-foreground">

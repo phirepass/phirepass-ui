@@ -19,12 +19,12 @@ import type { MonitorActions } from './use-monitor-actions';
 interface MonitorDialogsProps {
     actions: MonitorActions;
     /**
-     * The list the open detail dialog resolves its monitor from.
-     *
-     * Resolved by id on every render rather than captured when the dialog
-     * opened, so a poll landing while it is open refreshes it in place instead
-     * of freezing it at the values it was opened with.
-     */
+    * The list the open detail dialog resolves its monitor from.
+    *
+    * Resolved by id on every render rather than captured when the dialog
+    * opened, so a poll landing while it is open refreshes it in place instead
+    * of freezing it at the values it was opened with.
+    */
     monitors: MonitorSummary[];
 }
 

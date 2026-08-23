@@ -22,11 +22,11 @@ export function UptimeStrip({
     daily,
     className,
     /**
-     * Bar height. The default suits the detail dialog, where the strip sits in a
-     * dense column of facts; the overview panels give it more room because there
-     * it is one of only three things on the card and has to read from further
-     * away.
-     */
+    * Bar height. The default suits the detail dialog, where the strip sits in a
+    * dense column of facts; the overview panels give it more room because there
+    * it is one of only three things on the card and has to read from further
+    * away.
+    */
     barHeight = 'h-6',
 }: {
     daily: DailyBucket[];

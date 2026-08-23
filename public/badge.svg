@@ -1,0 +1,21 @@
+<!--
+  Notification badge — the Android status-bar mark.
+
+  Android throws the colour away and keeps only the alpha channel, tinting
+  whatever is left with the system accent. So this is the mark as a flat white
+  silhouette on transparent, not the app tile: feeding it the full icon paints
+  a solid white rectangle, because that icon is 87% opaque.
+
+  Drawn from the same geometry as icon.svg, scaled to fill the canvas (the
+  badge lands at ~24dp, so every spare pixel counts) with the strokes weighted
+  up to survive the reduction.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <g transform="translate(-15.5 -11.9) scale(2.47)" fill="none" stroke="#fff"
+     stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18.5 19.5 L27 24.4 L27 34.2 L18.5 39.1 L10 34.2 L10 24.4 Z" stroke-width="2.8"/>
+    <path d="M18.5 29.3 C 21.2 22.6, 26.4 18.6, 32.4 17.1" stroke-width="3.4"/>
+    <circle cx="18.5" cy="29.3" r="3.7" fill="#fff" stroke="none"/>
+    <circle cx="37.2" cy="13.6" r="4.1" stroke-width="3"/>
+  </g>
+</svg>

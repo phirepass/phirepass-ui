@@ -128,15 +128,15 @@ function toSummary(
  */
 const SEVERITY = `
     CASE WHEN m.paused THEN 4
-         WHEN m.last_status = 'down' THEN 0
-         WHEN m.last_status = 'degraded' THEN 1
-         WHEN m.last_status IS NULL OR m.last_status = 'unknown' THEN 2
-         ELSE 3
+        WHEN m.last_status = 'down' THEN 0
+        WHEN m.last_status = 'degraded' THEN 1
+        WHEN m.last_status IS NULL OR m.last_status = 'unknown' THEN 2
+        ELSE 3
     END`;
 
 const EFFECTIVE_STATUS = `
     CASE WHEN m.paused THEN 'paused'
-         ELSE COALESCE(m.last_status, 'unknown')
+        ELSE COALESCE(m.last_status, 'unknown')
     END`;
 
 /** Ceiling on one page, so a hand-written `limit` cannot ask for everything. */
@@ -181,8 +181,8 @@ async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSum
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
         WHERE m.user_id = $1
-          AND c.monitor_id = ANY($2::uuid[])
-          AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${HISTORY_DAYS - 1})
+        AND c.monitor_id = ANY($2::uuid[])
+        AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${HISTORY_DAYS - 1})
         GROUP BY 1, 2`,
         params,
     );
@@ -192,8 +192,8 @@ async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSum
         FROM monitor_incidents i
         JOIN monitors m ON m.id = i.monitor_id
         WHERE m.user_id = $1
-          AND i.monitor_id = ANY($2::uuid[])
-          AND i.resolved_at IS NULL`,
+        AND i.monitor_id = ANY($2::uuid[])
+        AND i.resolved_at IS NULL`,
         params,
     );
 

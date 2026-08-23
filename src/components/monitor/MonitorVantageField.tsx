@@ -37,9 +37,9 @@ interface MonitorVantageFieldProps {
     agentOfflineIsOutage: boolean;
     onAgentOfflineIsOutageChange: (value: boolean) => void;
     /**
-     * Name recorded on the monitor being edited. Used to keep a node that the
-     * list no longer returns from silently vanishing out of the picker.
-     */
+    * Name recorded on the monitor being edited. Used to keep a node that the
+    * list no longer returns from silently vanishing out of the picker.
+    */
     fallbackNodeName?: string | null;
 }
 

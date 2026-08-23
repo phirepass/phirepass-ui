@@ -48,16 +48,16 @@ const PANEL_HISTORY_DAYS = 14;
  */
 const EFFECTIVE_STATUS = `
     CASE WHEN m.paused THEN 'paused'
-         ELSE COALESCE(m.last_status, 'unknown')
+        ELSE COALESCE(m.last_status, 'unknown')
     END`;
 
 /** Worst first, matching the client's ordering: down, degraded, unknown, up, paused. */
 const SEVERITY = `
     CASE WHEN m.paused THEN 4
-         WHEN m.last_status = 'down' THEN 0
-         WHEN m.last_status = 'degraded' THEN 1
-         WHEN m.last_status IS NULL OR m.last_status = 'unknown' THEN 2
-         ELSE 3
+        WHEN m.last_status = 'down' THEN 0
+        WHEN m.last_status = 'degraded' THEN 1
+        WHEN m.last_status IS NULL OR m.last_status = 'unknown' THEN 2
+        ELSE 3
     END`;
 
 /** Whichever clock this monitor is running down. Certificates take precedence. */
@@ -214,7 +214,7 @@ export async function loadMonitorOverview(
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
         WHERE m.user_id = $1 ${kindFilter}
-          AND c.checked_at >= now() - interval '24 hours'
+        AND c.checked_at >= now() - interval '24 hours'
         GROUP BY m.kind`,
         params,
     );
@@ -236,7 +236,7 @@ export async function loadMonitorOverview(
                 (m.cert_expires_at IS NOT NULL)   AS is_cert
         FROM monitors m
         WHERE m.user_id = $1 ${kindFilter}
-          AND ${EXPIRES_AT} IS NOT NULL
+        AND ${EXPIRES_AT} IS NOT NULL
         ORDER BY m.kind, ${EXPIRES_AT} ASC`,
         params,
     );
@@ -255,7 +255,7 @@ export async function loadMonitorOverview(
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
         WHERE m.user_id = $1 ${kindFilter}
-          AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${PANEL_HISTORY_DAYS - 1})
+        AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${PANEL_HISTORY_DAYS - 1})
         GROUP BY 1, 2`,
         params,
     );
@@ -275,13 +275,13 @@ export async function loadMonitorOverview(
                     (m.cert_expires_at IS NOT NULL)   AS is_cert
             FROM monitors m
             WHERE m.user_id = $1 ${kindFilter}
-              AND (
-                  (NOT m.paused AND m.last_status IN ('down', 'degraded'))
-                  OR (
-                      ${EXPIRES_AT} IS NOT NULL
-                      AND ${EXPIRES_AT} <= now() + make_interval(days => m.expiry_warn_days)
-                  )
-              )
+            AND (
+                (NOT m.paused AND m.last_status IN ('down', 'degraded'))
+                OR (
+                    ${EXPIRES_AT} IS NOT NULL
+                    AND ${EXPIRES_AT} <= now() + make_interval(days => m.expiry_warn_days)
+                )
+            )
             ORDER BY ${SEVERITY} ASC, ${EXPIRES_AT} ASC NULLS LAST, m.name ASC
             LIMIT ${PROBLEM_LIMIT + 1}`,
             params,

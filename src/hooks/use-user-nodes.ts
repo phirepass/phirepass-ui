@@ -10,14 +10,14 @@ export interface UserNodeOption {
     name: string;
     online: boolean;
     /**
-     * Monitors already bound to this agent.
-     *
-     * `undefined` means the count could not be read, not that there are none —
-     * `GET /api/nodes` omits it entirely when the uptime schema is absent
-     * (applied by hand; there is no migration runner). A picker must render
-     * nothing for `undefined` rather than "0 monitors", which would be a claim
-     * the server did not make.
-     */
+    * Monitors already bound to this agent.
+    *
+    * `undefined` means the count could not be read, not that there are none —
+    * `GET /api/nodes` omits it entirely when the uptime schema is absent
+    * (applied by hand; there is no migration runner). A picker must render
+    * nothing for `undefined` rather than "0 monitors", which would be a claim
+    * the server did not make.
+    */
     monitorCount?: number;
 }
 

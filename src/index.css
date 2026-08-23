@@ -41,9 +41,9 @@
     --color-sidebar-ring: hsl(var(--sidebar-ring));
 
     /* Light that falls on an edge, rather than a colour that sits on it.
-       macOS draws separators as white at a low alpha so they pick up whatever
-       material is behind them instead of fighting it. `specular` is the top
-       highlight of a raised surface; `hairline` is the 1px edge. */
+        macOS draws separators as white at a low alpha so they pick up whatever
+        material is behind them instead of fighting it. `specular` is the top
+        highlight of a raised surface; `hairline` is the 1px edge. */
     --color-hairline: var(--hairline);
     --color-hairline-strong: var(--hairline-strong);
     --color-specular: var(--specular);
@@ -53,8 +53,8 @@
     --radius-sm: calc(var(--radius) - 4px);
 
     /* SF Pro first, so a Mac renders the real thing — that alone carries most
-       of the resemblance. Inter is the stand-in everywhere else; the character
-       variants below nudge it toward SF's open apertures where it is present. */
+        of the resemblance. Inter is the stand-in everywhere else; the character
+        variants below nudge it toward SF's open apertures where it is present. */
     --font-sans:
         -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
         "Inter var", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
@@ -63,14 +63,14 @@
         Consolas, monospace;
 
     /* Vibrancy. The saturation boost is the part that reads as Apple: blurring
-       alone greys everything out, `saturate` pulls the wallpaper's colour back
-       through the material. */
+        alone greys everything out, `saturate` pulls the wallpaper's colour back
+        through the material. */
     --blur-material: 30px;
     --blur-hud: 22px;
 
     /* Elevation, as a set of named materials rather than per-component guesses.
-       Each is one specular top edge + one contact shadow + one ambient shadow,
-       which is how a macOS surface separates from what is under it. */
+        Each is one specular top edge + one contact shadow + one ambient shadow,
+        which is how a macOS surface separates from what is under it. */
     --shadow-window:
         inset 0 1px 0 0 hsl(0 0% 100% / 0.06), 0 1px 2px 0 hsl(0 0% 0% / 0.3),
         0 12px 32px -12px hsl(0 0% 0% / 0.55);
@@ -93,8 +93,8 @@
         0 1px 2px 0 hsl(0 0% 0% / 0.45), 0 3px 8px -2px hsl(0 0% 0% / 0.32);
 
     /* The curve every macOS surface moves on: quick off the mark, long settle,
-       no overshoot. Used in place of Tailwind's default ease for anything that
-       travels — sheets, menus, the segmented-control thumb. */
+        no overshoot. Used in place of Tailwind's default ease for anything that
+        travels — sheets, menus, the segmented-control thumb. */
     --ease-mac: cubic-bezier(0.32, 0.72, 0, 1);
     --ease-mac-in: cubic-bezier(0.4, 0, 0.68, 0.06);
 
@@ -115,19 +115,19 @@
 @layer base {
     :root {
         /* Graphite: cool-neutral, never pure black. macOS dark mode keeps a
-           slight blue cast so that warm accents (amber, red) still read warm
-           against it. */
+            slight blue cast so that warm accents (amber, red) still read warm
+            against it. */
         --background: 224 20% 6%;
         --foreground: 220 16% 96%;
 
         /* The window material. Rendered at 90–96% over the wallpaper by
-           `.gradient-card`, so the desktop's colour tints it faintly rather
-           than every card sitting on the same dead grey. */
+            `.gradient-card`, so the desktop's colour tints it faintly rather
+            than every card sitting on the same dead grey. */
         --card: 224 14% 12%;
         --card-foreground: 220 16% 96%;
 
         /* Menus and popovers sit one step brighter than a window, because they
-           float above it and catch more light. */
+            float above it and catch more light. */
         --popover: 224 14% 15%;
         --popover-foreground: 220 16% 96%;
 
@@ -141,9 +141,9 @@
         --muted-foreground: 220 10% 62%;
 
         /* Dominant brand colour, in the slot macOS reserves for the user's
-           accent. Deliberately *not* reused for primary buttons: the same
-           green already means "online" on every node card, and a CTA wearing
-           it would compete with status. */
+            accent. Deliberately *not* reused for primary buttons: the same
+            green already means "online" on every node card, and a CTA wearing
+            it would compete with status. */
         --accent: 158 62% 41%;
         --accent-foreground: 210 20% 98%;
 
@@ -161,54 +161,54 @@
         --info-foreground: 210 20% 98%;
 
         /* Fourth service hue, so each service kind reads distinctly on a node card.
-           68% lightness rather than a deeper violet: at 64% it measured 4.41:1
-           against the tinted card, just under AA for the small count text. */
+            68% lightness rather than a deeper violet: at 64% it measured 4.41:1
+            against the tinted card, just under AA for the small count text. */
         --violet: 265 72% 68%;
         --violet-foreground: 210 20% 98%;
 
         /* Two icon-only hues for the node card's network rows. Every other stat
-           icon already claims one of the hues above, so these two were placed in
-           the widest gaps left on the wheel — 265→356 and 38→158 — to stay
-           tellable apart from their neighbours at 14px: pink sits clear of
-           violet, lime clear of both the emerald accent and the amber warning.
-           Icon tints only, hence no `-foreground` pair; both measure well past
-           AA on the card (~6.5:1 and ~7.5:1) even before the /80 they render at. */
+            icon already claims one of the hues above, so these two were placed in
+            the widest gaps left on the wheel — 265→356 and 38→158 — to stay
+            tellable apart from their neighbours at 14px: pink sits clear of
+            violet, lime clear of both the emerald accent and the amber warning.
+            Icon tints only, hence no `-foreground` pair; both measure well past
+            AA on the card (~6.5:1 and ~7.5:1) even before the /80 they render at. */
         --pink: 322 70% 66%;
         --lime: 96 48% 55%;
 
         /* Opaque stand-in for the hairline, kept because a handful of call
-           sites (Recharts grids, the landing grid overlay) interpolate
-           `hsl(var(--border))` directly and cannot take an alpha colour.
-           Tuned to match `--hairline` as seen over `--card`. */
+            sites (Recharts grids, the landing grid overlay) interpolate
+            `hsl(var(--border))` directly and cannot take an alpha colour.
+            Tuned to match `--hairline` as seen over `--card`. */
         --border: 220 11% 19%;
         --input: 224 18% 8%;
         --ring: 158 62% 46%;
 
         /* 10px. Windows and panels step up to 12–14px on their own; controls
-           step down to 6–8px. The chain is deliberate: containers rounder than
-           the elements inside them. */
+            step down to 6–8px. The chain is deliberate: containers rounder than
+            the elements inside them. */
         --radius: 0.625rem;
 
         /* Edge light. Alpha whites rather than fixed greys, so a separator
-           behaves the same over a window, a menu and a sunken well. */
+            behaves the same over a window, a menu and a sunken well. */
         --hairline: hsl(0 0% 100% / 0.1);
         --hairline-strong: hsl(0 0% 100% / 0.16);
         --specular: hsl(0 0% 100% / 0.07);
 
         /* Control fills.
-           A macOS control is lit from above: every one of these is a vertical
-           ramp from a brighter top to a darker bottom, which together with the
-           specular edge in `--shadow-control` is what makes a button read as a
-           physical key rather than a coloured rectangle. Kept here rather than
-           inline so the whole control set can be re-lit in one place. */
+            A macOS control is lit from above: every one of these is a vertical
+            ramp from a brighter top to a darker bottom, which together with the
+            specular edge in `--shadow-control` is what makes a button read as a
+            physical key rather than a coloured rectangle. Kept here rather than
+            inline so the whole control set can be re-lit in one place. */
         /* Light on a surface, rather than a colour ramp per variant.
-           The earlier form baked one gradient per button colour, which meant a
-           caller overriding just `bg-*` (every destructive confirm in the app
-           does) kept the *previous* variant's gradient painted on top and got a
-           white button where it asked for a red one. A sheen is colour-agnostic:
-           it lightens the top edge and shades the bottom of whatever background
-           is underneath, so overrides compose and there is one ramp to tune
-           instead of four. */
+            The earlier form baked one gradient per button colour, which meant a
+            caller overriding just `bg-*` (every destructive confirm in the app
+            does) kept the *previous* variant's gradient painted on top and got a
+            white button where it asked for a red one. A sheen is colour-agnostic:
+            it lightens the top edge and shades the bottom of whatever background
+            is underneath, so overrides compose and there is one ramp to tune
+            instead of four. */
         --fill-sheen: linear-gradient(
             180deg,
             hsl(0 0% 100% / 0.13) 0%,
@@ -222,7 +222,7 @@
             hsl(0 0% 0% / 0.05) 100%
         );
         /* Pressed: the light comes from below instead, which is what a key
-           looks like when it is down. */
+            looks like when it is down. */
         --fill-sheen-pressed: linear-gradient(
             180deg,
             hsl(0 0% 0% / 0.12) 0%,
@@ -251,8 +251,8 @@
         );
 
         /* Vibrant chrome. These are the surfaces that get `.mac-material`:
-           translucent enough for the wallpaper to come through, ramped so the
-           top edge stays lighter than the bottom. */
+            translucent enough for the wallpaper to come through, ramped so the
+            top edge stays lighter than the bottom. */
         --fill-toolbar: linear-gradient(
             180deg,
             hsl(224 18% 11% / 0.82) 0%,
@@ -309,7 +309,7 @@
     html {
         font-family: var(--font-sans);
         /* Inter's alternate 4/6/9/a; inert on SF Pro and on any fallback that
-           does not ship them. */
+            does not ship them. */
         font-feature-settings: "cv02", "cv03", "cv04", "cv11";
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -320,11 +320,11 @@
         @apply bg-background text-foreground antialiased;
         min-height: 100vh;
         /* The desktop. Three very low-alpha washes over graphite, fixed to the
-           viewport so the page scrolls across the wallpaper rather than
-           dragging it along. This is what makes the translucent surfaces above
-           it worth having — blur over a flat fill is just a darker flat fill.
-           The first layer is a fine grain: at 4% it is invisible as texture but
-           it breaks up the banding that large soft gradients show in dark. */
+            viewport so the page scrolls across the wallpaper rather than
+            dragging it along. This is what makes the translucent surfaces above
+            it worth having — blur over a flat fill is just a darker flat fill.
+            The first layer is a fine grain: at 4% it is invisible as texture but
+            it breaks up the banding that large soft gradients show in dark. */
         background-color: hsl(var(--background));
         background-image:
             url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
@@ -350,7 +350,7 @@
     }
 
     /* SF Display switches to tighter tracking above ~20px; mimic that so
-       headings do not read loose next to the body text. */
+        headings do not read loose next to the body text. */
     h1,
     h2,
     h3 {
@@ -369,11 +369,11 @@
     }
 
     /* Dashboard pages keep the page scrollbar on screen at all times.
-       `overflow-y: scroll` reserves the gutter so content does not shift
-       sideways when a page grows past one screen; declaring an explicit
-       scrollbar (width in Blink/WebKit, `scrollbar-width` in Firefox) opts the
-       viewport out of overlay scrollbars, which otherwise fade out while
-       reading. The class is toggled by src/app/dashboard/layout.tsx. */
+        `overflow-y: scroll` reserves the gutter so content does not shift
+        sideways when a page grows past one screen; declaring an explicit
+        scrollbar (width in Blink/WebKit, `scrollbar-width` in Firefox) opts the
+        viewport out of overlay scrollbars, which otherwise fade out while
+        reading. The class is toggled by src/app/dashboard/layout.tsx. */
     html.dashboard-scroll {
         overflow-y: scroll;
         scrollbar-width: thin;
@@ -400,17 +400,17 @@
     }
 
     /* Undo the scroll-lock gap compensation on dashboard pages.
-       Opening a Radix dialog locks the page via react-remove-scroll, which
-       injects `body[data-scroll-locked] { margin-right: <scrollbar>px }` on the
-       assumption that locking scroll removes the scrollbar and frees that space.
-       Here it does not: the rule above reserves the gutter permanently, so the
-       scrollbar never goes away and the compensation is pure surplus — the body
-       narrows by the scrollbar width the moment a dialog opens, and every card
-       in the grid visibly reflows (a 3-column grid loses ~3px per card).
-       Scoped to `.dashboard-scroll` because the compensation is *correct* on
-       pages without a reserved gutter, where the scrollbar really does vanish.
-       Both this and the injected rule are `!important`, so this wins on
-       specificity. */
+        Opening a Radix dialog locks the page via react-remove-scroll, which
+        injects `body[data-scroll-locked] { margin-right: <scrollbar>px }` on the
+        assumption that locking scroll removes the scrollbar and frees that space.
+        Here it does not: the rule above reserves the gutter permanently, so the
+        scrollbar never goes away and the compensation is pure surplus — the body
+        narrows by the scrollbar width the moment a dialog opens, and every card
+        in the grid visibly reflows (a 3-column grid loses ~3px per card).
+        Scoped to `.dashboard-scroll` because the compensation is *correct* on
+        pages without a reserved gutter, where the scrollbar really does vanish.
+        Both this and the injected rule are `!important`, so this wins on
+        specificity. */
     html.dashboard-scroll body[data-scroll-locked] {
         margin-right: 0 !important;
     }
@@ -430,20 +430,20 @@
     }
 
     /*
-     * The window material.
-     *
-     * Every card in the app already reaches for this class, so it is where the
-     * surface treatment lives: a slight top-to-bottom fade (light falls from
-     * above), a specular highlight along the top edge, and a two-part shadow —
-     * a tight contact shadow plus a wide ambient one. Left a few percent short
-     * of opaque on purpose, so the wallpaper's hue bleeds through and no two
-     * regions of the page are quite the same grey.
-     *
-     * Deliberately *not* blurred. In macOS the vibrant materials are the
-     * chrome — toolbars, sidebars, menus — while content surfaces inside a
-     * window are solid. Blurring twenty node cards would also cost far more
-     * than it shows.
-     */
+    * The window material.
+    *
+    * Every card in the app already reaches for this class, so it is where the
+    * surface treatment lives: a slight top-to-bottom fade (light falls from
+    * above), a specular highlight along the top edge, and a two-part shadow —
+    * a tight contact shadow plus a wide ambient one. Left a few percent short
+    * of opaque on purpose, so the wallpaper's hue bleeds through and no two
+    * regions of the page are quite the same grey.
+    *
+    * Deliberately *not* blurred. In macOS the vibrant materials are the
+    * chrome — toolbars, sidebars, menus — while content surfaces inside a
+    * window are solid. Blurring twenty node cards would also cost far more
+    * than it shows.
+    */
     .gradient-card {
         background: var(--gradient-card);
         box-shadow: var(--shadow-window);
@@ -463,14 +463,14 @@
 
 @layer utilities {
     /*
-     * Continuous corners.
-     *
-     * A macOS corner is a squircle, not a circular arc — the curvature eases in
-     * instead of starting abruptly, which is most of why Apple's rounded
-     * rectangles look softer than everyone else's at the same radius. Chrome
-     * 139+ can draw it natively; everywhere else this is a no-op and the plain
-     * `border-radius` already on the element stands.
-     */
+    * Continuous corners.
+    *
+    * A macOS corner is a squircle, not a circular arc — the curvature eases in
+    * instead of starting abruptly, which is most of why Apple's rounded
+    * rectangles look softer than everyone else's at the same radius. Chrome
+    * 139+ can draw it natively; everywhere else this is a no-op and the plain
+    * `border-radius` already on the element stands.
+    */
     @supports (corner-shape: squircle) {
         .mac-squircle {
             corner-shape: squircle;
@@ -478,7 +478,7 @@
     }
 
     /* Vibrancy: the chrome materials. Backdrop blur plus a saturation boost,
-       so what shows through keeps its colour instead of going grey. */
+        so what shows through keeps its colour instead of going grey. */
     .mac-material {
         backdrop-filter: blur(var(--blur-material)) saturate(180%);
         -webkit-backdrop-filter: blur(var(--blur-material)) saturate(180%);
@@ -490,7 +490,7 @@
     }
 
     /* System setting, honoured: Accessibility → Display → Reduce transparency
-       turns every material solid rather than merely less blurred. */
+        turns every material solid rather than merely less blurred. */
     @media (prefers-reduced-transparency: reduce) {
         .mac-material,
         .mac-material-hud {
@@ -558,13 +558,13 @@
     }
 
     /*
-     * Notification hero.
-     *
-     * `pp-bloom` is the lit state of the master control: two very wide, very
-     * soft washes rather than a border glow, so the panel reads as having a
-     * light source behind it instead of a coloured outline drawn on it. Only
-     * ever placed on a `relative overflow-hidden` parent.
-     */
+    * Notification hero.
+    *
+    * `pp-bloom` is the lit state of the master control: two very wide, very
+    * soft washes rather than a border glow, so the panel reads as having a
+    * light source behind it instead of a coloured outline drawn on it. Only
+    * ever placed on a `relative overflow-hidden` parent.
+    */
     .pp-bloom {
         background:
             radial-gradient(
@@ -580,7 +580,7 @@
     }
 
     /* The bell rings, briefly, every few seconds — long gaps so it reads as
-       punctuation rather than a spinner. Pivots at the crown, like a real one. */
+        punctuation rather than a spinner. Pivots at the crown, like a real one. */
     @keyframes pp-bell {
         0%,
         60%,
@@ -644,17 +644,17 @@
 
 @layer utilities {
     /*
-     * The logo mark: lifted off the page, and alive.
-     *
-     * `pp-logo` is the lift — a coloured drop shadow rather than a box shadow,
-     * so it follows the rounded silhouette instead of a square. `pp-flow` sends
-     * a short dash travelling out along the path, from the node to the relay,
-     * which is the direction the agent actually dials. `pp-pulse` breathes the
-     * relay ring so the destination reads as listening.
-     *
-     * All of it stops under prefers-reduced-motion; the mark is fully legible
-     * static, so nothing is lost.
-     */
+    * The logo mark: lifted off the page, and alive.
+    *
+    * `pp-logo` is the lift — a coloured drop shadow rather than a box shadow,
+    * so it follows the rounded silhouette instead of a square. `pp-flow` sends
+    * a short dash travelling out along the path, from the node to the relay,
+    * which is the direction the agent actually dials. `pp-pulse` breathes the
+    * relay ring so the destination reads as listening.
+    *
+    * All of it stops under prefers-reduced-motion; the mark is fully legible
+    * static, so nothing is lost.
+    */
     .pp-logo {
         filter: drop-shadow(0 8px 22px hsl(160 92% 46% / 0.42));
         transition: filter 0.4s ease, transform 0.4s ease;

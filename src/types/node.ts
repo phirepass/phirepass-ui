@@ -61,10 +61,10 @@ export interface NodeFilesystem {
     fs_type: string;
     total_bytes: number;
     /**
-     * Free space the platform reports. Not `total - used`: on unix the two
-     * differ by the root-reserved blocks, and this is the number that says
-     * whether an ordinary service can still write.
-     */
+    * Free space the platform reports. Not `total - used`: on unix the two
+    * differ by the root-reserved blocks, and this is the number that says
+    * whether an ordinary service can still write.
+    */
     available_bytes: number;
 }
 
@@ -74,13 +74,13 @@ export interface NodeStats {
     host_connections: number;
     host_cpu: number;
     /**
-     * Real mounted filesystems, largest first, deduped and capped by the agent.
-     *
-     * Optional because nodes hydrate from `localStorage` before the first poll
-     * lands (see `src/lib/nodesCache.ts`), so a cached node written before this
-     * field existed has none — the same reason `monitor_count` is optional.
-     * Absent and empty both mean "nothing to show", never "no disks".
-     */
+    * Real mounted filesystems, largest first, deduped and capped by the agent.
+    *
+    * Optional because nodes hydrate from `localStorage` before the first poll
+    * lands (see `src/lib/nodesCache.ts`), so a cached node written before this
+    * field existed has none — the same reason `monitor_count` is optional.
+    * Absent and empty both mean "nothing to show", never "no disks".
+    */
     host_disks?: NodeFilesystem[];
     host_disk_total_bytes?: number;
     host_disk_used_bytes?: number;
@@ -131,10 +131,10 @@ export interface TunnelNode {
     info?: NodeInfo | null;
     services: Record<string, number | { visibility: 'public' | 'private'; count: number }>;
     /**
-     * Uptime monitors that run their checks from this node. Optional so nodes
-     * restored from an older local cache still typecheck; treat absent as
-     * unknown rather than zero.
-     */
+    * Uptime monitors that run their checks from this node. Optional so nodes
+    * restored from an older local cache still typecheck; treat absent as
+    * unknown rather than zero.
+    */
     monitor_count?: number;
 }
 
@@ -163,10 +163,10 @@ export interface RdpPanelTab {
     serviceId: string;
     serviceName?: string | null;
     /**
-     * `host:port` from the service settings. The agent dials from those same
-     * settings, so this never affects routing — it is only what the browser
-     * names in the CredSSP service principal, which some hosts check.
-     */
+    * `host:port` from the service settings. The agent dials from those same
+    * settings, so this never affects routing — it is only what the browser
+    * names in the CredSSP service principal, which some hosts check.
+    */
     destination?: string;
 }
 

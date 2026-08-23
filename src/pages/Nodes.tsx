@@ -340,14 +340,14 @@ export default function Nodes() {
     };
 
     /**
-     * Wraps a card action that needs a live agent.
-     *
-     * Terminals, file browsers, screens and service changes all run over a
-     * WebSocket to the machine itself, and a demo fleet is a fixture with
-     * nothing on the other end. The token endpoint refuses these too, but a
-     * refusal reaching the user as a panel that opens and then fails is a worse
-     * demo than a button that says why it did nothing.
-     */
+    * Wraps a card action that needs a live agent.
+    *
+    * Terminals, file browsers, screens and service changes all run over a
+    * WebSocket to the machine itself, and a demo fleet is a fixture with
+    * nothing on the other end. The token endpoint refuses these too, but a
+    * refusal reaching the user as a panel that opens and then fails is a worse
+    * demo than a button that says why it did nothing.
+    */
     const guardLive = <A extends unknown[]>(action: (...args: A) => void) => (...args: A) => {
         if (isDemo) {
             toast.info('Not available in the demo', { description: DEMO_LIVE_ACTION_MESSAGE });

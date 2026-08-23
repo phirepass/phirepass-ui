@@ -68,9 +68,9 @@ export function endpointHash(endpoint: string): string {
 export async function listSubscriptions(userId: string): Promise<StoredSubscription[]> {
     const result = await query(
         `SELECT id, endpoint, p256dh, auth, label, platform, browser, created_at, last_active_at
-           FROM notification_subscriptions
-          WHERE user_id = $1
-          ORDER BY last_active_at DESC`,
+            FROM notification_subscriptions
+        WHERE user_id = $1
+        ORDER BY last_active_at DESC`,
         [userId],
     );
 
@@ -137,7 +137,7 @@ export async function sendToUser(userId: string, payload: PushPayload): Promise<
     if (sent > 0) {
         await query(
             `UPDATE notification_subscriptions SET last_active_at = now()
-              WHERE user_id = $1 AND id <> ALL($2::uuid[])`,
+            WHERE user_id = $1 AND id <> ALL($2::uuid[])`,
             [userId, dead],
         );
     }

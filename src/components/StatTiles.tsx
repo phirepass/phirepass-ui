@@ -34,9 +34,9 @@ export interface StatTile {
     icon: LucideIcon;
     tone?: StatTone;
     /**
-     * Extra context. Surfaced on hover rather than as a third line, so every
-     * tile on every page keeps exactly the same height.
-     */
+    * Extra context. Surfaced on hover rather than as a third line, so every
+    * tile on every page keeps exactly the same height.
+    */
     hint?: string;
 }
 

@@ -107,8 +107,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         try {
             result = await query(
                 `UPDATE notification_webhooks SET ${sets.join(', ')}
-                  WHERE id = $1 AND user_id = $2
-                  RETURNING id, label, url, secret, enabled, created_at,
+                WHERE id = $1 AND user_id = $2
+                RETURNING id, label, url, secret, enabled, created_at,
                             last_sent_at, last_status, last_error, fail_count`,
                 values,
             );

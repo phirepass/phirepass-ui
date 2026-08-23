@@ -143,9 +143,9 @@ export async function listWebhooks(userId: string): Promise<StoredWebhook[]> {
     const result = await query(
         `SELECT id, label, url, secret, enabled, created_at,
                 last_sent_at, last_status, last_error, fail_count
-           FROM notification_webhooks
-          WHERE user_id = $1
-          ORDER BY created_at`,
+            FROM notification_webhooks
+        WHERE user_id = $1
+        ORDER BY created_at`,
         [userId],
     );
 
@@ -242,7 +242,7 @@ async function deliver(endpoint: StoredWebhook, body: WebhookBody): Promise<Webh
                 last_status  = $2,
                 last_error   = $3,
                 fail_count   = CASE WHEN $4 THEN 0 ELSE fail_count + 1 END
-          WHERE id = $1`,
+        WHERE id = $1`,
         [endpoint.id, status, error, ok],
     );
 
@@ -303,8 +303,8 @@ export async function sendToWebhook(
     const result = await query(
         `SELECT id, label, url, secret, enabled, created_at,
                 last_sent_at, last_status, last_error, fail_count
-           FROM notification_webhooks
-          WHERE id = $1 AND user_id = $2`,
+            FROM notification_webhooks
+        WHERE id = $1 AND user_id = $2`,
         [id, userId],
     );
 

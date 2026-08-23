@@ -63,7 +63,7 @@ export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> 
 };
 
 export const NOTIFICATION_CATEGORY_DESCRIPTIONS: Record<NotificationCategory, string> = {
-    nodes: 'Agents dropping off the relay, and coming back to it.',
+    nodes: 'Agents disconnecting from server, and coming back to it.',
 };
 
 export type NotificationEventId = 'node.offline' | 'node.online';
@@ -77,10 +77,10 @@ export interface NotificationEventDefinition {
     /** State for an account that has never touched this page. */
     defaultEnabled: boolean;
     /**
-     * Marks an event whose whole point is to reach you when something is wrong.
-     * Nothing is mandatory — the switch still works — but turning one off is
-     * confirmed rather than silent.
-     */
+    * Marks an event whose whole point is to reach you when something is wrong.
+    * Nothing is mandatory — the switch still works — but turning one off is
+    * confirmed rather than silent.
+    */
     critical?: boolean;
 }
 
@@ -98,7 +98,7 @@ export const NOTIFICATION_EVENTS: NotificationEventDefinition[] = [
         id: 'node.online',
         category: 'nodes',
         label: 'Node comes back online',
-        description: 'The agent reconnects after an outage.',
+        description: 'The agent reconnects after a restart or an outage.',
         defaultEnabled: true,
     },
 ];
@@ -128,10 +128,10 @@ export const DEVICE_PLATFORM_LABELS: Record<DevicePlatform, string> = {
 export interface RegisteredDevice {
     id: string;
     /**
-     * sha-256 of the push endpoint, truncated. The endpoint itself is a
-     * capability URL and never leaves the server; this is what lets the page
-     * work out which row is the browser it is running in.
-     */
+    * sha-256 of the push endpoint, truncated. The endpoint itself is a
+    * capability URL and never leaves the server; this is what lets the page
+    * work out which row is the browser it is running in.
+    */
     endpoint_hash: string;
     /** Display label, seeded from the user agent at registration. */
     name: string;

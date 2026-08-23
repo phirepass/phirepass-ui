@@ -75,16 +75,16 @@ export async function POST(req: Request) {
 
         const result = await query(
             `INSERT INTO notification_subscriptions (user_id, endpoint, p256dh, auth, label, platform, browser)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (endpoint) DO UPDATE
-                     SET user_id        = EXCLUDED.user_id,
-                         p256dh         = EXCLUDED.p256dh,
-                         auth           = EXCLUDED.auth,
-                         label          = COALESCE(EXCLUDED.label, notification_subscriptions.label),
-                         platform       = COALESCE(EXCLUDED.platform, notification_subscriptions.platform),
-                         browser        = COALESCE(EXCLUDED.browser, notification_subscriptions.browser),
-                         last_active_at = now()
-               RETURNING id, created_at, last_active_at`,
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (endpoint) DO UPDATE
+                    SET user_id        = EXCLUDED.user_id,
+                        p256dh         = EXCLUDED.p256dh,
+                        auth           = EXCLUDED.auth,
+                        label          = COALESCE(EXCLUDED.label, notification_subscriptions.label),
+                        platform       = COALESCE(EXCLUDED.platform, notification_subscriptions.platform),
+                        browser        = COALESCE(EXCLUDED.browser, notification_subscriptions.browser),
+                        last_active_at = now()
+                RETURNING id, created_at, last_active_at`,
             [user.id, endpoint, p256dh, auth, clean(body?.label, 120), platform, clean(body?.browser, 64)],
         );
 
