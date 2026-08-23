@@ -93,18 +93,15 @@ function toDevice(row: DeviceResponse, currentHash: string | null): RegisteredDe
 /**
  * Whether the webhook channel is reachable from this page.
  *
- * Off for now: the endpoints, the API routes and the delivery path are all
- * built and tested, but nothing dispatches on events automatically yet, so an
- * endpoint someone registers today would only ever receive what they pressed
- * "test" for. The tab stays visible and disabled rather than being removed —
- * the page is organised around there being two channels, and hiding one would
- * make the remaining tab look like a stray control.
- *
- * Flipping this back to `true` is the whole re-enable: the tab becomes
- * selectable, its content mounts and fetches, and the account-wide test goes
- * back to firing at both channels.
+ * On: the tab is selectable, its content mounts and fetches, and the
+ * account-wide test fires at both channels. Kept as a single switch rather
+ * than being inlined — setting it to `false` puts the tab back to visible but
+ * disabled with a "soon" chip, which is what the page showed while the
+ * dispatch path was still being built. The tab is never removed: the page is
+ * organised around there being two channels, and hiding one would make the
+ * remaining tab look like a stray control.
  */
-const WEBHOOKS_ENABLED = false;
+const WEBHOOKS_ENABLED: boolean = true;
 
 /** The count beside a tab label. Muted, so the label stays the thing read first. */
 function ChannelCount({ value }: { value: number }) {

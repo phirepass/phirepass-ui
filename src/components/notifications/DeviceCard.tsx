@@ -42,7 +42,7 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
     return (
         <article
             className={cn(
-                'gradient-card mac-squircle group relative overflow-hidden rounded-xl border',
+                'gradient-card mac-squircle group relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-xl border',
                 'transition-[box-shadow,border-color,opacity] duration-200 ease-mac hover:shadow-window-raised',
                 device.is_current
                     ? 'border-accent/30 hover:border-accent/50'
@@ -61,7 +61,7 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
                 )}
             />
 
-            <div className="relative flex items-start justify-between gap-3 p-4">
+            <div className="relative flex flex-1 items-start justify-between gap-3 p-4">
                 <div className="flex min-w-0 items-start gap-3">
                     <span
                         aria-hidden
@@ -80,27 +80,29 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
                         </p>
                         <p className="truncate text-xs text-muted-foreground">{describeDevice(device)}</p>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {device.is_current ? (
-                                <span className="rounded-full border border-accent/40 bg-accent/12 px-2 py-0.5 text-[10px] font-medium text-accent">
-                                    This device
-                                </span>
-                            ) : null}
-                            {stale ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
-                                            <Clock className="h-3 w-3" />
-                                            Stale
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        No confirmation in {STALE_DEVICE_DAYS}+ days — the browser has
-                                        most likely dropped this subscription already.
-                                    </TooltipContent>
-                                </Tooltip>
-                            ) : null}
-                        </div>
+                        {device.is_current || stale ? (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                {device.is_current ? (
+                                    <span className="rounded-full border border-accent/40 bg-accent/12 px-2 py-0.5 text-[10px] font-medium text-accent">
+                                        This device
+                                    </span>
+                                ) : null}
+                                {stale ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
+                                                <Clock className="h-3 w-3" />
+                                                Stale
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            No confirmation in {STALE_DEVICE_DAYS}+ days — the browser has
+                                            most likely dropped this subscription already.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -137,7 +139,7 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
                 </div>
             </div>
 
-            <div className="relative flex items-center justify-between gap-3 border-t border-hairline px-4 py-2.5">
+            <div className="relative mt-auto flex items-center justify-between gap-3 border-t border-hairline px-4 py-2.5">
                 <span className="text-[11px] text-muted-foreground">
                     Registered {formatDate(device.registered_at)}
                 </span>
