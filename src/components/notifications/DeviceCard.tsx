@@ -42,7 +42,7 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
     return (
         <article
             className={cn(
-                'gradient-card mac-squircle group relative flex h-full min-h-[140px] flex-col overflow-hidden rounded-xl border',
+                'gradient-card mac-squircle group relative flex h-full min-h-[147px] flex-col overflow-hidden rounded-xl border',
                 'transition-[box-shadow,border-color,opacity] duration-200 ease-mac hover:shadow-window-raised',
                 device.is_current
                     ? 'border-accent/30 hover:border-accent/50'
@@ -139,7 +139,7 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
                 </div>
             </div>
 
-            <div className="relative mt-auto flex items-center justify-between gap-3 border-t border-hairline px-4 py-2.5">
+            <div className="relative mt-auto flex h-11 items-center justify-between gap-3 border-t border-hairline px-4">
                 <span className="text-[11px] text-muted-foreground">
                     Registered {formatDate(device.registered_at)}
                 </span>

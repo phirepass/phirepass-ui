@@ -51,7 +51,7 @@ export function WebhookCard({
     return (
         <article
             className={cn(
-                'gradient-card mac-squircle group relative overflow-hidden rounded-xl border',
+                'gradient-card mac-squircle group relative flex h-full min-h-[147px] flex-col overflow-hidden rounded-xl border',
                 'transition-[box-shadow,border-color,opacity] duration-200 ease-mac hover:shadow-window-raised',
                 endpoint.enabled
                     ? 'border-hairline hover:border-hairline-strong'
@@ -67,7 +67,7 @@ export function WebhookCard({
                 )}
             />
 
-            <div className="relative flex items-start justify-between gap-3 p-4">
+            <div className="relative flex flex-1 items-start justify-between gap-3 p-4">
                 <div className="flex min-w-0 items-start gap-3">
                     <span
                         aria-hidden
@@ -184,7 +184,7 @@ export function WebhookCard({
                 </div>
             </div>
 
-            <div className="relative flex items-center justify-between gap-3 border-t border-hairline px-4 py-2.5">
+            <div className="relative mt-auto flex h-11 items-center justify-between gap-3 border-t border-hairline px-4">
                 <span className="min-w-0 truncate text-[11px] text-muted-foreground">
                     {describeWebhookDelivery(endpoint)}
                 </span>
