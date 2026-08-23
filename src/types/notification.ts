@@ -1,10 +1,18 @@
 /**
- * Push notification settings.
+ * Notification settings.
  *
- * Subscriptions and preferences are real — `notification_subscriptions` and
- * `notification_preferences`, both in docs/notifications-schema.sql. What does
- * not exist is a *dispatcher*: nothing watches for these conditions and sends,
- * so the only thing that pushes today is the manual test in
+ * Two delivery channels, named as the courier names them
+ * (phirepass-rs/common/src/notifications.rs, `NotificationKind`): `web.push`
+ * reaches a person at a browser that granted permission, `webhook` reaches a
+ * system at a URL it was given. One catalogue of events feeds both — the
+ * preferences below decide *whether* something is worth sending, and the
+ * destinations decide where it lands.
+ *
+ * Subscriptions, endpoints and preferences are all real —
+ * `notification_subscriptions`, `notification_webhooks` and
+ * `notification_preferences` in docs/notifications-schema.sql. What does not
+ * exist is a *dispatcher*: nothing watches for these conditions and sends, so
+ * the only thing that delivers today is the manual test in
  * `/api/notifications/test`.
  *
  * The catalogue below is deliberately two events long. Agent connect and disconnect are the only
@@ -23,6 +31,29 @@
  * (`notification-display`). The grouped list renders whatever it is given and
  * skips categories with no events, so it grows without further changes.
  */
+
+/**
+ * How a notification travels. The string values are the courier's `kind`
+ * values verbatim, so a channel named in this UI is the same token that ends
+ * up on the wire — `email` is deliberately absent, because nothing in this app
+ * can register an address for it yet.
+ */
+export type NotificationChannel = 'web.push' | 'webhook';
+
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
+    'web.push': 'Web push',
+    webhook: 'Webhooks',
+};
+
+/**
+ * What each channel is, in one short line. Deliberately parallel — the two are
+ * read one under the other on the same row of the same card, so they differ in
+ * their nouns and nothing else.
+ */
+export const NOTIFICATION_CHANNEL_DESCRIPTIONS: Record<NotificationChannel, string> = {
+    'web.push': 'Reaches a person, at a browser that granted permission.',
+    webhook: 'Reaches a system, at a URL. No permission involved.',
+};
 
 /** One group of related events. One for now; see the note above. */
 export type NotificationCategory = 'nodes';
@@ -111,4 +142,46 @@ export interface RegisteredDevice {
     last_active_at: string;
     /** Derived on the client by matching `endpoint_hash`; never sent by the API. */
     is_current: boolean;
+}
+
+/**
+ * One webhook endpoint, as a row in the webhook list — assembled from
+ * `GET /api/notifications/webhooks`; see `docs/notifications-schema.sql` for
+ * what is actually stored.
+ *
+ * The secret is absent by design. It exists to let the receiver verify the
+ * `X-Phirepass-Signature` header, so it is shown once when the endpoint is
+ * created (or rotated) and never returned by a list — a settings page that
+ * hands out every signing key on load is a settings page that leaks them to
+ * anything that gets a session.
+ */
+export interface WebhookEndpoint {
+    id: string;
+    /** Display label, defaulted to the URL's host when the person leaves it blank. */
+    name: string;
+    url: string;
+    /** Last four characters of the secret. Enough to tell two apart, useless alone. */
+    secret_hint: string;
+    /** Paused endpoints keep their URL and secret, and receive nothing. */
+    enabled: boolean;
+    created_at: string;
+    /** All three are null until something has actually been sent to this URL. */
+    last_sent_at: string | null;
+    last_status: number | null;
+    last_error: string | null;
+    /** Consecutive failures. Any 2xx resets it. */
+    fail_count: number;
+}
+
+/** What the list shows for an endpoint: never tried, delivering, or failing. */
+export type WebhookHealth = 'untested' | 'healthy' | 'failing';
+
+export function webhookHealth(endpoint: WebhookEndpoint): WebhookHealth {
+    if (endpoint.last_sent_at === null) return 'untested';
+    // The status is what the receiver answered; `fail_count` is how many times
+    // in a row it has answered badly. Either one being wrong is enough.
+    const ok = endpoint.last_status !== null
+        && endpoint.last_status >= 200
+        && endpoint.last_status < 300;
+    return ok && endpoint.fail_count === 0 ? 'healthy' : 'failing';
 }

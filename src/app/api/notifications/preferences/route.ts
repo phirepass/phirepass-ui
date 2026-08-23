@@ -1,5 +1,4 @@
 import { verifyToken } from '@/app/lib/auth';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 import { getPreferences, savePreferences } from '@/app/lib/notification-preferences';
 
@@ -7,9 +6,6 @@ export const dynamic = 'force-dynamic';
 
 /** The resolved set — every event in the catalogue has an answer. */
 export async function GET(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         return json_response({ preferences: await getPreferences(user.id) }, 200);
@@ -27,9 +23,6 @@ export async function GET(req: Request) {
  * harder contract for no benefit.
  */
 export async function PUT(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const body = await req.json().catch(() => ({}));

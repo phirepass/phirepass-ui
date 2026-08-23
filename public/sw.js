@@ -12,7 +12,20 @@
  * registration, so notifications can only be received here — see the `push`
  * handler at the bottom.
  */
-const CACHE = 'phirepass-shell-v1';
+/*
+ * Bump this whenever offline.html changes.
+ *
+ * The fallback is only ever written at `install`, and a worker only installs
+ * when the browser sees this file's bytes differ from the copy it holds. So an
+ * edit to offline.html alone reaches nobody who already has the app installed —
+ * they keep being served whatever was cached the day they installed it. Changing
+ * the version changes this file, which triggers the update, which re-fetches the
+ * page; `activate` then drops the previous cache.
+ *
+ * v2: offline.html carries its mark inline instead of linking /icon-192.png,
+ * which was never cached and so never loaded offline.
+ */
+const CACHE = 'phirepass-shell-v2';
 const OFFLINE_URL = '/offline.html';
 
 self.addEventListener('install', (event) => {

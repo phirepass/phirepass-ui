@@ -97,6 +97,61 @@ RFC1918 addresses would rule out the main thing people want to watch. The probe
 runs on the user's own agent, against their own network, so the reach it has is
 reach they already had.
 
+## Notifications
+
+Two delivery channels, named as the courier in `phirepass-rs` names them
+(`NotificationKind`): **`web.push`** reaches a person at a browser that granted
+permission, **`webhook`** reaches a system at a URL it was given. One catalogue
+of events (`src/types/notification.ts`) feeds both — the event switches decide
+*whether* something is worth sending, the destinations decide where it lands —
+and both halves are configured on `/dashboard/notifications`.
+
+| | `web.push` | `webhook` |
+|---|---|---|
+| Destination | A browser, per browser | A URL, per account |
+| Registering it | The browser grants permission | Someone types the URL in |
+| Server needs | VAPID keypair | Nothing |
+| Authenticity | Payload encrypted to the subscription's keys | HMAC-SHA256 in `X-Phirepass-Signature` |
+| Dies by itself | Yes — the push service disowns it, and we prune | No — a dead URL keeps failing until removed |
+
+Tables are `notification_subscriptions`, `notification_webhooks` and
+`notification_preferences` — see `docs/notifications-schema.sql`, applied the
+same way as the uptime schema:
+
+```bash
+psql "$DATABASE_URL" -f docs/notifications-schema.sql
+# or, reusing the app's own TLS handling:
+node scripts/apply-notifications-schema.mjs --check
+node scripts/apply-notifications-schema.mjs --apply
+```
+
+Preferences are stored as a jsonb object of *overrides*, so a new event ships
+with its default already applied to every account and needs no backfill.
+
+**Push ships; webhooks do not, yet.** The webhook tab is present and disabled
+(`WEBHOOKS_ENABLED` in `NotificationsPage.tsx`), and its API routes stay behind
+`devModeGate()` to match — an API unreachable from the product should not be
+reachable from the internet either. Both come off in one change.
+
+**Nothing dispatches automatically yet.** There is no detector: the component
+that knows the instant an agent drops is the Rust server holding its WebSocket,
+not this app. What exists today is the manual test — `POST /api/notifications/test`
+for the whole account, or one endpoint at a time — which proves the whole chain
+end to end on either channel. That is also why webhooks are still off: an
+endpoint registered today would only ever receive what someone pressed "test"
+for.
+
+### Webhook destinations *are* validated
+
+The opposite call to the monitor targets above, for the opposite reason. A
+monitor probe runs on the user's own agent against their own network; a webhook
+delivery is an outbound request made **by this server**, which can reach
+Postgres, Redis and the courier's unauthenticated intake. So `parseUrl`
+(`src/app/lib/webhooks.ts`) requires https outside dev and refuses loopback,
+link-local and RFC1918 literals. The check is on the literal host only — a
+name that *resolves* into private space still passes, because closing that
+needs an agent that pins the address `fetch` actually connects to.
+
 ## Support contact
 
 The footer's **Contact** link and the profile menu's **Contact us** entry
@@ -196,14 +251,21 @@ strip paints a whole day amber for a single degraded check, so random spikes
 would turn every bar on the overview amber and the deliberate slowdowns would
 stop meaning anything.
 
-**Dev-gated surfaces are hidden while it is on.** Servers, Users and
-Notifications are unfinished — a mock relay fleet, roles nothing enforces, a
-notification pipeline with no delivery behind it — and a demo is exactly when an
-audience cannot tell a placeholder from a shipped feature. `useDevSurfaceVisible()`
-requires a dev build *and* demo data off, and both the menu entries and the pages
-themselves consult it: hiding a link is not the same as closing the page, so
-turning the switch on while standing on one of them renders the not-found
-boundary.
+**Dev-gated surfaces are hidden while it is on.** Servers and Users are
+unfinished — a mock relay fleet, roles nothing enforces — and a demo is exactly
+when an audience cannot tell a placeholder from a shipped feature.
+`useDevSurfaceVisible()` requires a dev build *and* demo data off, and both the
+menu entries and the pages themselves consult it: hiding a link is not the same
+as closing the page, so turning the switch on while standing on one of them
+renders the not-found boundary.
+
+**Notifications closes during a demo for a different reason.** That page ships
+now — it is not dev-gated — but the demo answers `/api/…` from a fixture and
+lets anything it does not recognise through to the real network, and there is no
+notifications fixture. Left open, it would sit inside a demo showing the
+account's own registered devices beside a sample fleet, which is the one failure
+this mode exists to prevent. So it checks `useDemoMode()` alone; give it a
+fixture and that check can go too.
 
 The one thing the demo cannot fake is a live session — terminal, SFTP, screen,
 tunnels, and service changes all need a WebSocket to an agent that does not

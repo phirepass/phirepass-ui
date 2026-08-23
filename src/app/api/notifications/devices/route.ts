@@ -1,6 +1,5 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 import { endpointHash, listSubscriptions, pushConfigured } from '@/app/lib/push';
 
@@ -24,9 +23,6 @@ function clean(value: unknown, max: number): string | null {
  * the browser it is running in.
  */
 export async function GET(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const rows = await listSubscriptions(user.id);
@@ -58,9 +54,6 @@ export async function GET(req: Request) {
  * index or quietly pile up rows for one device.
  */
 export async function POST(req: Request) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
 

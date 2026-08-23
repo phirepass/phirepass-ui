@@ -62,7 +62,7 @@ if (mode === '--check') {
     const tables = await client.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = 'public'
-           AND table_name IN ('users','notification_subscriptions','notification_preferences')
+           AND table_name IN ('users','notification_subscriptions','notification_preferences','notification_webhooks')
          ORDER BY table_name`,
     );
     console.log('relevant tables present:', tables.rows.map((r) => r.table_name).join(', ') || '(none)');

@@ -195,9 +195,6 @@ export function Header({ user, onLogout }: HeaderProps) {
                                 <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
                                     <Bell className="w-4 h-4 mr-2" />
                                     Notifications
-                                    <span className="ml-auto rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                        dev
-                                    </span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setContactOpen(true)}>
                                     <LifeBuoy className="w-4 h-4 mr-2" />
@@ -309,9 +306,6 @@ export function Header({ user, onLogout }: HeaderProps) {
                         >
                             <Bell className="w-5 h-5 mr-3" />
                             Notifications
-                            <span className="ml-2 rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                dev
-                            </span>
                         </Button>
                         <Button
                             variant="ghost"

@@ -115,3 +115,67 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 
     updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- notification_webhooks — the other delivery channel
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- Web push reaches a *person* at a browser they had to grant permission in;
+-- a webhook reaches a *system* at a URL, with no permission step and no
+-- expiry. Same events, same preferences row, different transport — which is
+-- exactly the split the courier already models as `NotificationKind`
+-- (`web.push` | `webhook` | `email`) in phirepass-rs/common/src/notifications.rs.
+--
+-- Not folded into `notification_subscriptions` with a `kind` column, because
+-- almost nothing is shared: a subscription carries ECDH key material and is
+-- issued (and revoked) by a browser's push service, while an endpoint carries a
+-- signing secret and is typed in by hand. Merging them would give one table two
+-- disjoint sets of NOT NULLs and a CHECK constraint to police which half
+-- applies.
+CREATE TABLE IF NOT EXISTS notification_webhooks (
+    id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Display label. Nullable like the subscription's, and for the same reason:
+    -- a row with no name still delivers.
+    label         text,
+
+    -- Where the POST goes. Not globally unique, unlike a push endpoint — two
+    -- accounts pointing at the same team's Slack relay is legitimate — so the
+    -- uniqueness that matters is per user, and it lives in the index below.
+    url           text NOT NULL CHECK (length(url) BETWEEN 1 AND 2048),
+
+    -- Shared secret for the HMAC in `X-Phirepass-Signature`. Stored in the clear
+    -- on purpose: signing needs the original bytes at send time, so a hash here
+    -- would make the header unforgeable by us as well as by an attacker. It is
+    -- shown to the person once, at creation, and only ever hinted at afterwards.
+    secret        text NOT NULL CHECK (length(secret) BETWEEN 16 AND 128),
+
+    -- Paused rather than deleted. Endpoints get switched off while the receiving
+    -- system is being worked on, and re-typing the URL and re-pasting the secret
+    -- into the receiver is a poor substitute for a switch.
+    enabled       boolean NOT NULL DEFAULT true,
+
+    created_at    timestamptz NOT NULL DEFAULT now(),
+
+    -- Last attempt, whatever it returned. All three move together, and all three
+    -- are null until something has actually been sent: "never delivered" and
+    -- "delivered, failed" are different states and the list says which.
+    last_sent_at  timestamptz,
+    last_status   integer CHECK (last_status IS NULL OR last_status BETWEEN 0 AND 599),
+    last_error    text,
+
+    -- Consecutive failures; reset to 0 by any 2xx. Nothing disables an endpoint
+    -- on this count yet — it is what the list sorts its warnings by.
+    fail_count    integer NOT NULL DEFAULT 0 CHECK (fail_count >= 0)
+);
+
+-- Every read is "the current user's endpoints", ordered oldest first so the list
+-- does not reshuffle when one is edited.
+CREATE INDEX IF NOT EXISTS notification_webhooks_user_id_idx
+    ON notification_webhooks (user_id, created_at);
+
+-- One URL per account. Adding the same endpoint twice is a mistake every time —
+-- it doubles delivery to a system that has no way to tell the two apart.
+CREATE UNIQUE INDEX IF NOT EXISTS notification_webhooks_user_url_idx
+    ON notification_webhooks (user_id, url);

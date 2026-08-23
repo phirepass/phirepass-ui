@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, BellOff, BellRing, Loader2, Pencil, Send, ShieldOff, Smartphone } from 'lucide-react';
+import { Bell, BellOff, BellRing, Loader2, Pencil, Send, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AlertStrip, type AlertEntry } from '@/components/AlertStrip';
 import { EmptyState } from '@/components/EmptyState';
 import { PageHeader } from '@/components/PageHeader';
-import { StatTiles } from '@/components/StatTiles';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -43,17 +43,22 @@ import {
 } from '@/lib/push';
 import { createDefaultPreferences } from '@/data/notificationDefaults';
 import {
+    NOTIFICATION_CHANNEL_LABELS,
     NOTIFICATION_EVENTS,
     type DevicePlatform,
+    type NotificationChannel,
     type NotificationCategory,
     type NotificationEventDefinition,
     type NotificationPreferences,
     type RegisteredDevice,
+    type WebhookEndpoint,
 } from '@/types/notification';
 
+import { ChannelRow } from './ChannelRow';
 import { DeviceCard } from './DeviceCard';
 import { EventPreferenceList } from './EventPreferenceList';
 import { NotificationPreview } from './NotificationPreview';
+import { WebhookChannel } from './WebhookChannel';
 import { detectCurrentDevice, isStaleDevice } from './notification-display';
 
 /** Shape of a row from `GET /api/notifications/devices`. */
@@ -85,12 +90,46 @@ function toDevice(row: DeviceResponse, currentHash: string | null): RegisteredDe
     };
 }
 
+/**
+ * Whether the webhook channel is reachable from this page.
+ *
+ * Off for now: the endpoints, the API routes and the delivery path are all
+ * built and tested, but nothing dispatches on events automatically yet, so an
+ * endpoint someone registers today would only ever receive what they pressed
+ * "test" for. The tab stays visible and disabled rather than being removed —
+ * the page is organised around there being two channels, and hiding one would
+ * make the remaining tab look like a stray control.
+ *
+ * Flipping this back to `true` is the whole re-enable: the tab becomes
+ * selectable, its content mounts and fetches, and the account-wide test goes
+ * back to firing at both channels.
+ */
+const WEBHOOKS_ENABLED = false;
+
+/** The count beside a tab label. Muted, so the label stays the thing read first. */
+function ChannelCount({ value }: { value: number }) {
+    return (
+        <span className="rounded-full bg-white/[0.08] px-1.5 text-[11px] tabular-nums text-muted-foreground">
+            {value}
+        </span>
+    );
+}
+
 export default function NotificationsPage() {
     const { config } = useRuntimeConfig();
     const vapidPublicKey = config.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
     const [loading, setLoading] = useState(true);
+    /** Which channel's destinations are on screen. */
+    const [channel, setChannel] = useState<NotificationChannel>('web.push');
     const [devices, setDevices] = useState<RegisteredDevice[]>([]);
+    /**
+     * Mirrored up from `WebhookChannel`, which owns them. The page needs the
+     * count for its summary strip and for one question the channels cannot
+     * answer separately: whether the account has any destination at all, which
+     * is what decides if the event switches decide anything.
+     */
+    const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
     const [preferences, setPreferences] = useState<NotificationPreferences>(createDefaultPreferences);
 
     /** Resolved in an effect, because both depend on `window`. */
@@ -102,6 +141,8 @@ export default function NotificationsPage() {
     const [busy, setBusy] = useState(false);
     /** Bumped to remount the preview, which replays its arrival animation. */
     const [testPulse, setTestPulse] = useState(0);
+    /** Bumped to make the webhook section re-read its rows after a shared test. */
+    const [webhookPulse, setWebhookPulse] = useState(0);
     const [revokeTarget, setRevokeTarget] = useState<RegisteredDevice | null>(null);
     const [renameTarget, setRenameTarget] = useState<RegisteredDevice | null>(null);
     const [renameValue, setRenameValue] = useState('');
@@ -212,6 +253,23 @@ export default function NotificationsPage() {
         [preferences],
     );
 
+    /**
+     * Any destination at all, on either channel. The event switches are about
+     * *what* is worth sending, so they only mean something once there is
+     * somewhere for it to go — and a browser that is not subscribed is no
+     * reason to grey them out if a webhook is registered.
+     */
+    const destinations = devices.length + webhooks.length;
+    const activeWebhooks = useMemo(
+        () => webhooks.filter((endpoint) => endpoint.enabled).length,
+        [webhooks],
+    );
+
+    // Stable, because `WebhookChannel` calls it from inside the effect that
+    // fetches: an inline arrow here would be a new dependency on every render
+    // and would have that effect refetch in a loop.
+    const handleEndpoints = useCallback((rows: WebhookEndpoint[]) => setWebhooks(rows), []);
+
     const blocked = permission === 'denied';
     const unavailable = support !== 'ok' || !configured || !vapidPublicKey;
 
@@ -252,13 +310,35 @@ export default function NotificationsPage() {
             });
         }
 
-        if (enabled && enabledEvents === 0) {
+        if (destinations > 0 && enabledEvents === 0) {
             entries.push({
                 id: 'no-events',
                 level: 'warning',
                 title: 'No events are selected',
-                message: 'This browser is registered, but nothing is set to trigger a notification.',
+                message: 'Destinations are registered on this account, but nothing is set to trigger a notification to them.',
                 tag: '0 events',
+            });
+        }
+
+        // Endpoints that answered badly the last time something was sent. One
+        // entry for the lot: a strip with six near-identical rows is a strip
+        // nobody reads.
+        const failing = webhooks.filter((endpoint) => (
+            endpoint.enabled
+            && endpoint.last_sent_at !== null
+            && (endpoint.last_status === null || endpoint.last_status < 200 || endpoint.last_status >= 300)
+        ));
+        if (failing.length > 0) {
+            entries.push({
+                id: 'webhooks-failing',
+                level: 'warning',
+                title: failing.length === 1
+                    ? `${failing[0].name} is not accepting deliveries`
+                    : `${failing.length} webhook endpoints are not accepting deliveries`,
+                message: failing.length === 1
+                    ? failing[0].last_error ?? 'The last delivery to it did not succeed.'
+                    : 'Their last delivery did not succeed. Testing one shows what its receiver answers.',
+                tag: 'webhook',
             });
         }
 
@@ -273,7 +353,7 @@ export default function NotificationsPage() {
         }
 
         return entries;
-    }, [support, configured, vapidPublicKey, blocked, enabled, enabledEvents, devices]);
+    }, [support, configured, vapidPublicKey, blocked, destinations, enabledEvents, devices, webhooks]);
 
     const enable = async () => {
         setBusy(true);
@@ -423,36 +503,62 @@ export default function NotificationsPage() {
         }
     };
 
+    /**
+     * Fires a real notification at every destination on the account, on both
+     * channels at once.
+     *
+     * The two halves are reported separately rather than added together: "3
+     * delivered" across two phones and a Slack relay would hide that the relay
+     * was the one that refused, and knowing *which* channel is broken is the
+     * entire reason to press this.
+     */
     const sendTest = async () => {
         setTestPulse((n) => n + 1);
         try {
             const response = await fetch('/api/notifications/test', {
                 method: 'POST',
                 credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: WEBHOOKS_ENABLED ? 'all' : 'web.push' }),
             });
             if (!response.ok) {
                 throw new Error(`test ${response.status}`);
             }
 
-            const outcome = await response.json() as { sent: number; pruned: number };
+            const outcome = await response.json() as {
+                push: { sent: number; pruned: number };
+                webhooks: { sent: number; failed: number; skipped: number };
+            };
 
-            if (outcome.pruned > 0) {
+            if (outcome.push.pruned > 0) {
                 await refresh();
             }
+            // The endpoints now carry a new status and a new timestamp.
+            setWebhookPulse((n) => n + 1);
 
-            if (outcome.sent === 0) {
-                toast.error('Nothing could be delivered', {
-                    description: outcome.pruned > 0
-                        ? `${outcome.pruned} dead subscription(s) were removed.`
-                        : 'No registered device accepted the notification.',
+            const parts: string[] = [];
+            if (devices.length > 0) {
+                parts.push(`${outcome.push.sent} of ${devices.length} device${devices.length === 1 ? '' : 's'}`);
+            }
+            if (activeWebhooks > 0) {
+                parts.push(`${outcome.webhooks.sent} of ${activeWebhooks} endpoint${activeWebhooks === 1 ? '' : 's'}`);
+            }
+
+            const delivered = outcome.push.sent + outcome.webhooks.sent;
+            const description = [
+                outcome.push.pruned > 0 ? `${outcome.push.pruned} dead subscription(s) removed.` : null,
+                outcome.webhooks.skipped > 0 ? `${outcome.webhooks.skipped} paused endpoint(s) skipped.` : null,
+            ].filter(Boolean).join(' ');
+
+            if (delivered === 0) {
+                toast.error('Nothing accepted the test', {
+                    description: description || 'No destination took the delivery.',
                 });
                 return;
             }
 
-            toast.success(`Test sent to ${outcome.sent} device${outcome.sent === 1 ? '' : 's'}`, {
-                description: outcome.pruned > 0
-                    ? `${outcome.pruned} dead subscription(s) were removed.`
-                    : 'It should arrive in a moment.',
+            toast.success(`Test delivered to ${parts.join(' and ')}`, {
+                description: description || 'It should arrive in a moment.',
             });
         } catch (error) {
             console.warn('[notifications] test failed', error);
@@ -493,55 +599,17 @@ export default function NotificationsPage() {
         void persist(updated, preferences);
     };
 
-    const permissionTile = permission === 'granted'
-        ? { value: 'Allowed', tone: 'success' as const }
-        : permission === 'denied'
-            ? { value: 'Blocked', tone: 'danger' as const }
-            : { value: 'Not asked', tone: 'neutral' as const };
-
     return (
         <div className="container mx-auto space-y-6 px-4 py-6">
             <PageHeader
                 title="Notifications"
-                description="Where alerts are delivered, and which of them are worth interrupting you for"
-                badge={
-                    <span className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-warning">
-                        dev preview
-                    </span>
-                }
-                actions={devices.length > 0 ? (
+                description="Two ways an alert can reach you, and which alerts are worth interrupting you for"
+                actions={destinations > 0 ? (
                     <Button variant="secondary" size="sm" className="gap-2" onClick={sendTest}>
                         <Send className="h-4 w-4" />
                         Send test
                     </Button>
                 ) : null}
-            />
-
-            <StatTiles
-                columns={3}
-                tiles={[
-                    {
-                        label: 'Registered devices',
-                        value: devices.length,
-                        icon: Smartphone,
-                        tone: 'info',
-                        hint: 'One subscription per browser, not per machine',
-                    },
-                    {
-                        label: 'Events on',
-                        value: enabledEvents,
-                        icon: Bell,
-                        tone: enabledEvents === 0 ? 'warning' : 'accent',
-                        hint: `Of ${NOTIFICATION_EVENTS.length} available`,
-                    },
-                    {
-                        label: 'Browser permission',
-                        value: permissionTile.value,
-                        icon: permission === 'denied' ? ShieldOff : BellRing,
-                        tone: permissionTile.tone,
-                        hint: 'Granted per site, and remembered by the browser',
-                    },
-                ]}
             />
 
             {loading ? (
@@ -552,166 +620,150 @@ export default function NotificationsPage() {
                 <>
                     <AlertStrip alerts={alerts} />
 
-                    {/* The master control. Off, it is the call to action the page
-                        exists for; on, it collapses to a status row. */}
-                    <section
-                        className={cn(
-                            'gradient-card mac-squircle relative overflow-hidden rounded-2xl border',
-                            enabled ? 'border-accent/30' : 'border-hairline'
-                        )}
-                        aria-label="Push notifications"
-                    >
-                        {/* Lit only when it is actually on, so the state is
-                            legible from the far side of the page. */}
-                        {enabled ? (
-                            <div aria-hidden className="pp-bloom pointer-events-none absolute inset-0" />
-                        ) : null}
+                    {/*
+                        Destinations, one channel at a time.
 
-                        <div className="relative flex flex-col gap-8 p-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center lg:gap-10">
-                            <div className="flex min-w-0 items-start gap-4">
-                                <span
-                                    aria-hidden
-                                    className={cn(
-                                        'mac-squircle flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] border',
-                                        enabled
-                                            ? 'border-accent/30 bg-accent/12 text-accent shadow-[0_0_30px_hsl(var(--accent)/0.32)]'
-                                            : 'border-hairline bg-white/[0.06] text-muted-foreground'
-                                    )}
-                                >
-                                    {enabled ? (
-                                        <BellRing className="animate-bell h-7 w-7" />
-                                    ) : (
-                                        <BellOff className="h-7 w-7" />
-                                    )}
-                                </span>
-
-                                <div className="min-w-0">
-                                    <h2 className="text-xl font-semibold tracking-[-0.022em] text-foreground">
-                                        {enabled ? 'This browser is registered' : 'Notifications are off here'}
-                                    </h2>
-                                    <p className="mt-1 max-w-lg text-[13px] text-muted-foreground">
-                                        {enabled
-                                            ? devices.length > 1
-                                                ? `Delivering to this browser and ${devices.length - 1} other device${devices.length === 2 ? '' : 's'}.`
-                                                : 'Delivering to this browser. No other device is registered.'
-                                            : blocked
-                                                ? 'The browser is blocking notifications for this site. Allow them in its site settings and reload — this page cannot ask again.'
-                                                : 'Get told the moment a node drops off the relay, and when it comes back — without keeping the dashboard open. Enabling asks the browser for permission and registers it.'}
-                                    </p>
-
-                                    <div className="mt-5 flex items-center gap-3">
-                                        {enabled ? (
-                                            <>
-                                                <Switch
-                                                    checked
-                                                    disabled={busy}
-                                                    onCheckedChange={disable}
-                                                    aria-label="Turn notifications off for this browser"
-                                                />
-                                                <span className="text-[13px] font-medium text-foreground">
-                                                    {busy ? 'Turning off...' : 'Delivery on'}
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <Button
-                                                size="lg"
-                                                className="gap-2"
-                                                onClick={enable}
-                                                disabled={busy || blocked || unavailable}
-                                            >
-                                                {busy ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Bell className="h-4 w-4" />
-                                                )}
-                                                {busy ? 'Enabling...' : 'Enable notifications'}
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* The settings, made visible. */}
-                            <div className="w-full min-w-0">
-                                <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-                                    {enabled ? 'On your devices' : 'What you would see'}
-                                </p>
-                                <NotificationPreview
-                                    key={`${testPulse}-${enabledEvents}`}
-                                    preferences={preferences}
-                                    enabled={enabled}
-                                />
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Devices */}
-                    <section className="space-y-3" aria-label="Registered devices">
-                        <div className="flex items-end justify-between gap-4">
-                            <div>
+                        The two used to sit one under the other, each with its
+                        own header, count and status panel — which meant the page
+                        opened on four headings before a single thing you could
+                        act on. Tabs make the choice explicit and put the counts
+                        where the choice is made, so whichever channel you came
+                        here for starts at the top of the card rather than
+                        halfway down the page.
+                    */}
+                    <section className="space-y-3" aria-label="Destinations">
+                        <Tabs value={channel} onValueChange={(next) => setChannel(next as NotificationChannel)}>
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
-                                    Registered devices
+                                    Destinations
                                 </h2>
-                                <p className="mt-0.5 text-[13px] text-muted-foreground">
-                                    Every browser holding a push subscription for your account.
-                                </p>
-                            </div>
-                            <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">
-                                {devices.length} registered
-                            </span>
-                        </div>
 
-                        {devices.length === 0 ? (
-                            <EmptyState
-                                icon={Smartphone}
-                                title="No devices registered"
-                                description="Enable notifications on a browser and it appears here. Revoking a device only stops that one — the rest keep receiving."
-                                action={!enabled ? (
-                                    <Button
+                                <TabsList>
+                                    <TabsTrigger value="web.push" className="gap-2">
+                                        {NOTIFICATION_CHANNEL_LABELS['web.push']}
+                                        <ChannelCount value={devices.length} />
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                        value="webhook"
                                         className="gap-2"
-                                        onClick={enable}
-                                        disabled={busy || blocked || unavailable}
+                                        disabled={!WEBHOOKS_ENABLED}
                                     >
-                                        <Bell className="h-4 w-4" />
-                                        Enable notifications
-                                    </Button>
-                                ) : null}
-                            />
-                        ) : (
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                {devices.map((device) => (
-                                    <DeviceCard
-                                        key={device.id}
-                                        device={device}
-                                        paused={!enabled && device.is_current}
-                                        onRename={openRename}
-                                        onRevoke={setRevokeTarget}
-                                    />
-                                ))}
+                                        {NOTIFICATION_CHANNEL_LABELS.webhook}
+                                        {WEBHOOKS_ENABLED ? (
+                                            <ChannelCount value={webhooks.length} />
+                                        ) : (
+                                            <span className="rounded-full bg-white/[0.08] px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                                soon
+                                            </span>
+                                        )}
+                                    </TabsTrigger>
+                                </TabsList>
                             </div>
-                        )}
+
+                            <TabsContent value="web.push" className="mt-3 space-y-3">
+                                {/* The master control, as one row rather than a
+                                    panel: on, it is a status line; off, the
+                                    button on the right is the whole point. */}
+                                <ChannelRow
+                                    channel="web.push"
+                                    icon={enabled ? BellRing : BellOff}
+                                    lit={enabled}
+                                    title={enabled
+                                        ? `Registered here${devices.length > 1 ? ` and on ${devices.length - 1} other device${devices.length === 2 ? '' : 's'}` : ''}`
+                                        : blocked
+                                            ? 'Blocked in this browser'
+                                            : 'Not enabled in this browser'}
+                                    action={enabled ? (
+                                        <>
+                                            <span className="text-xs text-muted-foreground">
+                                                {busy ? 'Turning off...' : 'Delivery on'}
+                                            </span>
+                                            <Switch
+                                                checked
+                                                disabled={busy}
+                                                onCheckedChange={disable}
+                                                aria-label="Turn notifications off for this browser"
+                                            />
+                                        </>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            className="gap-2"
+                                            onClick={enable}
+                                            disabled={busy || blocked || unavailable}
+                                        >
+                                            {busy ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Bell className="h-4 w-4" />
+                                            )}
+                                            {busy ? 'Enabling...' : 'Enable'}
+                                        </Button>
+                                    )}
+                                />
+
+                                {devices.length === 0 ? (
+                                    // The preview earns its place here and only
+                                    // here: with nothing registered, it is the
+                                    // one thing on screen that says what the
+                                    // switch above actually buys you.
+                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                        <EmptyState
+                                            icon={Smartphone}
+                                            title="No devices registered"
+                                            description="Enable notifications above and this browser appears here. Revoking one device never affects the others."
+                                        />
+                                        <div className="hidden lg:block">
+                                            <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+                                                What you would see
+                                            </p>
+                                            <NotificationPreview
+                                                key={`${testPulse}-${enabledEvents}`}
+                                                preferences={preferences}
+                                                enabled={enabled}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                        {devices.map((device) => (
+                                            <DeviceCard
+                                                key={device.id}
+                                                device={device}
+                                                paused={!enabled && device.is_current}
+                                                onRename={openRename}
+                                                onRevoke={setRevokeTarget}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="webhook" className="mt-3">
+                                <WebhookChannel
+                                    onEndpointsChange={handleEndpoints}
+                                    refreshSignal={webhookPulse}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     </section>
 
-                    {/* Event preferences */}
+                    {/* Events, once — they are the same list whichever channel
+                        is showing above, which is why they are outside the tabs
+                        rather than repeated inside each one. */}
                     <section className="space-y-3" aria-label="Event preferences">
-                        <div className="flex items-end justify-between gap-4">
-                            <div>
-                                <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
-                                    What to notify me about
-                                </h2>
-                                <p className="mt-0.5 text-[13px] text-muted-foreground">
-                                    Saved to your account and applied to every registered device. Nothing
-                                    dispatches on them automatically yet.
-                                </p>
-                            </div>
-                            <span className="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">
-                                {enabledEvents} of {NOTIFICATION_EVENTS.length} on
+                        <div className="flex items-center justify-between gap-4">
+                            <h2 className="text-[15px] font-semibold tracking-[-0.015em] text-foreground">
+                                Events
+                            </h2>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">
+                                Sent to every destination above
                             </span>
                         </div>
 
                         <EventPreferenceList
                             preferences={preferences}
-                            disabled={devices.length === 0}
+                            disabled={destinations === 0}
                             onToggle={toggleEvent}
                             onToggleCategory={toggleCategory}
                         />

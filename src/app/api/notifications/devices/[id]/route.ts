@@ -1,6 +1,5 @@
 import { verifyToken } from '@/app/lib/auth';
 import { query } from '@/app/lib/db';
-import { devModeGate } from '@/lib/dev-mode';
 import { json_response } from '@/app/lib/framework';
 
 export const dynamic = 'force-dynamic';
@@ -31,9 +30,6 @@ const MAX_LABEL = 120;
  * holding a subscription nothing will ever send to.
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const { id } = await ctx.params;
@@ -71,9 +67,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 }
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const gate = devModeGate();
-    if (gate) return gate;
-
     try {
         const user = await verifyToken();
         const { id } = await ctx.params;

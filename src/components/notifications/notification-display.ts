@@ -1,12 +1,54 @@
-import { Laptop, Monitor, Smartphone, Terminal, Wifi, WifiOff, type LucideIcon } from 'lucide-react';
+import {
+    Laptop,
+    Monitor,
+    Smartphone,
+    Terminal,
+    Webhook,
+    Wifi,
+    WifiOff,
+    type LucideIcon,
+} from 'lucide-react';
 
 import {
     DEVICE_PLATFORM_LABELS,
     type DevicePlatform,
     type NotificationCategory,
+    type NotificationChannel,
     type NotificationEventId,
     type RegisteredDevice,
+    type WebhookEndpoint,
+    type WebhookHealth,
 } from '@/types/notification';
+
+/**
+ * Per-channel mark and hue — the one visual difference between the two halves
+ * of this page.
+ *
+ * Accent for push and violet for webhooks, rather than two shades of the same
+ * hue: the sections are read in sequence, not compared side by side, so what
+ * matters is that a screenshot of one is instantly tellable from a screenshot
+ * of the other. Written out in full because Tailwind cannot resolve class names
+ * assembled at runtime.
+ */
+export const CHANNEL_STYLES: Record<
+    NotificationChannel,
+    { icon: LucideIcon; tint: string; well: string; border: string; bloom: string }
+> = {
+    'web.push': {
+        icon: Smartphone,
+        tint: 'text-accent',
+        well: 'bg-accent/12',
+        border: 'border-accent/30',
+        bloom: 'bg-accent/25',
+    },
+    webhook: {
+        icon: Webhook,
+        tint: 'text-violet',
+        well: 'bg-violet/12',
+        border: 'border-violet/30',
+        bloom: 'bg-violet/25',
+    },
+};
 
 /**
  * Per-platform mark and hue.
@@ -143,4 +185,65 @@ export function detectCurrentDevice(): CurrentDeviceIdentity {
         platform,
         browser,
     };
+}
+
+/**
+ * How an endpoint's last attempt reads in the list.
+ *
+ * Three states rather than two, because "never tried" is not a kind of failure
+ * and colouring it as one would have every freshly added endpoint arrive
+ * looking broken. The wording is about the *endpoint*, not about us: a receiver
+ * answering 500 is not our delivery failing, it is theirs refusing.
+ */
+export const WEBHOOK_HEALTH_STYLES: Record<
+    WebhookHealth,
+    { label: string; tint: string; well: string; border: string }
+> = {
+    untested: {
+        label: 'Not delivered yet',
+        tint: 'text-muted-foreground',
+        well: 'bg-white/[0.06]',
+        border: 'border-hairline',
+    },
+    healthy: {
+        label: 'Delivering',
+        tint: 'text-success',
+        well: 'bg-success/12',
+        border: 'border-success/40',
+    },
+    failing: {
+        label: 'Failing',
+        tint: 'text-destructive',
+        well: 'bg-destructive/12',
+        border: 'border-destructive/40',
+    },
+};
+
+/** The one-line account of the last attempt, under the URL. */
+export function describeWebhookDelivery(endpoint: WebhookEndpoint): string {
+    if (endpoint.last_sent_at === null) {
+        return 'Nothing has been sent to this URL yet';
+    }
+
+    const when = formatRelativeTime(endpoint.last_sent_at);
+
+    if (endpoint.last_status === null) {
+        // No status at all means the request never reached a receiver — DNS,
+        // refused, TLS, timeout — and `last_error` is the transport's own words.
+        return `${endpoint.last_error ?? 'No response'} · ${when}`;
+    }
+
+    const streak = endpoint.fail_count > 1 ? ` · ${endpoint.fail_count} in a row` : '';
+    return `HTTP ${endpoint.last_status} · ${when}${streak}`;
+}
+
+/**
+ * The URL with its scheme dropped, for display only.
+ *
+ * `https://` is the same on every row and is the first thing the eye hits;
+ * removing it puts the host — the part that differs — at the start of the line.
+ * The full URL stays in the tooltip and in the edit form.
+ */
+export function displayUrl(url: string): string {
+    return url.replace(/^https?:\/\//, '');
 }
