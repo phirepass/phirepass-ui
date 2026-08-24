@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+    EVENT_SEVERITY,
     NOTIFICATION_CATEGORY_ORDER,
     NOTIFICATION_EVENTS,
+    SEVERITY_ICONS,
     type NotificationCategory,
 } from './notification.ts';
 
@@ -101,6 +103,39 @@ test('every event states a default', () => {
             `"${event.id}" has no default, so its switch would render uncontrolled`,
         );
     }
+});
+
+/**
+ * The severity map and the icon assets are two hand-kept copies — one of the
+ * courier's `icon_for`, one of `NOTIFICATION_ICONS` in `public/sw.js` — so the
+ * one thing worth pinning here is that neither has a hole. A missing entry is
+ * `undefined`, which indexes the asset map to `undefined`, which renders a
+ * broken image in the preview banner.
+ */
+test('every event has a severity, and every severity has an asset', () => {
+    for (const event of NOTIFICATION_EVENTS) {
+        const severity = EVENT_SEVERITY[event.id];
+
+        assert.ok(
+            ['alert', 'warn', 'default'].includes(severity),
+            `"${event.id}" has no severity`,
+        );
+        assert.ok(SEVERITY_ICONS[severity], `"${severity}" resolves to no asset`);
+    }
+});
+
+/**
+ * The point of a red mark at all: an outage has to be distinguishable from a
+ * recovery before a word is read. If these ever collapse to one value the icons
+ * are decoration.
+ */
+test('failures and recoveries do not share a mark', () => {
+    assert.equal(EVENT_SEVERITY['monitor.down'], 'alert');
+    assert.equal(EVENT_SEVERITY['node.offline'], 'alert');
+    assert.equal(EVENT_SEVERITY['monitor.degraded'], 'warn');
+
+    assert.notEqual(EVENT_SEVERITY['monitor.up'], EVENT_SEVERITY['monitor.down']);
+    assert.notEqual(EVENT_SEVERITY['node.online'], EVENT_SEVERITY['node.offline']);
 });
 
 /**

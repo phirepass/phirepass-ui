@@ -1,0 +1,44 @@
+<!--
+  Push notification icon — warn.
+
+  Generated from src/app/icon.svg by scripts/build-notification-icons.mjs:
+  same geometry, same stop offsets, hue rotated. Degraded amber — the middle of the same three-colour scale the monitor
+       cards and the status dot already use.
+  Do not hand-edit — regenerate.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="mark" gradientUnits="userSpaceOnUse" x1="8" y1="41" x2="40" y2="9">
+    <stop offset="0%" stop-color="hsl(28 92% 54%)" />
+    <stop offset="35%" stop-color="hsl(38 96% 56%)" />
+    <stop offset="70%" stop-color="hsl(46 96% 58%)" />
+    <stop offset="100%" stop-color="hsl(54 96% 62%)" />
+    </linearGradient>
+    <linearGradient id="body" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="hsl(32 30% 13%)" />
+    <stop offset="50%" stop-color="hsl(40 32% 9%)" />
+    <stop offset="100%" stop-color="hsl(48 36% 8%)" />
+    </linearGradient>
+    <radialGradient id="bloom" cx="62%" cy="30%" r="60%">
+    <stop offset="0%" stop-color="hsl(40 94% 58%)" stop-opacity="0.40" />
+    <stop offset="100%" stop-color="hsl(40 94% 58%)" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="edge" x1="0%" y1="100%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="hsl(28 92% 54%)" stop-opacity="0.8" />
+    <stop offset="100%" stop-color="hsl(54 96% 62%)" stop-opacity="0.55" />
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#body)" />
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="url(#bloom)" />
+  <rect x="1" y="1" width="46" height="46" rx="12" fill="none" stroke="url(#edge)" stroke-width="1.8" />
+
+  <!-- Boundary, node, and the one path out — see PhirepassLogo.tsx. Favicon
+        weights are slightly heavier so the mark survives 16px. -->
+  <path d="M18.5 19.5 L27 24.4 L27 34.2 L18.5 39.1 L10 34.2 L10 24.4 Z"
+        fill="none" stroke="url(#mark)" stroke-width="2.4" stroke-linejoin="round" opacity="0.82" />
+  <path d="M18.5 29.3 C 21.2 22.6, 26.4 18.6, 32.4 17.1"
+        fill="none" stroke="url(#mark)" stroke-width="3" stroke-linecap="round" />
+  <circle cx="18.5" cy="29.3" r="3.6" fill="url(#mark)" />
+  <circle cx="37.2" cy="13.6" r="4.1" fill="none" stroke="url(#mark)" stroke-width="2.6" />
+</svg>

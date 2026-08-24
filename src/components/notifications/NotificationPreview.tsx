@@ -2,10 +2,11 @@
 
 import { BellOff } from 'lucide-react';
 
-import { PhirepassLogo } from '@/components/PhirepassLogo';
 import { cn } from '@/lib/utils';
 import {
+    EVENT_SEVERITY,
     NOTIFICATION_EVENTS,
+    SEVERITY_ICONS,
     type NotificationEventId,
     type NotificationPreferences,
 } from '@/types/notification';
@@ -40,19 +41,21 @@ const PREVIEW_COPY: Record<NotificationEventId, PreviewCopy> = {
     },
     // Worded as the courier words them (phirepass-rs/courier/src/render.rs), so
     // the banner rehearsed here is the banner that arrives.
+    // The `http` shape of each. The same events on an `ssl` or `domain` monitor
+    // are titled and worded for what those checks actually watch — "Certificate
+    // expiring", "example.com — registration expires in 5 days" — see
+    // phirepass-rs/courier/src/render.rs.
     'monitor.down': {
         title: 'Monitor down',
-        body: 'checkout-api failed its check: connection refused.',
+        body: 'checkout-api — https://shop.example.com/health\nunexpected status 503 (expected one of [200])',
     },
-    // The `http` shape of a degraded verdict; an `ssl` or `domain` one reads
-    // "Certificate expiring" / "example.com: certificate expires in 5 day(s)".
     'monitor.degraded': {
         title: 'Monitor slow',
-        body: 'checkout-api answered in 8.2s, over its 1.5s threshold.',
+        body: 'checkout-api — https://shop.example.com/health\nresponded in 8200ms (threshold 1500ms)',
     },
     'monitor.up': {
         title: 'Monitor recovered',
-        body: 'checkout-api is passing its checks again.',
+        body: 'checkout-api answered 200 in 0.4s.',
     },
     'monitor.success': {
         title: 'Check passed',
@@ -101,7 +104,15 @@ export function NotificationPreview({ preferences, enabled, className }: Notific
                     )}
                 >
                     <div className="flex items-start gap-3">
-                        <PhirepassLogo className="h-9 w-9 shrink-0" />
+                        {/* The real asset, not the logo component: a negative
+                            event arrives with the red mark, and a preview that
+                            always showed the green one would be rehearsing a
+                            banner nobody gets. */}
+                        <img
+                            src={SEVERITY_ICONS[EVENT_SEVERITY[previewId]]}
+                            alt=""
+                            className="mac-squircle h-9 w-9 shrink-0 rounded-[9px]"
+                        />
                         <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-2">
                                 <p className="text-[11px] font-medium text-muted-foreground">Phirepass</p>
@@ -110,7 +121,9 @@ export function NotificationPreview({ preferences, enabled, className }: Notific
                             <p className="mt-0.5 truncate text-[13px] font-semibold tracking-[-0.01em] text-foreground">
                                 {PREVIEW_COPY[previewId].title}
                             </p>
-                            <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
+                            {/* `pre-line`, because a monitor body is two lines:
+                                what was being watched, then what it answered. */}
+                            <p className="mt-0.5 whitespace-pre-line text-[12px] leading-snug text-muted-foreground">
                                 {PREVIEW_COPY[previewId].body}
                             </p>
                         </div>

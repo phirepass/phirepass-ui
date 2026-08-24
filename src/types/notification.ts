@@ -172,6 +172,37 @@ export const NOTIFICATION_EVENTS: NotificationEventDefinition[] = [
     },
 ];
 
+/**
+ * Which of the three notification marks an event arrives with.
+ *
+ * A push notification cannot be tinted at display time — no colour option in
+ * `showNotification` is honoured anywhere — so severity travels as a different
+ * image, drawn from the same logo by `scripts/build-notification-icons.mjs` and
+ * resolved to an asset by `public/sw.js`.
+ *
+ * This is the dashboard's copy of the courier's `icon_for`
+ * (phirepass-rs/courier/src/render.rs) — it lives beside the catalogue rather
+ * than beside the settings page's styles because it describes the delivered
+ * notification, not this dashboard. It is what lets the preview banner show the
+ * mark that will actually arrive rather than always the green one, and like
+ * every other copy in this feature it only stays honest if both move together.
+ */
+export const EVENT_SEVERITY: Record<NotificationEventId, 'alert' | 'warn' | 'default'> = {
+    'node.offline': 'alert',
+    'node.online': 'default',
+    'monitor.down': 'alert',
+    'monitor.degraded': 'warn',
+    'monitor.up': 'default',
+    'monitor.success': 'default',
+};
+
+/** The asset each one resolves to, matching `NOTIFICATION_ICONS` in sw.js. */
+export const SEVERITY_ICONS: Record<'alert' | 'warn' | 'default', string> = {
+    alert: '/icon-alert-192.png',
+    warn: '/icon-warn-192.png',
+    default: '/icon-192.png',
+};
+
 /** Which events are on. Complete by construction — every id has an answer. */
 export type NotificationPreferences = Record<NotificationEventId, boolean>;
 

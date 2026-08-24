@@ -60,6 +60,23 @@ self.addEventListener('fetch', (event) => {
 });
 
 
+/**
+ * The severity icons, by the name the courier sends.
+ *
+ * An allow-list, not a lookup with a passthrough: anything unrecognised — a
+ * missing field, an older sender, a payload that is not ours — falls back to the
+ * ordinary mark, which is always a correct thing to show.
+ */
+const NOTIFICATION_ICONS = {
+    alert: '/icon-alert-192.png',
+    warn: '/icon-warn-192.png',
+    default: '/icon-192.png',
+};
+
+function iconFor(name) {
+    return NOTIFICATION_ICONS[name] || NOTIFICATION_ICONS.default;
+}
+
 /*
  * Web Push.
  *
@@ -85,7 +102,16 @@ self.addEventListener('push', (event) => {
         self.registration.showNotification(title, {
             body: payload.body || '',
             // The large icon in the shade: full colour, shown as drawn.
-            icon: '/icon-192.png',
+            //
+            // The sender picks it, because there is no way to tint an icon at
+            // display time — no colour option in showNotification is honoured
+            // anywhere — so severity has to arrive as a different image.
+            // scripts/build-notification-icons.mjs draws the alternates from the
+            // same mark: `icon-alert-192.png` for an outage, `icon-warn-192.png`
+            // for a degradation. Restricted to a known set rather than used as
+            // sent: this value crosses a push service, and a URL from the wire is
+            // not something to hand to the shade.
+            icon: iconFor(payload.icon),
             // The status-bar mark, and a different kind of asset entirely.
             // Android discards the colour and tints the alpha channel, so a
             // full-colour tile arrives as a solid white rectangle — badge-96

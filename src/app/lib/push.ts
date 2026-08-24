@@ -90,6 +90,16 @@ export interface PushPayload {
     tag?: string;
     /** Where a click should land. */
     url?: string;
+    /**
+    * Which mark to show: `alert` (red), `warn` (amber), or the ordinary one.
+    *
+    * A severity name rather than a URL, because this crosses a third-party push
+    * service to reach the browser — `public/sw.js` holds the allow-list that
+    * turns it into an asset, and anything it does not recognise falls back to
+    * the ordinary mark. There is no way to tint an icon at display time, which
+    * is why severity has to travel as a different image at all.
+    */
+    icon?: 'alert' | 'warn' | 'default';
 }
 
 /**

@@ -149,6 +149,33 @@ side keeps a copy of the event names and their defaults
 | `monitor.up` | A check passes cleanly after failing or running slow | Off |
 | `monitor.success` | **Every** check that passes — evidence checks are running | Off |
 
+Every notification is worded for the kind of check that raised it, because
+`degraded` and `down` mean different things per kind — an `http` check reports a
+status and a latency, an `ssl` check reports a certificate and its issuer, a
+`domain` check reports a registration and its registrar:
+
+```
+Monitor down                  Certificate expiring          Domain down
+checkout-api — https://…      shop.example.com —            example.com —
+unexpected status 503         certificate expires in        registration expired
+(expected one of [200])       5 days                        3 days ago
+                              Issued by Let's Encrypt R3    Registrar: Namecheap
+```
+
+Severity also arrives as a **different icon**, since no browser honours a colour
+option on `showNotification`: red for an outage, amber for a degradation, the
+ordinary green mark for everything else. All three are the same logo with the
+hue rotated, generated from `src/app/icon.svg`:
+
+```bash
+node scripts/build-notification-icons.mjs           # after editing the logo
+node scripts/build-notification-icons.mjs --check   # verify, exits 1 on drift
+```
+
+`public/sw.js` holds the allow-list that turns the severity name on the wire
+into an asset — a push payload crosses a third-party service, so it names an
+intent rather than carrying a URL.
+
 The first four are edge-triggered: a monitor that has been down all night sends
 one `monitor.down`, not one per interval. `monitor.success` is the exception and
 the reason it exists — an edge that does not repeat cannot tell "all is well"
