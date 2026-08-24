@@ -126,6 +126,16 @@ export function formatDate(iso: string | null): string {
 }
 
 /**
+ * The height of a single destination card, as a Tailwind class.
+ *
+ * Both cards claim it as their floor, and every container that can hold them —
+ * the grids, and the loading and empty states that stand in for a grid — claims
+ * it too. That is the point: the destination area is one card tall before the
+ * fetch resolves, so the page does not jump when it does.
+ */
+export const DESTINATION_CARD_MIN_HEIGHT = 'min-h-[147px]';
+
+/**
  * A subscription quiet long enough to be worth pruning. Sixty days rather than
  * the ninety used for dormant *accounts*: a push subscription that has not been
  * confirmed in two months has usually already been invalidated by the browser,

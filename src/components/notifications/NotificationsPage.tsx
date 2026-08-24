@@ -61,7 +61,11 @@ import { DeviceCard } from './DeviceCard';
 import { EventPreferenceList } from './EventPreferenceList';
 import { NotificationPreview } from './NotificationPreview';
 import { WebhookChannel } from './WebhookChannel';
-import { detectCurrentDevice, isStaleDevice } from './notification-display';
+import {
+    DESTINATION_CARD_MIN_HEIGHT,
+    detectCurrentDevice,
+    isStaleDevice,
+} from './notification-display';
 
 /** Shape of a row from `GET /api/notifications/devices`. */
 interface DeviceResponse {
@@ -697,41 +701,46 @@ export default function NotificationsPage() {
                                     )}
                                 />
 
-                                {devices.length === 0 ? (
-                                    // The preview earns its place here and only
-                                    // here: with nothing registered, it is the
-                                    // one thing on screen that says what the
-                                    // switch above actually buys you.
-                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-                                        <EmptyState
-                                            icon={Smartphone}
-                                            title="No devices registered"
-                                            description="Enable notifications above and this browser appears here. Revoking one device never affects the others."
-                                        />
-                                        <div className="hidden lg:block">
-                                            <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-                                                What you would see
-                                            </p>
-                                            <NotificationPreview
-                                                key={`${testPulse}-${enabledEvents}`}
-                                                preferences={preferences}
-                                                enabled={enabled}
+                                {/* One card tall either way, so the empty state
+                                    and the grid occupy the same floor and the
+                                    page does not jump when devices arrive. */}
+                                <div className={cn('flex flex-col', DESTINATION_CARD_MIN_HEIGHT)}>
+                                    {devices.length === 0 ? (
+                                        // The preview earns its place here and only
+                                        // here: with nothing registered, it is the
+                                        // one thing on screen that says what the
+                                        // switch above actually buys you.
+                                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                                            <EmptyState
+                                                icon={Smartphone}
+                                                title="No devices registered"
+                                                description="Enable notifications above and this browser appears here. Revoking one device never affects the others."
                                             />
+                                            <div className="hidden lg:block">
+                                                <p className="mb-2 text-[11px] font-medium text-muted-foreground">
+                                                    What you would see
+                                                </p>
+                                                <NotificationPreview
+                                                    key={`${testPulse}-${enabledEvents}`}
+                                                    preferences={preferences}
+                                                    enabled={enabled}
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {devices.map((device) => (
-                                            <DeviceCard
-                                                key={device.id}
-                                                device={device}
-                                                paused={!enabled && device.is_current}
-                                                onRename={openRename}
-                                                onRevoke={setRevokeTarget}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                            {devices.map((device) => (
+                                                <DeviceCard
+                                                    key={device.id}
+                                                    device={device}
+                                                    paused={!enabled && device.is_current}
+                                                    onRename={openRename}
+                                                    onRevoke={setRevokeTarget}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </TabsContent>
 
                             <TabsContent value="webhook" className="mt-3">

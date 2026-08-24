@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type { RegisteredDevice } from '@/types/notification';
 
 import {
+    DESTINATION_CARD_MIN_HEIGHT,
     DEVICE_PLATFORM_STYLES,
     STALE_DEVICE_DAYS,
     describeDevice,
@@ -42,7 +43,8 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
     return (
         <article
             className={cn(
-                'gradient-card mac-squircle group relative flex h-full min-h-[147px] flex-col overflow-hidden rounded-xl border',
+                'gradient-card mac-squircle group relative flex h-full flex-col overflow-hidden rounded-xl border',
+                DESTINATION_CARD_MIN_HEIGHT,
                 'transition-[box-shadow,border-color,opacity] duration-200 ease-mac hover:shadow-window-raised',
                 device.is_current
                     ? 'border-accent/30 hover:border-accent/50'

@@ -10,6 +10,7 @@ import { webhookHealth, type WebhookEndpoint } from '@/types/notification';
 
 import {
     CHANNEL_STYLES,
+    DESTINATION_CARD_MIN_HEIGHT,
     WEBHOOK_HEALTH_STYLES,
     describeWebhookDelivery,
     displayUrl,
@@ -51,7 +52,8 @@ export function WebhookCard({
     return (
         <article
             className={cn(
-                'gradient-card mac-squircle group relative flex h-full min-h-[147px] flex-col overflow-hidden rounded-xl border',
+                'gradient-card mac-squircle group relative flex h-full flex-col overflow-hidden rounded-xl border',
+                DESTINATION_CARD_MIN_HEIGHT,
                 'transition-[box-shadow,border-color,opacity] duration-200 ease-mac hover:shadow-window-raised',
                 endpoint.enabled
                     ? 'border-hairline hover:border-hairline-strong'

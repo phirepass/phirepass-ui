@@ -16,9 +16,11 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 import type { WebhookEndpoint } from '@/types/notification';
 
 import { ChannelRow } from './ChannelRow';
+import { DESTINATION_CARD_MIN_HEIGHT } from './notification-display';
 import { WebhookCard } from './WebhookCard';
 import { WebhookFormDialog, WebhookSecretDialog, type WebhookFormValues } from './WebhookDialog';
 
@@ -261,33 +263,37 @@ export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChan
                 )}
             />
 
-            {loading ? (
-                <p className="py-6 text-center text-[13px] text-muted-foreground">
-                    Loading endpoints...
-                </p>
-            ) : endpoints.length === 0 ? (
-                // Not a second "no endpoints" — the row above already said
-                // that. What is left worth saying is what adding one does.
-                <EmptyState
-                    icon={Webhook}
-                    title="Add your first endpoint"
-                    description="Every event you have switched on is POSTed to it as signed JSON — the same alerts your browsers get, delivered to a system instead of a person."
-                />
-            ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {endpoints.map((endpoint) => (
-                        <WebhookCard
-                            key={endpoint.id}
-                            endpoint={endpoint}
-                            testing={testingId === endpoint.id}
-                            onTest={test}
-                            onEdit={openEdit}
-                            onToggle={toggle}
-                            onDelete={setDeleteTarget}
-                        />
-                    ))}
-                </div>
-            )}
+            {/* One card tall whatever is inside it — loading, empty, or a
+                filled grid — so nothing below shifts when the fetch lands. */}
+            <div className={cn('flex flex-col', DESTINATION_CARD_MIN_HEIGHT)}>
+                {loading ? (
+                    <p className="flex flex-1 items-center justify-center text-[13px] text-muted-foreground">
+                        Loading endpoints...
+                    </p>
+                ) : endpoints.length === 0 ? (
+                    // Not a second "no endpoints" — the row above already said
+                    // that. What is left worth saying is what adding one does.
+                    <EmptyState
+                        icon={Webhook}
+                        title="Add your first endpoint"
+                        description="Every event you have switched on is POSTed to it as signed JSON — the same alerts your browsers get, delivered to a system instead of a person."
+                    />
+                ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {endpoints.map((endpoint) => (
+                            <WebhookCard
+                                key={endpoint.id}
+                                endpoint={endpoint}
+                                testing={testingId === endpoint.id}
+                                onTest={test}
+                                onEdit={openEdit}
+                                onToggle={toggle}
+                                onDelete={setDeleteTarget}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
 
             <WebhookFormDialog
                 open={formOpen}
