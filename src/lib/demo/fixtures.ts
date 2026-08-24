@@ -2,6 +2,7 @@ import type { PublicIpLocation } from '@/types/geo';
 import type { NodeLanFingerprint, NodeStatus } from '@/types/node';
 import type { KeywordMode, MonitorKind } from '@/types/monitor';
 import type { UserInfo } from '@/app/lib/types';
+import type { DevicePlatform } from '@/types/notification';
 
 /**
  * The fleet demo mode pretends to own.
@@ -758,5 +759,138 @@ export const DEMO_TOKEN_SPECS: DemoTokenSpec[] = [
         created_days_ago: 198,
         expires_in_days: -12,
         last_used_hours_ago: 3_400,
+    },
+];
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/**
+ * The hash the demo's "this browser" row carries.
+ *
+ * The real page works out which device it is running on by hashing its own push
+ * subscription's endpoint and matching it against the list. Demo mode has no
+ * subscription — it must not create one, or a booth laptop leaves a real
+ * registration behind and a permission prompt on stage — so the two sides agree
+ * on this constant instead. `NotificationsPage` uses it in place of the hash
+ * whenever the demo is on.
+ *
+ * Thirty-two hex characters, because that is what `endpointHash` produces and a
+ * value of another shape would be obvious in a screenshot.
+ */
+export const DEMO_CURRENT_ENDPOINT_HASH = '4b7e2c19a0d5f38641c9be07d2a5f183';
+
+export interface DemoDeviceSpec {
+    id: string;
+    endpoint_hash: string;
+    label: string;
+    platform: DevicePlatform;
+    browser: string;
+    created_days_ago: number;
+    last_active_minutes_ago: number;
+}
+
+/**
+ * Four browsers, which is what an account that actually uses this looks like:
+ * the machine being presented from, a phone, a second desktop, and one that has
+ * not checked in for months so the page's "stale device" notice has something
+ * to point at.
+ */
+export const DEMO_DEVICE_SPECS: DemoDeviceSpec[] = [
+    {
+        id: 'd1000000-0000-4000-8000-0000000e0001',
+        endpoint_hash: DEMO_CURRENT_ENDPOINT_HASH,
+        label: 'This browser',
+        platform: 'macos',
+        browser: 'Chrome',
+        created_days_ago: 41,
+        last_active_minutes_ago: 2,
+    },
+    {
+        id: 'd1000000-0000-4000-8000-0000000e0002',
+        endpoint_hash: 'a91f04c7be2d5108f36a7c40e5b91d22',
+        label: 'Pixel 9',
+        platform: 'android',
+        browser: 'Chrome',
+        created_days_ago: 27,
+        last_active_minutes_ago: 96,
+    },
+    {
+        id: 'd1000000-0000-4000-8000-0000000e0003',
+        endpoint_hash: '5c30ea8b14d7f962a0b3c8517e46d09f',
+        label: 'Ops workstation',
+        platform: 'linux',
+        browser: 'Firefox',
+        created_days_ago: 88,
+        last_active_minutes_ago: 640,
+    },
+    {
+        // Well past the staleness threshold, so the page shows the notice that
+        // says the browser has most likely dropped this subscription already.
+        id: 'd1000000-0000-4000-8000-0000000e0004',
+        endpoint_hash: 'ff62b7d0193ac4e58721036d9be4a5c1',
+        label: 'Old laptop',
+        platform: 'windows',
+        browser: 'Edge',
+        created_days_ago: 210,
+        last_active_minutes_ago: 148 * 24 * 60,
+    },
+];
+
+export interface DemoWebhookSpec {
+    id: string;
+    name: string;
+    url: string;
+    secret_hint: string;
+    enabled: boolean;
+    created_days_ago: number;
+    last_sent_hours_ago: number | null;
+    last_status: number | null;
+    last_error: string | null;
+    fail_count: number;
+}
+
+/**
+ * Three endpoints covering the three states the card can be in: delivering,
+ * failing, and paused. A demo where everything is green never shows what the
+ * health chip or the error line are for.
+ */
+export const DEMO_WEBHOOK_SPECS: DemoWebhookSpec[] = [
+    {
+        id: 'e1000000-0000-4000-8000-0000000d0001',
+        name: 'Ops Slack relay',
+        url: 'https://hooks.example.com/services/T024/B071/xQ2f',
+        secret_hint: 'k4Rz',
+        enabled: true,
+        created_days_ago: 54,
+        last_sent_hours_ago: 3,
+        last_status: 200,
+        last_error: null,
+        fail_count: 0,
+    },
+    {
+        id: 'e1000000-0000-4000-8000-0000000d0002',
+        name: 'PagerDuty intake',
+        url: 'https://events.example.net/v2/enqueue',
+        secret_hint: '9tLm',
+        enabled: true,
+        created_days_ago: 31,
+        last_sent_hours_ago: 9,
+        last_status: 502,
+        last_error: 'the endpoint answered 502',
+        fail_count: 4,
+    },
+    {
+        id: 'e1000000-0000-4000-8000-0000000d0003',
+        name: 'Staging receiver',
+        url: 'https://staging.example.org/phirepass/webhook',
+        secret_hint: 'wB3q',
+        enabled: false,
+        created_days_ago: 12,
+        last_sent_hours_ago: null,
+        last_status: null,
+        last_error: null,
+        fail_count: 0,
     },
 ];

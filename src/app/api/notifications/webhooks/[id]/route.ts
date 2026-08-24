@@ -11,18 +11,6 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-/*
- * Still dev-gated, unlike the rest of /api/notifications.
- *
- * The push routes shipped when the page did; these did not, because the channel
- * they serve is switched off in the UI (`WEBHOOKS_ENABLED` in
- * NotificationsPage.tsx). Nothing dispatches on events automatically yet, so an
- * endpoint registered today would only ever receive what someone pressed "test"
- * for — and an API that is unreachable from the product should not be reachable
- * from the internet either. The gate comes off in the same change that flips
- * that constant.
- */
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_LABEL = 120;
 

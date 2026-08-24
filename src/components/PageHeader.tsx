@@ -4,7 +4,12 @@ import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
     title: string;
-    description?: string;
+    /**
+     * ReactNode rather than string so a page whose subtitle changes with some
+     * state can hand over a block that reserves the taller wording's height,
+     * instead of shifting the whole page when the wording swaps.
+     */
+    description?: ReactNode;
     /** Rendered to the right of the title on desktop, below it on mobile. */
     actions?: ReactNode;
     /** Small pill shown next to the title, e.g. a "Dev preview" marker. */

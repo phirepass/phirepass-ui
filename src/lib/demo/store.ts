@@ -15,13 +15,18 @@ import type {
     MonitorKindSummary,
 } from '@/types/monitor';
 import type { NodeStats, TunnelNode } from '@/types/node';
+import type { NotificationPreferences, WebhookEndpoint } from '@/types/notification';
 import type { PatToken } from '@/types/pat-token';
+import { createDefaultPreferences } from '@/data/notificationDefaults';
 
 import {
+    DEMO_CURRENT_ENDPOINT_HASH,
+    DEMO_DEVICE_SPECS,
     DEMO_MONITOR_SPECS,
     DEMO_NODE_SPECS,
     DEMO_TOKEN_SPECS,
     DEMO_USER,
+    DEMO_WEBHOOK_SPECS,
     type DemoMonitorSpec,
     type DemoNodeSpec,
     type DemoServiceSpec,
@@ -151,6 +156,20 @@ interface DemoState {
     nodes: DemoNodeSpec[];
     monitors: DemoMonitorState[];
     tokens: PatToken[];
+    devices: DemoDevice[];
+    webhooks: WebhookEndpoint[];
+    preferences: NotificationPreferences;
+}
+
+/** `GET /api/notifications/devices` returns exactly this shape per row. */
+export interface DemoDevice {
+    id: string;
+    endpoint_hash: string;
+    label: string | null;
+    platform: string | null;
+    browser: string | null;
+    created_at: string;
+    last_active_at: string;
 }
 
 /**
@@ -185,6 +204,32 @@ function initialState(): DemoState {
                 : new Date(now - token.last_used_hours_ago * HOUR_MS).toISOString(),
             status: token.expires_in_days !== null && token.expires_in_days < 0 ? 'expired' : 'active',
         })),
+        devices: DEMO_DEVICE_SPECS.map((device) => ({
+            id: device.id,
+            endpoint_hash: device.endpoint_hash,
+            label: device.label,
+            platform: device.platform,
+            browser: device.browser,
+            created_at: new Date(now - device.created_days_ago * DAY_MS).toISOString(),
+            last_active_at: new Date(now - device.last_active_minutes_ago * 60_000).toISOString(),
+        })),
+        webhooks: DEMO_WEBHOOK_SPECS.map((endpoint) => ({
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            secret_hint: endpoint.secret_hint,
+            enabled: endpoint.enabled,
+            created_at: new Date(now - endpoint.created_days_ago * DAY_MS).toISOString(),
+            last_sent_at: endpoint.last_sent_hours_ago === null
+                ? null
+                : new Date(now - endpoint.last_sent_hours_ago * HOUR_MS).toISOString(),
+            last_status: endpoint.last_status,
+            last_error: endpoint.last_error,
+            fail_count: endpoint.fail_count,
+        })),
+        // The catalogue's own defaults, so the switches start where a fresh
+        // account's would rather than in a state nobody could arrive at.
+        preferences: createDefaultPreferences(),
     };
 }
 
@@ -1162,4 +1207,232 @@ export function deleteDemoToken(tokenId: string): boolean {
 
     current.tokens.splice(index, 1);
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /api/notifications/devices`.
+ *
+ * `configured: true` unconditionally: the real flag reports whether the server
+ * holds VAPID keys, and a demo that says push is unconfigured would show the
+ * page's error strip instead of the thing being demonstrated.
+ */
+export function demoDevices(): { configured: boolean; devices: DemoDevice[] } {
+    return { configured: true, devices: state().devices.map((device) => ({ ...device })) };
+}
+
+/**
+ * `POST /api/notifications/devices` — enabling notifications in this browser.
+ *
+ * No real subscription exists behind it (see `DEMO_CURRENT_ENDPOINT_HASH`), so
+ * this restores the "this browser" row rather than registering anything. Turning
+ * notifications off and back on during a demo is a thing people click, and it
+ * has to end where it started.
+ */
+export function registerDemoDevice(label: string | null): DemoDevice {
+    const current = state();
+    const now = new Date().toISOString();
+
+    const existing = current.devices.find((device) => device.endpoint_hash === DEMO_CURRENT_ENDPOINT_HASH);
+    if (existing) {
+        existing.last_active_at = now;
+        if (label) existing.label = label;
+        return { ...existing };
+    }
+
+    const created: DemoDevice = {
+        id: crypto.randomUUID(),
+        endpoint_hash: DEMO_CURRENT_ENDPOINT_HASH,
+        label: label ?? 'This browser',
+        platform: 'macos',
+        browser: 'Chrome',
+        created_at: now,
+        last_active_at: now,
+    };
+
+    current.devices.unshift(created);
+    return { ...created };
+}
+
+export function renameDemoDevice(id: string, label: string): DemoDevice | null {
+    const device = state().devices.find((row) => row.id === id);
+    if (!device) return null;
+
+    device.label = label;
+    return { ...device };
+}
+
+export function deleteDemoDevice(id: string): boolean {
+    const current = state();
+    const index = current.devices.findIndex((device) => device.id === id);
+    if (index === -1) return false;
+
+    current.devices.splice(index, 1);
+    return true;
+}
+
+export function demoPreferences(): NotificationPreferences {
+    return { ...state().preferences };
+}
+
+/**
+ * `PUT /api/notifications/preferences`.
+ *
+ * The real route resolves the submitted set against the event catalogue and
+ * answers with what it stored, which is why the page takes the response rather
+ * than assuming its own. Same here: unknown keys are dropped instead of kept.
+ */
+export function saveDemoPreferences(next: Record<string, unknown>): NotificationPreferences {
+    const current = state();
+    const resolved = { ...current.preferences };
+
+    for (const [event, enabled] of Object.entries(next)) {
+        if (event in resolved && typeof enabled === 'boolean') {
+            resolved[event as keyof NotificationPreferences] = enabled;
+        }
+    }
+
+    current.preferences = resolved;
+    return { ...resolved };
+}
+
+export function demoWebhooks(): WebhookEndpoint[] {
+    return state().webhooks.map((endpoint) => ({ ...endpoint }));
+}
+
+export function demoWebhookExists(url: string): boolean {
+    return state().webhooks.some((endpoint) => endpoint.url === url);
+}
+
+/** Four characters of something that reads like the tail of a real secret. */
+function demoSecretHint(seed: string): string {
+    const alphabet = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 4; i++) {
+        out += alphabet[Math.floor(noise(`${seed}:hint:${i}`) * alphabet.length)];
+    }
+    return out;
+}
+
+/**
+ * `POST /api/notifications/webhooks`. Returns the endpoint and the full secret,
+ * which — as on the real route — is the only time it exists outside the row.
+ */
+export function createDemoWebhook(url: string, name: string): { webhook: WebhookEndpoint; secret: string } {
+    const now = Date.now();
+    const secret = `demo_${demoSecretHint(`${url}:${now}`)}${demoSecretHint(`${name}:${now}`)}${demoSecretHint(`${now}`)}`;
+
+    const created: WebhookEndpoint = {
+        id: crypto.randomUUID(),
+        name,
+        url,
+        secret_hint: secret.slice(-4),
+        enabled: true,
+        created_at: new Date(now).toISOString(),
+        last_sent_at: null,
+        last_status: null,
+        last_error: null,
+        fail_count: 0,
+    };
+
+    state().webhooks.unshift(created);
+    return { webhook: created, secret };
+}
+
+export interface DemoWebhookPatch {
+    name?: string;
+    url?: string;
+    enabled?: boolean;
+    rotate?: boolean;
+}
+
+export function updateDemoWebhook(
+    id: string,
+    patch: DemoWebhookPatch,
+): { webhook: WebhookEndpoint; secret?: string } | 'not-found' | 'duplicate' {
+    const current = state();
+    const endpoint = current.webhooks.find((row) => row.id === id);
+    if (!endpoint) return 'not-found';
+
+    if (patch.url && current.webhooks.some((row) => row.id !== id && row.url === patch.url)) {
+        return 'duplicate';
+    }
+
+    if (patch.name !== undefined) endpoint.name = patch.name;
+    if (patch.url !== undefined) endpoint.url = patch.url;
+    if (patch.enabled !== undefined) endpoint.enabled = patch.enabled;
+
+    if (!patch.rotate) return { webhook: { ...endpoint } };
+
+    const secret = `demo_${demoSecretHint(`${id}:${Date.now()}`)}${demoSecretHint(`rotate:${id}`)}${demoSecretHint(id)}`;
+    endpoint.secret_hint = secret.slice(-4);
+
+    return { webhook: { ...endpoint }, secret };
+}
+
+export function deleteDemoWebhook(id: string): boolean {
+    const current = state();
+    const index = current.webhooks.findIndex((endpoint) => endpoint.id === id);
+    if (index === -1) return false;
+
+    current.webhooks.splice(index, 1);
+    return true;
+}
+
+/**
+ * `POST /api/notifications/webhooks/{id}/test`.
+ *
+ * The one place the demo has to choose what "happened", and it answers with what
+ * the row already claims: an endpoint whose last delivery failed fails again, a
+ * healthy one succeeds. A test that always returns 200 would clear the failing
+ * card mid-demo and take the error state off the screen with it.
+ */
+export function testDemoWebhook(id: string): { status: number | null; error: string | null; ok: boolean } | null {
+    const endpoint = state().webhooks.find((row) => row.id === id);
+    if (!endpoint) return null;
+
+    const failing = endpoint.last_status !== null && (endpoint.last_status < 200 || endpoint.last_status >= 300);
+
+    endpoint.last_sent_at = new Date().toISOString();
+    endpoint.last_status = failing ? endpoint.last_status : 200;
+    endpoint.last_error = failing ? endpoint.last_error : null;
+    endpoint.fail_count = failing ? endpoint.fail_count + 1 : 0;
+
+    return { status: endpoint.last_status, error: endpoint.last_error, ok: !failing };
+}
+
+/**
+ * `POST /api/notifications/test` — the account-wide test.
+ *
+ * Push reports one delivery, to the browser on screen, because the page animates
+ * its preview off this count. Webhooks report per enabled endpoint, split the
+ * way the real route splits them: a paused endpoint is skipped, not failed.
+ */
+export function demoTestDelivery(channel: 'all' | 'web.push' | 'webhook'): {
+    push: { sent: number; pruned: number };
+    webhooks: { sent: number; failed: number; skipped: number };
+} {
+    const current = state();
+
+    const wantsPush = channel === 'all' || channel === 'web.push';
+    const wantsWebhooks = channel === 'all' || channel === 'webhook';
+
+    const hasCurrent = current.devices.some(
+        (device) => device.endpoint_hash === DEMO_CURRENT_ENDPOINT_HASH,
+    );
+
+    const enabled = current.webhooks.filter((endpoint) => endpoint.enabled);
+    const failed = enabled.filter(
+        (endpoint) => endpoint.last_status !== null && (endpoint.last_status < 200 || endpoint.last_status >= 300),
+    ).length;
+
+    return {
+        push: { sent: wantsPush && hasCurrent ? 1 : 0, pruned: 0 },
+        webhooks: wantsWebhooks
+            ? { sent: enabled.length - failed, failed, skipped: current.webhooks.length - enabled.length }
+            : { sent: 0, failed: 0, skipped: 0 },
+    };
 }

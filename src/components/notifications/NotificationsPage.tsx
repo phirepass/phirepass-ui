@@ -30,7 +30,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDemoMode } from '@/components/DemoModeProvider';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
+import { DEMO_CURRENT_ENDPOINT_HASH } from '@/lib/demo/fixtures';
 import { cn } from '@/lib/utils';
 import {
     currentSubscription,
@@ -103,6 +105,19 @@ export default function NotificationsPage() {
     const { config } = useRuntimeConfig();
     const vapidPublicKey = config.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
+    /**
+     * Demo mode takes the browser out of the loop entirely.
+     *
+     * Everything else on this page is a fetch, which `DemoModeProvider` already
+     * answers from the fixture. Push is the exception: `subscribe()`,
+     * `getSubscription()` and `unsubscribe()` talk to the browser and to a real
+     * push service, and none of that can be intercepted. Left alone, opening
+     * this page in a demo would raise a permission prompt on stage and leave a
+     * real registration on a borrowed laptop — so while the demo is on, the
+     * three calls below are skipped and the fixture's own device stands in.
+     */
+    const demo = useDemoMode();
+
     const [loading, setLoading] = useState(true);
     /** Which channel's destinations are on screen. */
     const [channel, setChannel] = useState<NotificationChannel>('web.push');
@@ -148,12 +163,14 @@ export default function NotificationsPage() {
         }
 
         const payload = await response.json() as { configured?: boolean; devices?: DeviceResponse[] };
-        const subscription = await currentSubscription();
-        const currentHash = subscription ? await hashEndpoint(subscription.endpoint) : null;
+        const subscription = demo ? null : await currentSubscription();
+        const currentHash = demo
+            ? DEMO_CURRENT_ENDPOINT_HASH
+            : subscription ? await hashEndpoint(subscription.endpoint) : null;
 
         setConfigured(payload.configured !== false);
         setDevices((payload.devices ?? []).map((row) => toDevice(row, currentHash)));
-    }, []);
+    }, [demo]);
 
     const loadPreferences = useCallback(async (): Promise<NotificationPreferences | null> => {
         const response = await fetch('/api/notifications/preferences', { credentials: 'include' });
@@ -203,8 +220,10 @@ export default function NotificationsPage() {
         let disposed = false;
 
         const load = async () => {
-            setSupport(pushSupport());
-            setPermission(permissionState());
+            // A presenter's browser may have push blocked, or none at all;
+            // neither is a fact about the fleet being shown.
+            setSupport(demo ? 'ok' : pushSupport());
+            setPermission(demo ? 'granted' : permissionState());
 
             try {
                 // Both, together: a half-loaded page that shows real devices
@@ -223,7 +242,7 @@ export default function NotificationsPage() {
 
         void load();
         return () => { disposed = true; };
-    }, [refresh, loadPreferences]);
+    }, [refresh, loadPreferences, demo]);
 
     /** This browser is subscribed — the only sense in which delivery is "on" here. */
     const enabled = useMemo(() => devices.some((device) => device.is_current), [devices]);
@@ -342,10 +361,10 @@ export default function NotificationsPage() {
     const enable = async () => {
         setBusy(true);
         try {
-            const subscription = await subscribe(vapidPublicKey);
-            setPermission(permissionState());
+            const subscription = demo ? null : await subscribe(vapidPublicKey);
+            if (!demo) setPermission(permissionState());
 
-            if (!subscription) {
+            if (!demo && !subscription) {
                 toast.error('Notifications were not allowed', {
                     description: 'The browser will not ask again — allow them in its site settings.',
                 });
@@ -355,16 +374,18 @@ export default function NotificationsPage() {
             // `toJSON()` rather than reading `.keys`: the keys live on the
             // subscription as an opaque getter, and toJSON is the documented way
             // to get the base64url pair the server needs.
-            const json = subscription.toJSON();
             const identity = detectCurrentDevice();
+            // No subscription in a demo, so no endpoint and no keys to send —
+            // the fixture restores its own row from the label alone.
+            const json = subscription?.toJSON();
 
             const response = await fetch('/api/notifications/devices', {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    endpoint: subscription.endpoint,
-                    keys: json.keys,
+                    endpoint: subscription?.endpoint,
+                    keys: json?.keys,
                     label: identity.name,
                     platform: identity.platform,
                     browser: identity.browser,
@@ -374,7 +395,7 @@ export default function NotificationsPage() {
             if (!response.ok) {
                 // The browser now holds a subscription the server does not know
                 // about; dropping it keeps the two in step.
-                await unsubscribeCurrent();
+                if (!demo) await unsubscribeCurrent();
                 throw new Error(`register ${response.status}`);
             }
 
@@ -403,7 +424,7 @@ export default function NotificationsPage() {
                 throw new Error(`revoke ${response.status}`);
             }
 
-            await unsubscribeCurrent();
+            if (!demo) await unsubscribeCurrent();
             await refresh();
             toast('Notifications turned off for this browser', {
                 description: 'Your other registered devices still receive them.',
@@ -432,7 +453,7 @@ export default function NotificationsPage() {
 
             // Only this browser's own subscription can be dropped from here;
             // every other device drops its own next time it is used.
-            if (target.is_current) {
+            if (target.is_current && !demo) {
                 await unsubscribeCurrent();
             }
 

@@ -2,13 +2,19 @@ import { parseMonitor, type ParsedMonitor } from '@/app/lib/monitor-input';
 import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import type { MonitorKind, MonitorStatus } from '@/types/monitor';
 
+import { WebhookUrlError, defaultLabel, parseUrl } from '@/app/lib/webhook-url';
+
 import {
     checkDemoMonitorNow,
     createDemoMonitor,
     createDemoToken,
+    createDemoWebhook,
     deleteDemoMonitor,
+    deleteDemoDevice,
     deleteDemoNode,
     deleteDemoToken,
+    deleteDemoWebhook,
+    demoDevices,
     demoMonitorDetail,
     demoMonitorOverview,
     demoMonitorPage,
@@ -16,10 +22,19 @@ import {
     demoNodeExists,
     demoNodeServices,
     demoNodes,
+    demoPreferences,
+    demoTestDelivery,
     demoTokens,
     demoUser,
+    demoWebhookExists,
+    demoWebhooks,
+    registerDemoDevice,
+    renameDemoDevice,
     renameDemoNode,
+    saveDemoPreferences,
+    testDemoWebhook,
     updateDemoMonitor,
+    updateDemoWebhook,
 } from './store';
 
 /**
@@ -73,6 +88,123 @@ interface DemoRequest {
     params: URLSearchParams;
     /** Parsed JSON body, or `{}` when there was none. Never throws. */
     body: () => Promise<Record<string, unknown>>;
+}
+
+/** Matches `MAX_LABEL` on the device and webhook routes. */
+const DEMO_MAX_LABEL = 120;
+
+async function handleDevices(request: DemoRequest): Promise<Response | null> {
+    if (request.method === 'GET') return json(demoDevices());
+
+    if (request.method === 'POST') {
+        const payload = await request.body();
+        const label = typeof payload.label === 'string' && payload.label.trim()
+            ? payload.label.trim().slice(0, DEMO_MAX_LABEL)
+            : null;
+
+        // The real route requires an endpoint and keys; the demo has neither and
+        // must not create them, so it takes only the label and restores the row
+        // that stands for this browser.
+        return json({ device: registerDemoDevice(label) }, 201);
+    }
+
+    return null;
+}
+
+async function handleDevice(request: DemoRequest, id: string): Promise<Response | null> {
+    if (request.method === 'PATCH') {
+        const payload = await request.body();
+        const label = typeof payload.label === 'string' ? payload.label.trim() : '';
+
+        if (!label) return json({ error: 'A name is required' }, 400);
+
+        const device = renameDemoDevice(id, label.slice(0, DEMO_MAX_LABEL));
+        // `{ id, label }` — the real route's answer, not the whole row.
+        return device
+            ? json({ id: device.id, label: device.label })
+            : json({ error: 'Not found' }, 404);
+    }
+
+    if (request.method === 'DELETE') {
+        return deleteDemoDevice(id) ? json({ ok: true }) : json({ error: 'Not found' }, 404);
+    }
+
+    return null;
+}
+
+async function handleWebhooks(request: DemoRequest): Promise<Response | null> {
+    if (request.method === 'GET') return json({ webhooks: demoWebhooks() });
+
+    if (request.method === 'POST') {
+        const payload = await request.body();
+
+        let url: string;
+        try {
+            url = parseUrl(payload.url);
+        } catch (e) {
+            if (e instanceof WebhookUrlError) return json({ error: e.message }, 400);
+            throw e;
+        }
+
+        if (demoWebhookExists(url)) {
+            return json({ error: 'That URL is already registered' }, 409);
+        }
+
+        const name = typeof payload.label === 'string' && payload.label.trim()
+            ? payload.label.trim().slice(0, DEMO_MAX_LABEL)
+            : defaultLabel(url);
+
+        const { webhook, secret } = createDemoWebhook(url, name);
+        return json({ webhook, secret, secret_hint: webhook.secret_hint }, 201);
+    }
+
+    return null;
+}
+
+async function handleWebhook(request: DemoRequest, id: string): Promise<Response | null> {
+    if (request.method === 'DELETE') {
+        return deleteDemoWebhook(id) ? json({ ok: true }) : json({ error: 'Not found' }, 404);
+    }
+
+    if (request.method !== 'PATCH') return null;
+
+    const payload = await request.body();
+    const patch: Parameters<typeof updateDemoWebhook>[1] = {};
+
+    if (payload.label !== undefined) {
+        const label = typeof payload.label === 'string' ? payload.label.trim() : '';
+        if (!label) return json({ error: 'A name is required' }, 400);
+        patch.name = label.slice(0, DEMO_MAX_LABEL);
+    }
+
+    if (payload.url !== undefined) {
+        try {
+            patch.url = parseUrl(payload.url);
+        } catch (e) {
+            if (e instanceof WebhookUrlError) return json({ error: e.message }, 400);
+            throw e;
+        }
+    }
+
+    if (payload.enabled !== undefined) {
+        if (typeof payload.enabled !== 'boolean') {
+            return json({ error: 'enabled must be a boolean' }, 400);
+        }
+        patch.enabled = payload.enabled;
+    }
+
+    if (payload.rotate_secret === true) patch.rotate = true;
+
+    if (Object.keys(patch).length === 0) return json({ error: 'Nothing to update' }, 400);
+
+    const outcome = updateDemoWebhook(id, patch);
+    if (outcome === 'not-found') return json({ error: 'Not found' }, 404);
+    if (outcome === 'duplicate') return json({ error: 'That URL is already registered' }, 409);
+
+    return json({
+        webhook: outcome.webhook,
+        ...(outcome.secret ? { secret: outcome.secret, secret_hint: outcome.webhook.secret_hint } : {}),
+    });
 }
 
 async function handleNodes(request: DemoRequest): Promise<Response | null> {
@@ -268,6 +400,51 @@ export async function demoApiResponse(
         return deleteDemoToken(tokenId)
             ? json({ success: true })
             : json({ error: 'Token not found' }, 404);
+    }
+
+    if (path === '/api/notifications/devices') return handleDevices(request);
+
+    const deviceMatch = /^\/api\/notifications\/devices\/([^/]+)$/.exec(path);
+    if (deviceMatch) return handleDevice(request, decodeURIComponent(deviceMatch[1]));
+
+    if (path === '/api/notifications/preferences') {
+        if (request.method === 'GET') return json({ preferences: demoPreferences() });
+
+        if (request.method === 'PUT') {
+            const payload = await request.body();
+            const next = payload.preferences;
+
+            if (typeof next !== 'object' || next === null || Array.isArray(next)) {
+                return json({ error: 'preferences must be an object' }, 400);
+            }
+
+            return json({ preferences: saveDemoPreferences(next as Record<string, unknown>) });
+        }
+
+        return null;
+    }
+
+    if (path === '/api/notifications/webhooks') return handleWebhooks(request);
+
+    // `{id}/test` before `{id}`, so "test" is never read as an endpoint id.
+    const webhookTestMatch = /^\/api\/notifications\/webhooks\/([^/]+)\/test$/.exec(path);
+    if (webhookTestMatch) {
+        if (request.method !== 'POST') return null;
+
+        const outcome = testDemoWebhook(decodeURIComponent(webhookTestMatch[1]));
+        return outcome ? json(outcome) : json({ error: 'Not found' }, 404);
+    }
+
+    const webhookMatch = /^\/api\/notifications\/webhooks\/([^/]+)$/.exec(path);
+    if (webhookMatch) return handleWebhook(request, decodeURIComponent(webhookMatch[1]));
+
+    if (path === '/api/notifications/test') {
+        if (request.method !== 'POST') return null;
+
+        const channel = (await request.body()).channel;
+        return json(demoTestDelivery(
+            channel === 'web.push' || channel === 'webhook' ? channel : 'all',
+        ));
     }
 
     if (path === '/api/auth/websocket-token') {
