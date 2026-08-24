@@ -38,6 +38,26 @@ const PREVIEW_COPY: Record<NotificationEventId, PreviewCopy> = {
         title: 'Node back online',
         body: 'synology reconnected to the relay after 4m 12s.',
     },
+    // Worded as the courier words them (phirepass-rs/courier/src/render.rs), so
+    // the banner rehearsed here is the banner that arrives.
+    'monitor.down': {
+        title: 'Monitor down',
+        body: 'checkout-api failed its check: connection refused.',
+    },
+    // The `http` shape of a degraded verdict; an `ssl` or `domain` one reads
+    // "Certificate expiring" / "example.com: certificate expires in 5 day(s)".
+    'monitor.degraded': {
+        title: 'Monitor slow',
+        body: 'checkout-api answered in 8.2s, over its 1.5s threshold.',
+    },
+    'monitor.up': {
+        title: 'Monitor recovered',
+        body: 'checkout-api is passing its checks again.',
+    },
+    'monitor.success': {
+        title: 'Check passed',
+        body: 'checkout-api answered 200 in 0.4s.',
+    },
 };
 
 /**

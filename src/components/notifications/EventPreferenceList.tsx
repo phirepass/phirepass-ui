@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Server, type LucideIcon } from 'lucide-react';
+import { Activity, Server, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import {
     NOTIFICATION_CATEGORY_DESCRIPTIONS,
     NOTIFICATION_CATEGORY_LABELS,
+    NOTIFICATION_CATEGORY_ORDER,
     NOTIFICATION_EVENTS,
     type NotificationCategory,
     type NotificationEventDefinition,
@@ -21,10 +22,10 @@ import { CATEGORY_STYLES, EVENT_STYLES } from './notification-display';
 
 const CATEGORY_ICONS: Record<NotificationCategory, LucideIcon> = {
     nodes: Server,
+    monitors: Activity,
 };
 
-/** Category order, matching the order the dashboard's own nav puts them in. */
-const CATEGORY_ORDER: NotificationCategory[] = ['nodes'];
+
 
 interface EventPreferenceListProps {
     preferences: NotificationPreferences;
@@ -42,7 +43,7 @@ export function EventPreferenceList({
     onToggleCategory,
 }: EventPreferenceListProps) {
     const grouped = useMemo(() => {
-        return CATEGORY_ORDER
+        return NOTIFICATION_CATEGORY_ORDER
             .map((category) => ({
                 category,
                 events: NOTIFICATION_EVENTS.filter((event) => event.category === category),
@@ -54,7 +55,12 @@ export function EventPreferenceList({
         <div className="space-y-4">
             {grouped.map(({ category, events }) => {
                 const enabledCount = events.filter((event) => preferences[event.id]).length;
-                const allOn = enabledCount === events.length;
+                // Measured over what the bulk button can actually turn on: it
+                // skips `noisy` events, so counting those would leave the button
+                // stuck on "Turn all on" after it had already done everything it
+                // is willing to do. The count beside it stays honest about all
+                // of them.
+                const bulkOn = events.every((event) => event.noisy || preferences[event.id]);
                 const style = CATEGORY_STYLES[category];
                 const Icon = CATEGORY_ICONS[category];
 
@@ -98,9 +104,9 @@ export function EventPreferenceList({
                                     variant="secondary"
                                     size="sm"
                                     disabled={disabled}
-                                    onClick={() => onToggleCategory(category, !allOn)}
+                                    onClick={() => onToggleCategory(category, !bulkOn)}
                                 >
-                                    {allOn ? 'Turn all off' : 'Turn all on'}
+                                    {bulkOn ? 'Turn all off' : 'Turn all on'}
                                 </Button>
                             </div>
                         </header>
@@ -141,7 +147,10 @@ function EventRow({ event, checked, disabled, onToggle }: EventRowProps) {
         <div className="flex items-center justify-between gap-4 px-5 py-4">
             <div className="flex min-w-0 items-start gap-3">
                 {/* Deadens when the event is off: an alert you will never get
-                    should not look like one you will. */}
+                    should not look like one you will. The well goes flat and the
+                    mark fades, but it keeps its hue — a group that ships off
+                    would otherwise open as a column of identical grey squares,
+                    which is where there is most to tell apart. */}
                 <span
                     aria-hidden
                     className={cn(
@@ -149,7 +158,7 @@ function EventRow({ event, checked, disabled, onToggle }: EventRowProps) {
                         'transition-colors duration-200 ease-mac',
                         checked
                             ? cn('border-hairline', style.well, style.tint)
-                            : 'border-hairline bg-white/[0.04] text-muted-foreground/60'
+                            : cn('border-hairline bg-white/[0.04]', style.dim)
                     )}
                 >
                     <EventIcon className="h-4 w-4" />
@@ -166,6 +175,14 @@ function EventRow({ event, checked, disabled, onToggle }: EventRowProps) {
                         {event.critical ? (
                             <span className="rounded-full border border-accent/40 bg-accent/12 px-2 py-0.5 text-[10px] font-medium text-accent">
                                 Recommended
+                            </span>
+                        ) : null}
+                        {/* Amber rather than grey: this is a warning about
+                            volume, and it is the one thing on the row somebody
+                            needs to read before flipping the switch. */}
+                        {event.noisy ? (
+                            <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
+                                Every check
                             </span>
                         ) : null}
                     </div>

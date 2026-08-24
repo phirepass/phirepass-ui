@@ -10,20 +10,22 @@
  *
  * Subscriptions, endpoints and preferences are all real —
  * `notification_subscriptions`, `notification_webhooks` and
- * `notification_preferences` in docs/notifications-schema.sql. What does not
- * exist is a *dispatcher*: nothing watches for these conditions and sends, so
- * the only thing that delivers today is the manual test in
- * `/api/notifications/test`.
+ * `notification_preferences` in docs/notifications-schema.sql — and so is the
+ * delivery path: producers in the Rust server post to `phirepass-courier`,
+ * which reads the preferences row this page writes, resolves the person into
+ * the destinations they registered, and sends. This dashboard owns the
+ * catalogue and the switches; nothing here does the sending, apart from the
+ * manual test in `/api/notifications/test`.
  *
- * The catalogue below is deliberately two events long. Agent connect and disconnect are the only
- * conditions the system can already report without building a detector first:
- * the server holds the agent's WebSocket, so it knows the moment one drops or
- * comes back, and the dashboard is already rendering that as `is_online` on
- * every node card. Everything else a notification could plausibly be about —
- * monitor transitions, certificate and domain expiry, disk and CPU thresholds,
- * new sign-ins, token lifecycle — needs something to watch for it and decide
- * when it has happened, and none of that exists. Listing those here would have
- * been a menu of switches wired to nothing.
+ * The catalogue holds only conditions something actually detects. Agent connect
+ * and disconnect are the server's — it holds the agent's WebSocket, so it knows
+ * the moment one drops or comes back. Monitor transitions are the uptime
+ * scheduler's: `write_probe_result` already compares each verdict against the
+ * last one that reached a verdict, which is what turns a run of failing checks
+ * into a single `monitor.down`. Certificate and domain expiry, disk and CPU
+ * thresholds, new sign-ins and token lifecycle are all absent for the same
+ * reason the monitor events used to be — nothing watches for them yet, and
+ * listing one here would be a switch wired to nothing.
  *
  * Adding one back is: an id in the union, an entry in `NOTIFICATION_EVENTS`,
  * and — if it belongs to a new group — a member of `NotificationCategory` plus
@@ -55,18 +57,38 @@ export const NOTIFICATION_CHANNEL_DESCRIPTIONS: Record<NotificationChannel, stri
     webhook: 'Reaches a system, at a URL. No permission involved.',
 };
 
-/** One group of related events. One for now; see the note above. */
-export type NotificationCategory = 'nodes';
+/** One group of related events. See the note above for what earns a place. */
+export type NotificationCategory = 'nodes' | 'monitors';
 
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
     nodes: 'Nodes',
+    monitors: 'Monitors',
 };
 
 export const NOTIFICATION_CATEGORY_DESCRIPTIONS: Record<NotificationCategory, string> = {
     nodes: 'Agents disconnecting from server, and coming back to it.',
+    monitors: 'Uptime checks failing, degrading, and coming right again.',
 };
 
-export type NotificationEventId = 'node.offline' | 'node.online';
+/**
+ * Reading order for the grouped list, matching the dashboard's own nav.
+ *
+ * Lives here rather than beside the component that renders it because it is the
+ * one part of the catalogue TypeScript cannot check: `NotificationCategory` is
+ * exhaustive in every `Record` above, but this is a plain array, so a category
+ * added and not listed here renders nowhere at all — its events silently
+ * disappear from the settings page while every type still checks. The test file
+ * beside this one is what closes that.
+ */
+export const NOTIFICATION_CATEGORY_ORDER: NotificationCategory[] = ['nodes', 'monitors'];
+
+export type NotificationEventId =
+    | 'node.offline'
+    | 'node.online'
+    | 'monitor.down'
+    | 'monitor.degraded'
+    | 'monitor.up'
+    | 'monitor.success';
 
 export interface NotificationEventDefinition {
     id: NotificationEventId;
@@ -82,9 +104,22 @@ export interface NotificationEventDefinition {
     * confirmed rather than silent.
     */
     critical?: boolean;
+    /**
+    * Marks an event that fires on every occurrence rather than on a change.
+    *
+    * The rest of the catalogue is edge-triggered: a run of failing checks is
+    * one `monitor.down`, and nothing else arrives until the state changes back.
+    * A noisy event has no such ceiling — its volume is one per check per
+    * monitor, forever — so it is labelled in the list rather than left to be
+    * discovered by a phone buzzing every fifteen minutes.
+    */
+    noisy?: boolean;
 }
 
-/** Ordered for reading: the failure first, then the recovery. */
+/**
+ * Ordered for reading: within each group the failure comes first, then the
+ * recovery, then anything that fires regardless of either.
+ */
 export const NOTIFICATION_EVENTS: NotificationEventDefinition[] = [
     {
         id: 'node.offline',
@@ -100,6 +135,40 @@ export const NOTIFICATION_EVENTS: NotificationEventDefinition[] = [
         label: 'Node comes back online',
         description: 'The agent reconnects after a restart or an outage.',
         defaultEnabled: true,
+    },
+    {
+        id: 'monitor.down',
+        category: 'monitors',
+        label: 'Monitor goes down',
+        description: 'A check fails — the wrong status, a missing keyword, or no answer at all.',
+        defaultEnabled: false,
+        critical: true,
+    },
+    {
+        id: 'monitor.degraded',
+        category: 'monitors',
+        label: 'Monitor degrades',
+        // Deliberately not "slows down". `degraded` is one status carrying three
+        // findings — a slow HTTP response, a certificate inside its expiry
+        // window, a registration inside its — and naming it after the first left
+        // the other two describing themselves as a latency problem.
+        description: 'A check still passes, but not cleanly — a slow response, or a certificate or domain close to expiry.',
+        defaultEnabled: false,
+    },
+    {
+        id: 'monitor.up',
+        category: 'monitors',
+        label: 'Monitor recovers',
+        description: 'A check passes cleanly again after failing or running slow.',
+        defaultEnabled: false,
+    },
+    {
+        id: 'monitor.success',
+        category: 'monitors',
+        label: 'Every successful check',
+        description: 'Every check that passes, not only the ones that change something — how you confirm checks are actually running.',
+        defaultEnabled: false,
+        noisy: true,
     },
 ];
 

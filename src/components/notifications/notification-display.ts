@@ -1,8 +1,12 @@
 import {
+    CircleAlert,
+    CircleCheck,
+    CircleDot,
     Laptop,
     Monitor,
     Smartphone,
     Terminal,
+    TriangleAlert,
     Webhook,
     Wifi,
     WifiOff,
@@ -79,6 +83,9 @@ export const DEVICE_PLATFORM_STYLES: Record<
  *  class names assembled at runtime. */
 export const CATEGORY_STYLES: Record<NotificationCategory, { icon: string; well: string }> = {
     nodes: { icon: 'text-accent', well: 'bg-accent/10' },
+    // The hue the monitor pages already use for an HTTP check, so the group
+    // header is recognisably about the same feature.
+    monitors: { icon: 'text-info', well: 'bg-info/10' },
 };
 
 /**
@@ -89,13 +96,33 @@ export const CATEGORY_STYLES: Record<NotificationCategory, { icon: string; well:
  * node cards and monitor cards already use for online and offline. It means a
  * row can be read before the label is, and it is what keeps the preference list
  * from being a column of identical grey switches.
+ *
+ * `dim` is that same hue for a switched-off row. An off event used to render its
+ * mark in flat grey, which was fine while the one category shipped on and a grey
+ * row was the exception — but the monitor events ship off, so the whole group
+ * opened as a column of identical grey squares and the colour vocabulary bought
+ * nothing exactly where there was most to tell apart. Faded keeps the row
+ * legible as *off* while the mark still says which event it is.
  */
 export const EVENT_STYLES: Record<
     NotificationEventId,
-    { icon: LucideIcon; tint: string; well: string }
+    { icon: LucideIcon; tint: string; dim: string; well: string }
 > = {
-    'node.offline': { icon: WifiOff, tint: 'text-destructive', well: 'bg-destructive/12' },
-    'node.online': { icon: Wifi, tint: 'text-success', well: 'bg-success/12' },
+    'node.offline': { icon: WifiOff, tint: 'text-destructive', dim: 'text-destructive/45', well: 'bg-destructive/12' },
+    'node.online': { icon: Wifi, tint: 'text-success', dim: 'text-success/45', well: 'bg-success/12' },
+    // Red, amber, green — the same three the monitor status dot uses, so a row
+    // here and a card on /dashboard/monitors agree on what each state looks
+    // like. `degraded` is the reason this scale has three colours rather than
+    // two: slow is neither broken nor fine.
+    'monitor.down': { icon: TriangleAlert, tint: 'text-destructive', dim: 'text-destructive/45', well: 'bg-destructive/12' },
+    // Not a speedometer: `degraded` is a slow response *or* an expiry inside
+    // its warning window, and a gauge would name only the first.
+    'monitor.degraded': { icon: CircleAlert, tint: 'text-warning', dim: 'text-warning/45', well: 'bg-warning/12' },
+    'monitor.up': { icon: CircleCheck, tint: 'text-success', dim: 'text-success/45', well: 'bg-success/12' },
+    // Deliberately not green: this one is not a verdict about health, it is a
+    // heartbeat. Colouring it like a recovery would put two very different
+    // meanings behind the same mark.
+    'monitor.success': { icon: CircleDot, tint: 'text-info', dim: 'text-info/45', well: 'bg-info/12' },
 };
 
 export function describeDevice(device: RegisteredDevice): string {

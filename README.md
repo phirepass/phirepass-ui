@@ -128,18 +128,35 @@ node scripts/apply-notifications-schema.mjs --apply
 Preferences are stored as a jsonb object of *overrides*, so a new event ships
 with its default already applied to every account and needs no backfill.
 
-**Push ships; webhooks do not, yet.** The webhook tab is present and disabled
-(`WEBHOOKS_ENABLED` in `NotificationsPage.tsx`), and its API routes stay behind
-`devModeGate()` to match — an API unreachable from the product should not be
-reachable from the internet either. Both come off in one change.
+**This app owns the catalogue and the switches; it does not do the sending.**
+The two things worth notifying about are both knowable only in `phirepass-rs` —
+the server holds the agent's WebSocket, so it knows the instant one drops, and it
+runs the uptime scheduler, so it sees each check come back. Both post to
+`phirepass-courier`, which reads the `notification_preferences` row this page
+writes and delivers to the destinations registered here. `POST
+/api/notifications/test` remains, for proving the chain end to end on either
+channel without waiting for something to break.
 
-**Nothing dispatches automatically yet.** There is no detector: the component
-that knows the instant an agent drops is the Rust server holding its WebSocket,
-not this app. What exists today is the manual test — `POST /api/notifications/test`
-for the whole account, or one endpoint at a time — which proves the whole chain
-end to end on either channel. That is also why webhooks are still off: an
-endpoint registered today would only ever receive what someone pressed "test"
-for.
+The catalogue is `src/types/notification.ts`, and it is the authority: the Rust
+side keeps a copy of the event names and their defaults
+(`common/src/notifications.rs`), and nothing fails to compile if the two drift.
+
+| Event | Fires when | Default |
+|---|---|---|
+| `node.offline` / `node.online` | An agent's socket drops, or comes back | **On** |
+| `monitor.down` | A check fails where the last one that reached a verdict did not | Off |
+| `monitor.degraded` | A check passes, but not cleanly — slower than `degraded_ms` (`http`), or inside `expiry_warn_days` (`ssl`, `domain`) | Off |
+| `monitor.up` | A check passes cleanly after failing or running slow | Off |
+| `monitor.success` | **Every** check that passes — evidence checks are running | Off |
+
+The first four are edge-triggered: a monitor that has been down all night sends
+one `monitor.down`, not one per interval. `monitor.success` is the exception and
+the reason it exists — an edge that does not repeat cannot tell "all is well"
+apart from "the scheduler stopped", so this one fires on every passing check and
+is labelled *Every check* in the settings list. The monitor events ship off
+because a fleet has as many monitors as somebody cared to create, on thresholds
+nobody has tuned yet, and a first wave of unasked-for alerts is how the whole
+feature gets switched off at the channel.
 
 ### Webhook destinations *are* validated
 

@@ -53,7 +53,6 @@ import {
     type NotificationEventDefinition,
     type NotificationPreferences,
     type RegisteredDevice,
-    type WebhookEndpoint,
 } from '@/types/notification';
 
 import { ChannelRow } from './ChannelRow';
@@ -61,6 +60,7 @@ import { DeviceCard } from './DeviceCard';
 import { EventPreferenceList } from './EventPreferenceList';
 import { NotificationPreview } from './NotificationPreview';
 import { WebhookChannel } from './WebhookChannel';
+import { useWebhookEndpoints } from './use-webhook-endpoints';
 import {
     DESTINATION_CARD_MIN_HEIGHT,
     detectCurrentDevice,
@@ -96,11 +96,18 @@ function toDevice(row: DeviceResponse, currentHash: string | null): RegisteredDe
     };
 }
 
-/** The count beside a tab label. Muted, so the label stays the thing read first. */
-function ChannelCount({ value }: { value: number }) {
+/**
+ * The count beside a tab label. Muted, so the label stays the thing read first.
+ *
+ * `null` renders an em dash rather than a zero: the two channels resolve on
+ * separate fetches, and a confident `0` over a list still in flight is the one
+ * wrong answer this badge can give — it reads as "you have none" rather than
+ * "not counted yet", which is exactly the thing somebody would act on.
+ */
+function ChannelCount({ value }: { value: number | null }) {
     return (
         <span className="rounded-full bg-white/[0.08] px-1.5 text-[11px] tabular-nums text-muted-foreground">
-            {value}
+            {value ?? '—'}
         </span>
     );
 }
@@ -127,12 +134,22 @@ export default function NotificationsPage() {
     const [channel, setChannel] = useState<NotificationChannel>('web.push');
     const [devices, setDevices] = useState<RegisteredDevice[]>([]);
     /**
-    * Mirrored up from `WebhookChannel`, which owns them. The page needs the
-    * count for its summary strip and for one question the channels cannot
-    * answer separately: whether the account has any destination at all, which
-    * is what decides if the event switches decide anything.
+    * Fetched here rather than inside the tab that renders them.
+    *
+    * Four things on this page read the list from outside `WebhookChannel` — the
+    * count on its own tab trigger, whether the account has any destination at
+    * all (which decides if the event switches decide anything), the Send test
+    * button, and the failing-endpoint alert. `WebhookChannel` lives in a
+    * `TabsContent`, which Radix does not mount until the tab is opened, so all
+    * four used to answer as if the account had no endpoints until somebody
+    * clicked Webhooks.
     */
-    const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
+    const {
+        endpoints: webhooks,
+        loading: webhooksLoading,
+        refresh: refreshWebhooks,
+        patch: patchWebhook,
+    } = useWebhookEndpoints();
     const [preferences, setPreferences] = useState<NotificationPreferences>(createDefaultPreferences);
 
     /** Resolved in an effect, because both depend on `window`. */
@@ -144,13 +161,13 @@ export default function NotificationsPage() {
     const [busy, setBusy] = useState(false);
     /** Bumped to remount the preview, which replays its arrival animation. */
     const [testPulse, setTestPulse] = useState(0);
-    /** Bumped to make the webhook section re-read its rows after a shared test. */
-    const [webhookPulse, setWebhookPulse] = useState(0);
     const [revokeTarget, setRevokeTarget] = useState<RegisteredDevice | null>(null);
     const [renameTarget, setRenameTarget] = useState<RegisteredDevice | null>(null);
     const [renameValue, setRenameValue] = useState('');
     const [renaming, setRenaming] = useState(false);
     const [criticalTarget, setCriticalTarget] = useState<NotificationEventDefinition | null>(null);
+    /** The one-per-check event awaiting confirmation to be turned *on*. */
+    const [noisyTarget, setNoisyTarget] = useState<NotificationEventDefinition | null>(null);
 
     /**
     * Re-reads the device list and works out which row is this browser.
@@ -271,11 +288,6 @@ export default function NotificationsPage() {
         () => webhooks.filter((endpoint) => endpoint.enabled).length,
         [webhooks],
     );
-
-    // Stable, because `WebhookChannel` calls it from inside the effect that
-    // fetches: an inline arrow here would be a new dependency on every render
-    // and would have that effect refetch in a loop.
-    const handleEndpoints = useCallback((rows: WebhookEndpoint[]) => setWebhooks(rows), []);
 
     const blocked = permission === 'denied';
     const unavailable = support !== 'ok' || !configured || !vapidPublicKey;
@@ -542,8 +554,10 @@ export default function NotificationsPage() {
             if (outcome.push.pruned > 0) {
                 await refresh();
             }
-            // The endpoints now carry a new status and a new timestamp.
-            setWebhookPulse((n) => n + 1);
+            // The endpoints now carry a new status and a new timestamp. A
+            // failure here is not worth a toast of its own — the test's own
+            // result is the message, and the rows refresh on the next change.
+            void refreshWebhooks().catch(() => {});
 
             const parts: string[] = [];
             if (devices.length > 0) {
@@ -580,10 +594,16 @@ export default function NotificationsPage() {
     };
 
     const toggleEvent = (event: NotificationEventDefinition, next: boolean) => {
-        // Turning a recommended event *off* is the only direction worth
-        // interrupting: it is the one that loses you an alert you would want.
+        // Two switches are worth interrupting, in opposite directions. Turning a
+        // recommended event *off* loses you an alert you would want; turning a
+        // one-per-check event *on* is the only switch here whose volume has no
+        // ceiling, and the difference is not obvious from a toggle.
         if (!next && event.critical) {
             setCriticalTarget(event);
+            return;
+        }
+        if (next && event.noisy) {
+            setNoisyTarget(event);
             return;
         }
         applyToggle(event, next);
@@ -598,9 +618,28 @@ export default function NotificationsPage() {
         });
     };
 
+    const confirmNoisyOn = () => {
+        if (!noisyTarget) return;
+        applyToggle(noisyTarget, true);
+        setNoisyTarget(null);
+        toast(`${noisyTarget.label} is on`, {
+            description: 'Expect one notification per monitor, every interval.',
+        });
+    };
+
+    /**
+    * Bulk enable never reaches a `noisy` event; bulk disable always does.
+    *
+    * The asymmetry is the point. A bulk button is a convenience for the ordinary
+    * case, and opting somebody into a notification per monitor per interval is
+    * not something a convenience should do behind one click — that switch is
+    * turned on deliberately or not at all. Turning things *off* has no such
+    * hazard, so it stays complete.
+    */
     const toggleCategory = (category: NotificationCategory, next: boolean) => {
         const updated = { ...preferences };
         for (const event of NOTIFICATION_EVENTS) {
+            if (next && event.noisy) continue;
             if (event.category === category) {
                 updated[event.id] = next;
             }
@@ -654,7 +693,7 @@ export default function NotificationsPage() {
                                     </TabsTrigger>
                                     <TabsTrigger value="webhook" className="gap-2">
                                         {NOTIFICATION_CHANNEL_LABELS.webhook}
-                                        <ChannelCount value={webhooks.length} />
+                                        <ChannelCount value={webhooksLoading ? null : webhooks.length} />
                                     </TabsTrigger>
                                 </TabsList>
                             </div>
@@ -745,8 +784,10 @@ export default function NotificationsPage() {
 
                             <TabsContent value="webhook" className="mt-3">
                                 <WebhookChannel
-                                    onEndpointsChange={handleEndpoints}
-                                    refreshSignal={webhookPulse}
+                                    endpoints={webhooks}
+                                    loading={webhooksLoading}
+                                    refresh={refreshWebhooks}
+                                    patch={patchWebhook}
                                 />
                             </TabsContent>
                         </Tabs>
@@ -862,6 +903,24 @@ export default function NotificationsPage() {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Keep it on</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmCriticalOff}>Turn off</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Turning on an event that fires on every check */}
+            <AlertDialog open={!!noisyTarget} onOpenChange={(open) => !open && setNoisyTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Turn on “{noisyTarget?.label}”?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {noisyTarget
+                                ? `${noisyTarget.description} Unlike every other event here, this one does not wait for anything to change — you will get one notification per monitor, every time it runs.`
+                                : ''}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Leave it off</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmNoisyOn}>Turn on</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

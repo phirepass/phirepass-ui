@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, Webhook } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,30 +26,28 @@ import { WebhookFormDialog, WebhookSecretDialog, type WebhookFormValues } from '
 
 interface WebhookChannelProps {
     /**
-    * Reports the current list upward. The page needs the count for its stat
-    * tiles and for deciding whether the account has *any* destination at all,
-    * which is the thing that makes the event switches meaningful — but nothing
-    * above needs to own the CRUD, so it stays here.
+    * The list, and the means to re-read it — owned by the page, because four
+    * things outside this component depend on it and this one is rendered inside
+    * a tab that does not mount until it is opened. See `useWebhookEndpoints`.
     */
-    onEndpointsChange: (endpoints: WebhookEndpoint[]) => void;
-    /** Bumped by the page after an account-wide test, to pull in new statuses. */
-    refreshSignal: number;
+    endpoints: WebhookEndpoint[];
+    loading: boolean;
+    refresh: () => Promise<void>;
+    patch: (id: string, changes: Partial<WebhookEndpoint>) => void;
 }
 
 /**
- * The webhook half of the notifications page: everything about endpoints, from
- * the fetch to the dialogs.
+ * The webhook half of the notifications page: every *action* on an endpoint,
+ * from the add dialog to the delete confirmation.
  *
  * Split out rather than folded into `NotificationsPage` because it shares
  * nothing with the push half except the events both channels carry — the push
  * side is about permission and subscriptions, this side is about URLs and what
  * they answered — and one component holding both would be two unrelated state
- * machines in one file.
+ * machines in one file. The list itself is the one thing that did *not* stay
+ * here, for the reason `useWebhookEndpoints` gives.
  */
-export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChannelProps) {
-    const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([]);
-    const [loading, setLoading] = useState(true);
-
+export function WebhookChannel({ endpoints, loading, refresh, patch }: WebhookChannelProps) {
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<WebhookEndpoint | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -59,36 +57,6 @@ export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChan
 
     const [deleteTarget, setDeleteTarget] = useState<WebhookEndpoint | null>(null);
     const [testingId, setTestingId] = useState<string | null>(null);
-
-    const refresh = useCallback(async () => {
-        const response = await fetch('/api/notifications/webhooks', { credentials: 'include' });
-        if (!response.ok) {
-            throw new Error(`webhooks ${response.status}`);
-        }
-
-        const payload = await response.json() as { webhooks?: WebhookEndpoint[] };
-        const rows = payload.webhooks ?? [];
-
-        setEndpoints(rows);
-        onEndpointsChange(rows);
-    }, [onEndpointsChange]);
-
-    useEffect(() => {
-        let disposed = false;
-
-        void (async () => {
-            try {
-                await refresh();
-            } catch (error) {
-                console.warn('[notifications] failed to load webhooks', error);
-                if (!disposed) toast.error('Could not load your webhook endpoints');
-            } finally {
-                if (!disposed) setLoading(false);
-            }
-        })();
-
-        return () => { disposed = true; };
-    }, [refresh, refreshSignal]);
 
     /** Both the create and the edit path — they differ only in method and URL. */
     const submit = async (values: WebhookFormValues) => {
@@ -148,9 +116,7 @@ export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChan
     * back on failure, matching how the event preferences behave.
     */
     const toggle = async (endpoint: WebhookEndpoint, next: boolean) => {
-        setEndpoints((current) => current.map((row) => (
-            row.id === endpoint.id ? { ...row, enabled: next } : row
-        )));
+        patch(endpoint.id, { enabled: next });
 
         try {
             const response = await fetch(`/api/notifications/webhooks/${endpoint.id}`, {
@@ -162,13 +128,23 @@ export function WebhookChannel({ onEndpointsChange, refreshSignal }: WebhookChan
             if (!response.ok) {
                 throw new Error(`toggle ${response.status}`);
             }
-            await refresh();
         } catch (error) {
             console.warn('[notifications] webhook toggle failed', error);
-            setEndpoints((current) => current.map((row) => (
-                row.id === endpoint.id ? { ...row, enabled: endpoint.enabled } : row
-            )));
+            patch(endpoint.id, { enabled: endpoint.enabled });
             toast.error(`Could not ${next ? 'resume' : 'pause'} ${endpoint.name}`);
+            return;
+        }
+
+        // Outside the try, and after the early return, because the write has
+        // already landed. A re-read that fails says nothing about whether the
+        // pause took — rolling the switch back on it would show the old state
+        // over a server that holds the new one, and tell the person their
+        // change failed when it did not. The optimistic value is already what
+        // the server has; the rest of the row catches up on the next refresh.
+        try {
+            await refresh();
+        } catch (error) {
+            console.warn('[notifications] webhook refresh after toggle failed', error);
         }
     };
 
