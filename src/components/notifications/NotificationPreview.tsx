@@ -41,24 +41,24 @@ const PREVIEW_COPY: Record<NotificationEventId, PreviewCopy> = {
     },
     // Worded as the courier words them (phirepass-rs/courier/src/render.rs), so
     // the banner rehearsed here is the banner that arrives.
-    // The `http` shape of each. The same events on an `ssl` or `domain` monitor
-    // are titled and worded for what those checks actually watch — "Certificate
-    // expiring", "example.com — registration expires in 5 days" — see
-    // phirepass-rs/courier/src/render.rs.
+    // The `http` shape of each. Every title names the kind of check it came
+    // from, so the same events on an `ssl` or `domain` monitor read "Certificate
+    // check failed", "Domain expiring", and are worded for what those checks
+    // actually watch — see phirepass-rs/courier/src/render.rs.
     'monitor.down': {
-        title: 'Monitor down',
+        title: 'HTTP check failed',
         body: 'checkout-api — https://shop.example.com/health\nunexpected status 503 (expected one of [200])',
     },
     'monitor.degraded': {
-        title: 'Monitor slow',
+        title: 'HTTP check slow',
         body: 'checkout-api — https://shop.example.com/health\nresponded in 8200ms (threshold 1500ms)',
     },
     'monitor.up': {
-        title: 'Monitor recovered',
+        title: 'HTTP check recovered',
         body: 'checkout-api answered 200 in 0.4s.',
     },
     'monitor.success': {
-        title: 'Check passed',
+        title: 'HTTP check passed',
         body: 'checkout-api answered 200 in 0.4s.',
     },
 };

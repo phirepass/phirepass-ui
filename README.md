@@ -155,12 +155,16 @@ status and a latency, an `ssl` check reports a certificate and its issuer, a
 `domain` check reports a registration and its registrar:
 
 ```
-Monitor down                  Certificate expiring          Domain down
+HTTP check failed             Certificate expiring          Domain check failed
 checkout-api — https://…      shop.example.com —            example.com —
 unexpected status 503         certificate expires in        registration expired
 (expected one of [200])       5 days                        3 days ago
                               Issued by Let's Encrypt R3    Registrar: Namecheap
 ```
+
+The title always names the kind, because it is the line every surface keeps — a
+lock screen truncates the body, a shade summary shows one line of it, a history
+row shows none — and one host can be watched by all three kinds at once.
 
 Severity also arrives as a **different icon**, since no browser honours a colour
 option on `showNotification`: red for an outage, amber for a degradation, the
