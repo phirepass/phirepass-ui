@@ -129,7 +129,8 @@ export interface TunnelNode {
     // since_last_heartbeat_secs: number; // unused by frontend
     stats: NodeStats;
     info?: NodeInfo | null;
-    services: Record<string, number | { visibility: 'public' | 'private'; count: number }>;
+    /** Count of configured services per kind, e.g. `{ SSH: 1, HTTP: 2 }`. */
+    services: Record<string, number>;
     /**
     * Uptime monitors that run their checks from this node. Optional so nodes
     * restored from an older local cache still typecheck; treat absent as

@@ -256,28 +256,15 @@ export function demoUser(): UserInfo {
 // Nodes
 // ---------------------------------------------------------------------------
 
-type ServiceSummary = number | { visibility: 'public' | 'private'; count: number };
-
 /**
- * The same collapse `/api/nodes` performs on an agent's service list: one entry
- * per kind, with HTTP additionally carrying whether any instance is public.
+ * The same collapse `/api/nodes` performs on an agent's service list: one count
+ * per kind.
  */
-function summarizeServices(services: DemoServiceSpec[]): Record<string, ServiceSummary> {
-    const summary: Record<string, ServiceSummary> = {};
+function summarizeServices(services: DemoServiceSpec[]): Record<string, number> {
+    const summary: Record<string, number> = {};
 
     for (const service of services) {
-        const existing = summary[service.kind];
-        if (service.kind === 'HTTP') {
-            const previous = typeof existing === 'object' ? existing : null;
-            summary.HTTP = {
-                count: (previous?.count ?? 0) + 1,
-                visibility: previous?.visibility === 'public' || service.visibility === 'public'
-                    ? 'public'
-                    : 'private',
-            };
-        } else {
-            summary[service.kind] = (typeof existing === 'number' ? existing : 0) + 1;
-        }
+        summary[service.kind] = (summary[service.kind] ?? 0) + 1;
     }
 
     return summary;

@@ -107,7 +107,6 @@ export interface DemoServiceSpec {
     host: string;
     port: number;
     username: string | null;
-    visibility: 'public' | 'private';
     scheme: 'http' | 'https' | null;
 }
 
@@ -173,9 +172,9 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/var/lib/docker', fs_type: 'ext4', total_bytes: 400 * GB, used: 0.61 },
         ],
         services: [
-            { id: 'svc-fra-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'deploy', visibility: 'private', scheme: null },
-            { id: 'svc-fra-sftp', name: 'files', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'deploy', visibility: 'private', scheme: null },
-            { id: 'svc-fra-http', name: 'Grafana', kind: 'HTTP', host: '127.0.0.1', port: 3000, username: null, visibility: 'private', scheme: 'http' },
+            { id: 'svc-fra-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'deploy', scheme: null },
+            { id: 'svc-fra-sftp', name: 'files', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'deploy', scheme: null },
+            { id: 'svc-fra-http', name: 'Grafana', kind: 'HTTP', host: '127.0.0.1', port: 3000, username: null, scheme: 'http' },
         ],
     },
     {
@@ -203,9 +202,9 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/srv/postgres', fs_type: 'xfs', total_bytes: 1000 * GB, used: 0.77 },
         ],
         services: [
-            { id: 'svc-ams-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'ops', visibility: 'private', scheme: null },
-            { id: 'svc-ams-http', name: 'Checkout API', kind: 'HTTP', host: '127.0.0.1', port: 8080, username: null, visibility: 'public', scheme: 'http' },
-            { id: 'svc-ams-sftp', name: 'exports', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'ops', visibility: 'private', scheme: null },
+            { id: 'svc-ams-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'ops', scheme: null },
+            { id: 'svc-ams-http', name: 'Checkout API', kind: 'HTTP', host: '127.0.0.1', port: 8080, username: null, scheme: 'http' },
+            { id: 'svc-ams-sftp', name: 'exports', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'ops', scheme: null },
         ],
     },
     {
@@ -232,8 +231,8 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/', fs_type: 'overlay', total_bytes: 60 * GB, used: 0.66 },
         ],
         services: [
-            { id: 'svc-nyc-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'root', visibility: 'private', scheme: null },
-            { id: 'svc-nyc-http', name: 'Kubelet metrics', kind: 'HTTP', host: '127.0.0.1', port: 10250, username: null, visibility: 'private', scheme: 'https' },
+            { id: 'svc-nyc-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'root', scheme: null },
+            { id: 'svc-nyc-http', name: 'Kubelet metrics', kind: 'HTTP', host: '127.0.0.1', port: 10250, username: null, scheme: 'https' },
         ],
     },
     {
@@ -260,8 +259,8 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/', fs_type: 'ext4', total_bytes: 32 * GB, used: 0.83 },
         ],
         services: [
-            { id: 'svc-pos-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'pi', visibility: 'private', scheme: null },
-            { id: 'svc-pos-http', name: 'Till console', kind: 'HTTP', host: '127.0.0.1', port: 9000, username: null, visibility: 'private', scheme: 'http' },
+            { id: 'svc-pos-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'pi', scheme: null },
+            { id: 'svc-pos-http', name: 'Till console', kind: 'HTTP', host: '127.0.0.1', port: 9000, username: null, scheme: 'http' },
         ],
     },
     {
@@ -289,9 +288,9 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/mnt/labels', fs_type: 'ext4', total_bytes: 128 * GB, used: 0.24 },
         ],
         services: [
-            { id: 'svc-osk-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'admin', visibility: 'private', scheme: null },
-            { id: 'svc-osk-sftp', name: 'label drop', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'admin', visibility: 'private', scheme: null },
-            { id: 'svc-osk-http', name: 'WMS console', kind: 'HTTP', host: '10.20.4.11', port: 8080, username: null, visibility: 'private', scheme: 'http' },
+            { id: 'svc-osk-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'admin', scheme: null },
+            { id: 'svc-osk-sftp', name: 'label drop', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'admin', scheme: null },
+            { id: 'svc-osk-http', name: 'WMS console', kind: 'HTTP', host: '10.20.4.11', port: 8080, username: null, scheme: 'http' },
         ],
     },
     {
@@ -319,8 +318,8 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/volume2', fs_type: 'btrfs', total_bytes: 4000 * GB, used: 0.92 },
         ],
         services: [
-            { id: 'svc-nas-sftp', name: 'shares', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', visibility: 'private', scheme: null },
-            { id: 'svc-nas-http', name: 'DSM', kind: 'HTTP', host: '127.0.0.1', port: 5001, username: null, visibility: 'private', scheme: 'https' },
+            { id: 'svc-nas-sftp', name: 'shares', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
+            { id: 'svc-nas-http', name: 'DSM', kind: 'HTTP', host: '127.0.0.1', port: 5001, username: null, scheme: 'https' },
         ],
     },
     {
@@ -347,8 +346,8 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: 'C:\\', fs_type: 'NTFS', total_bytes: 512 * GB, used: 0.58 },
         ],
         services: [
-            { id: 'svc-lab-rdp', name: 'Lab desktop', kind: 'RDP', host: '127.0.0.1', port: 3389, username: null, visibility: 'private', scheme: null },
-            { id: 'svc-lab-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'labadmin', visibility: 'private', scheme: null },
+            { id: 'svc-lab-rdp', name: 'Lab desktop', kind: 'RDP', host: '127.0.0.1', port: 3389, username: null, scheme: null },
+            { id: 'svc-lab-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'labadmin', scheme: null },
         ],
     },
     {
@@ -376,8 +375,8 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { mount: '/srv/restic', fs_type: 'zfs', total_bytes: 16000 * GB, used: 0.64 },
         ],
         services: [
-            { id: 'svc-oslo-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'backup', visibility: 'private', scheme: null },
-            { id: 'svc-oslo-sftp', name: 'restic repo', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', visibility: 'private', scheme: null },
+            { id: 'svc-oslo-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
+            { id: 'svc-oslo-sftp', name: 'restic repo', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
         ],
     },
 ];

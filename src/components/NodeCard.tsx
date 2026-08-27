@@ -84,7 +84,7 @@ function compareVersions(a: string, b: string): number {
     return 0;
 }
 
-type ListedService = { id: string; name: string | null; visibility: 'public' | 'private' };
+type ListedService = { id: string; name: string | null };
 
 /**
  * One hue per service kind, so a card can be read at a glance without parsing
@@ -140,7 +140,7 @@ interface NodeCardProps {
     onEnableRdp?: () => void;
     onDisableRdp?: (serviceId: string) => void;
     onEditRdp?: (serviceId: string) => void;
-    // Fetches the real list of configured services for a kind (id, name, visibility),
+    // Fetches the real list of configured services for a kind (id, name),
     // used to populate the service instance picker with actual identifiable entries.
     onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'rdp') => Promise<ListedService[]>;
     isShared?: boolean;
@@ -278,20 +278,15 @@ export function NodeCard({
     const nodeLocationLabel = locationLabel(publicIpInfo);
     const nodeCoordinateLabel = coordinateLabel(publicIpInfo);
     const countryFlag = flagFromCountryCode(publicIpInfo?.country_code);
-    const toServiceSummary = (summary: TunnelNode['services'][string]): { count: number; visibility: 'public' | 'private' } => (
-        typeof summary === 'number' ? { count: summary, visibility: 'private' } : { count: summary.count, visibility: summary.visibility }
-    );
     const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
     const monitorCount = node.monitor_count;
 
-    const matchingServices = (kind: string) => Object.entries(node.services ?? {})
+    const serviceCount = (kind: string) => Object.entries(node.services ?? {})
         .filter(([service]) => normalizeServiceName(service) === kind)
-        .map(([, summary]) => toServiceSummary(summary));
-    const serviceCount = (kind: string) => matchingServices(kind)
-        .reduce((sum, summary) => sum + summary.count, 0);
-    const httpProxyVisibility = matchingServices('HTTP')
-        .some((summary) => summary.visibility === 'public') ? 'public' : 'private';
-    const HttpProxyIcon = httpProxyVisibility === 'public' ? Globe : Lock;
+        .reduce((sum, [, count]) => sum + count, 0);
+    // Every proxied HTTP request is authenticated, so there is no public state
+    // left to signal — the padlock is now simply what an HTTP service is.
+    const HttpProxyIcon = Lock;
     const totalServiceCount = (['SSH', 'SFTP', 'RDP', 'HTTP'] as const)
         .reduce((sum, kind) => sum + serviceCount(kind), 0);
 
@@ -337,11 +332,9 @@ export function NodeCard({
         kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : kind === 'RDP' ? 'RDP screen' : 'HTTP service'
     );
 
-    // Same icon as the SSH/Files/Screen/HTTP action buttons; for HTTP it follows this
-    // specific instance's visibility (Globe for public, Lock for private), same as
-    // the aggregate HttpProxyIcon does for the card-level button.
-    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP', instance: ListedService) => (
-        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : kind === 'RDP' ? MonitorPlay : (instance.visibility === 'public' ? Globe : Lock)
+    // Same icon as the SSH/Files/Screen/HTTP action buttons.
+    const serviceInstanceIcon = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => (
+        kind === 'SSH' ? Terminal : kind === 'SFTP' ? FolderOpen : kind === 'RDP' ? MonitorPlay : Lock
     );
 
     const triggerEnableService = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => {
@@ -923,7 +916,7 @@ export function NodeCard({
                             </p>
                         ) : null}
                         {!serviceInstancePicker?.loading && serviceInstancePicker?.instances.map((instance) => {
-                            const InstanceIcon = serviceInstanceIcon(serviceInstancePicker.kind, instance);
+                            const InstanceIcon = serviceInstanceIcon(serviceInstancePicker.kind);
                             const displayName = instance.name?.trim() || `${serviceInstanceLabel(serviceInstancePicker.kind)} ${instance.id.slice(0, 8)}`;
                             return (
                             <div key={instance.id} className="flex items-center gap-2">
@@ -942,9 +935,6 @@ export function NodeCard({
                                         <InstanceIcon className="w-4 h-4" />
                                         {displayName}
                                     </span>
-                                    {serviceInstancePicker.kind === 'HTTP' ? (
-                                        <span className="text-xs text-muted-foreground capitalize">{instance.visibility}</span>
-                                    ) : null}
                                 </Button>
                                 <Button
                                     variant="ghost"

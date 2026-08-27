@@ -244,7 +244,6 @@ export default function Nodes() {
     const [enableHttpProxyPort, setEnableHttpProxyPort] = useState('8080');
     const [enableHttpProxyUsername, setEnableHttpProxyUsername] = useState('');
     const [enableHttpProxyPassword, setEnableHttpProxyPassword] = useState('');
-    const [enableHttpProxyVisibility, setEnableHttpProxyVisibility] = useState<'private' | 'public'>('private');
     const [enableHttpProxyScheme, setEnableHttpProxyScheme] = useState<'http' | 'https'>('http');
     const [enableHttpProxySubmitting, setEnableHttpProxySubmitting] = useState(false);
     const [enableHttpProxyError, setEnableHttpProxyError] = useState<string | null>(null);
@@ -633,7 +632,6 @@ export default function Nodes() {
         port: number;
         username: string | null;
         password: string | null;
-        visibility: 'public' | 'private';
         scheme: 'http' | 'https' | null;
     };
 
@@ -703,7 +701,6 @@ export default function Nodes() {
         setEnableHttpProxyPort(detail ? String(detail.port) : '8080');
         setEnableHttpProxyUsername(detail?.username ?? '');
         setEnableHttpProxyPassword(detail?.password ?? '');
-        setEnableHttpProxyVisibility(detail?.visibility ?? 'private');
         setEnableHttpProxyScheme(detail?.scheme ?? 'http');
         setEnableHttpProxyLoadingDetails(false);
     };
@@ -877,7 +874,6 @@ export default function Nodes() {
         setEnableHttpProxyPort('8080');
         setEnableHttpProxyUsername('');
         setEnableHttpProxyPassword('');
-        setEnableHttpProxyVisibility('private');
         setEnableHttpProxyScheme('http');
         setEnableHttpProxyError(null);
         setEnableHttpProxyDialogOpen(true);
@@ -919,8 +915,7 @@ export default function Nodes() {
     const upsertServiceCount = (
         services: TunnelNode['services'],
         kind: string,
-        isEnabled: boolean,
-        visibility?: 'public' | 'private'
+        isEnabled: boolean
     ) => {
         const existingKey = Object.keys(services).find((service) => normalizeServiceKind(service) === kind);
 
@@ -936,13 +931,13 @@ export default function Nodes() {
             return services;
         }
 
-        return { ...services, [kind]: visibility ? { visibility, count: 1 } : 1 };
+        return { ...services, [kind]: 1 };
     };
 
-    const updateServiceInNode = (nodeId: string, kind: string, isEnabled: boolean, visibility?: 'public' | 'private') => {
+    const updateServiceInNode = (nodeId: string, kind: string, isEnabled: boolean) => {
         const updateNodeServices = (entry: TunnelNode) => (
             entry.id === nodeId
-                ? { ...entry, services: upsertServiceCount(entry.services ?? {}, kind, isEnabled, visibility) }
+                ? { ...entry, services: upsertServiceCount(entry.services ?? {}, kind, isEnabled) }
                 : entry
         );
 
@@ -953,8 +948,8 @@ export default function Nodes() {
 
     const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SSH', isEnabled);
     const updateSftpServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SFTP', isEnabled);
-    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean, visibility?: 'public' | 'private') =>
-        updateServiceInNode(nodeId, 'HTTP', isEnabled, visibility);
+    const updateHttpProxyServiceInNode = (nodeId: string, isEnabled: boolean) =>
+        updateServiceInNode(nodeId, 'HTTP', isEnabled);
 
     const submitEnableSsh = async () => {
         if (!nodeToEnableSsh) return;
@@ -1018,9 +1013,9 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
                     if (isUpdate && serviceId) {
-                        channel.update_service(nodeId, serviceId, 'ssh', name, host, portNum, username, password, null, null, null);
+                        channel.update_service(nodeId, serviceId, 'ssh', name, host, portNum, username, password, null, null);
                     } else {
-                        channel.create_service(nodeId, 'ssh', name, host, portNum, username, password, null, null, null);
+                        channel.create_service(nodeId, 'ssh', name, host, portNum, username, password, null, null);
                     }
                 });
 
@@ -1209,9 +1204,9 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
                     if (isUpdate && serviceId) {
-                        channel.update_service(nodeId, serviceId, 'sftp', name, host, portNum, username, password, null, null, null);
+                        channel.update_service(nodeId, serviceId, 'sftp', name, host, portNum, username, password, null, null);
                     } else {
-                        channel.create_service(nodeId, 'sftp', name, host, portNum, username, password, null, null, null);
+                        channel.create_service(nodeId, 'sftp', name, host, portNum, username, password, null, null);
                     }
                 });
 
@@ -1400,9 +1395,9 @@ export default function Nodes() {
 
                 channel.on_protocol_message_type('AuthSuccess', () => {
                     if (isUpdate && serviceId) {
-                        channel.update_service(nodeId, serviceId, 'http', name, host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
+                        channel.update_service(nodeId, serviceId, 'http', name, host, portNum, username, password, enableHttpProxyScheme, null);
                     } else {
-                        channel.create_service(nodeId, 'http', name, host, portNum, username, password, enableHttpProxyVisibility, enableHttpProxyScheme, null);
+                        channel.create_service(nodeId, 'http', name, host, portNum, username, password, enableHttpProxyScheme, null);
                     }
                 });
 
@@ -1429,7 +1424,7 @@ export default function Nodes() {
                 channel.connect();
             });
 
-            updateHttpProxyServiceInNode(nodeId, true, enableHttpProxyVisibility);
+            updateHttpProxyServiceInNode(nodeId, true);
             toast.success(isUpdate ? 'HTTP service updated' : 'HTTP service created');
             closeEnableHttpProxyDialog();
         } catch (err) {
@@ -1661,7 +1656,7 @@ export default function Nodes() {
                                 onDisableHttpProxy={guardLive((serviceId: string) => openDisableHttpProxyDialog(node, serviceId))}
                                 onEditHttpProxy={guardLive((serviceId: string) => void openEditHttpProxyDialog(node, serviceId))}
                                 onListServices={(kind) => fetchServicesForKind(node.id, kind).then(
-                                    (services) => services.map((s) => ({ id: s.id, name: s.name, visibility: s.visibility }))
+                                    (services) => services.map((s) => ({ id: s.id, name: s.name }))
                                 )}
                             />
                         ))}
@@ -2134,27 +2129,6 @@ export default function Nodes() {
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Visibility</label>
-                                        <div className="inline-flex rounded-md border border-input overflow-hidden">
-                                            {(['private', 'public'] as const).map((v) => (
-                                                <button
-                                                    key={v}
-                                                    type="button"
-                                                    disabled={enableHttpProxySubmitting}
-                                                    onClick={() => setEnableHttpProxyVisibility(v)}
-                                                    className={cn(
-                                                        'px-2 py-1 text-xs capitalize transition-colors',
-                                                        enableHttpProxyVisibility === v
-                                                            ? 'bg-primary text-primary-foreground'
-                                                            : 'bg-secondary text-muted-foreground hover:text-foreground'
-                                                    )}
-                                                >
-                                                    {v}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div>
                                         <label className="block text-sm font-medium mb-1">Scheme</label>
                                         <div className="inline-flex rounded-md border border-input overflow-hidden">
                                             {(['http', 'https'] as const).map((v) => (
@@ -2176,11 +2150,6 @@ export default function Nodes() {
                                         </div>
                                     </div>
                                 </div>
-                                {enableHttpProxyVisibility === 'public' && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Public services are accessible without authentication.
-                                    </p>
-                                )}
                                 {enableHttpProxyError && (
                                     <p className="text-sm text-destructive">{enableHttpProxyError}</p>
                                 )}

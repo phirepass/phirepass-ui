@@ -7,13 +7,6 @@ interface DashboardStatsProps {
     nodes: TunnelNode[];
 }
 
-const serviceCount = (summary: TunnelNode['services'][string]): number => {
-    if (typeof summary === 'number') {
-        return summary;
-    }
-    return summary.count;
-};
-
 /**
  * Renders through the shared `StatTiles` rather than its own markup, so this row
  * is exactly the same height as the equivalent row on every other page.
@@ -24,7 +17,7 @@ export function DashboardStats({ nodes }: DashboardStatsProps) {
     const activeServices = nodes
         .filter((node) => node.is_online)
         .reduce(
-            (sum, node) => sum + Object.values(node.services).reduce<number>((s, summary) => s + serviceCount(summary), 0),
+            (sum, node) => sum + Object.values(node.services).reduce<number>((s, count) => s + count, 0),
             0
         );
 

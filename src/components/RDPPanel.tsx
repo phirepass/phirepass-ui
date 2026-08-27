@@ -42,6 +42,21 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
         void widgetRefs.current.get(activeTabId)?.toggleFullscreen();
     }, [activeTabId]);
 
+    /**
+     * Ctrl+Alt+Del cannot be typed into a remote desktop from a browser at all:
+     * the operating system takes it as a secure attention sequence before any
+     * page sees it, and the fullscreen keyboard lock does not extend to it. It
+     * is also how a locked Windows session is unlocked, so without a control
+     * here that desktop cannot be reached.
+     */
+    const sendCtrlAltDel = useCallback(() => {
+        if (!activeTabId) {
+            return;
+        }
+
+        void widgetRefs.current.get(activeTabId)?.sendCtrlAltDel();
+    }, [activeTabId]);
+
     useEffect(() => {
         if (!isOpen || tabs.length === 0 || token || loadingToken || tokenError) {
             return;
@@ -133,15 +148,27 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                         </div>
                         <div className="flex items-center gap-1">
                             {tabs.length > 0 && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={toggleWidgetFullScreen}
-                                    aria-label="Show the remote screen fullscreen and capture the keyboard"
-                                    title="Fullscreen — captures browser shortcuts"
-                                >
-                                    <Expand className="w-4 h-4" />
-                                </Button>
+                                <>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={sendCtrlAltDel}
+                                        aria-label="Send Ctrl+Alt+Del to the remote host"
+                                        title="Send Ctrl+Alt+Del — the browser cannot forward it"
+                                        className="font-mono text-xs"
+                                    >
+                                        Ctrl+Alt+Del
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={toggleWidgetFullScreen}
+                                        aria-label="Show the remote screen fullscreen and capture the keyboard"
+                                        title="Fullscreen — captures browser shortcuts"
+                                    >
+                                        <Expand className="w-4 h-4" />
+                                    </Button>
+                                </>
                             )}
                             <Button
                                 variant="ghost"

@@ -188,11 +188,13 @@ function normalizeFilesystems(value: unknown): NodeFilesystem[] {
     });
 }
 
-type ServiceSummary = number | { visibility: 'public' | 'private'; count: number };
-
-function normalizeServices(value: unknown): Record<string, ServiceSummary> {
+/**
+ * Services are a plain per-kind count. They used to carry an HTTP `visibility`
+ * so the dashboard could mark a service public; public access is gone — every
+ * proxied request is authenticated — so there is nothing left to distinguish.
+ */
+function normalizeServices(value: unknown): Record<string, number> {
     const counts: Record<string, number> = {};
-    const httpVisibility: Record<string, 'public' | 'private'> = {};
 
     const addKind = (entry: unknown) => {
         if (!entry || typeof entry !== 'object') {
@@ -210,15 +212,6 @@ function normalizeServices(value: unknown): Record<string, ServiceSummary> {
         }
 
         counts[service] = (counts[service] ?? 0) + 1;
-
-        if (service.toUpperCase() === 'HTTP') {
-            const visibility = (entry as { visibility?: unknown }).visibility;
-            if (visibility === 'public') {
-                httpVisibility[service] = 'public';
-            } else if (!httpVisibility[service]) {
-                httpVisibility[service] = 'private';
-            }
-        }
     };
 
     if (Array.isArray(value)) {
@@ -227,14 +220,7 @@ function normalizeServices(value: unknown): Record<string, ServiceSummary> {
         Object.values(value as Record<string, unknown>).forEach(addKind);
     }
 
-    const result: Record<string, ServiceSummary> = {};
-    for (const [service, count] of Object.entries(counts)) {
-        result[service] = service in httpVisibility
-            ? { visibility: httpVisibility[service], count }
-            : count;
-    }
-
-    return result;
+    return counts;
 }
 
 function normalizeSettings(value: unknown): NodeSettings {

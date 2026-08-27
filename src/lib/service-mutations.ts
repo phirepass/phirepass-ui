@@ -130,7 +130,6 @@ export interface ServiceDefinition {
     port: number;
     username?: string | null;
     password?: string | null;
-    visibility?: string | null;
     scheme?: string | null;
 }
 
@@ -145,7 +144,6 @@ export async function saveService(
     const { kind, name, host, port } = service;
     const username = service.username ?? null;
     const password = service.password ?? null;
-    const visibility = service.visibility ?? null;
     const scheme = service.scheme ?? null;
 
     await runServiceMutation({
@@ -156,9 +154,9 @@ export async function saveService(
         refusedMessage: `Server refused to ${isUpdate ? 'update' : 'enable'} ${kind.toUpperCase()} service.`,
         command: (channel, nodeId) => {
             if (isUpdate && serviceId) {
-                channel.update_service(nodeId, serviceId, kind, name, host, port, username, password, visibility, scheme, null);
+                channel.update_service(nodeId, serviceId, kind, name, host, port, username, password, scheme, null);
             } else {
-                channel.create_service(nodeId, kind, name, host, port, username, password, visibility, scheme, null);
+                channel.create_service(nodeId, kind, name, host, port, username, password, scheme, null);
             }
         },
     });

@@ -13,7 +13,6 @@ type ServiceDetail = {
     port: number;
     username: string | null;
     password: string | null;
-    visibility: 'public' | 'private';
     scheme: 'http' | 'https' | null;
 };
 
@@ -65,7 +64,6 @@ function toServiceDetail(entry: unknown): ServiceDetail | null {
         port: typeof raw.port === 'number' ? raw.port : 0,
         username: typeof raw.username === 'string' ? raw.username : null,
         password: typeof raw.password === 'string' ? raw.password : null,
-        visibility: raw.visibility === 'public' ? 'public' : 'private',
         scheme: raw.scheme === 'https' ? 'https' : raw.scheme === 'http' ? 'http' : null,
     };
 }

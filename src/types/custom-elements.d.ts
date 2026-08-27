@@ -39,6 +39,8 @@ declare module 'react' {
                 'dynamic-resize'?: boolean;
                 /** Take the browser's own shortcuts while fullscreen. */
                 'capture-keyboard'?: boolean;
+                /** Share the clipboard with the remote host. On by default. */
+                clipboard?: boolean;
                 ref?: Ref<PhirepassRdpElement>;
             };
         }
@@ -46,12 +48,18 @@ declare module 'react' {
 }
 
 /**
- * The methods `phirepass-rdp` exposes. Only fullscreen is driven from the app:
- * it is the one thing the widget cannot start on its own, because the browser
- * grants fullscreen (and with it the keyboard lock) only to a user gesture.
+ * The methods `phirepass-rdp` exposes. What they have in common is that the
+ * browser will not let the widget do any of it unprompted: fullscreen (and with
+ * it the keyboard lock) is granted only to a user gesture, and Ctrl+Alt+Del and
+ * the Meta key never reach the page at all — the operating system and the
+ * browser take them first — so the app has to offer a control that sends them.
+ *
+ * The key methods answer `false` when there is no session yet to send to.
  */
 export interface PhirepassRdpElement extends HTMLElement {
     toggleFullscreen(): Promise<boolean>;
     keyboardLockSupported(): Promise<boolean>;
     focusDesktop(): Promise<void>;
+    sendCtrlAltDel(): Promise<boolean>;
+    sendMetaKey(): Promise<boolean>;
 }
