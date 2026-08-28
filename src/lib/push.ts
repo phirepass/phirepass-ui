@@ -156,3 +156,69 @@ export async function hashEndpoint(endpoint: string): Promise<string> {
         .join('')
         .slice(0, 32);
 }
+
+/**
+ * Where the page leaves what the service worker needs to renew a subscription
+ * on its own.
+ *
+ * These two names are a contract with `public/sw.js`, which reads the same
+ * cache under the same URL and cannot import them — it is served raw, outside
+ * the bundle. A disagreement is silent: the worker finds no hint, falls back to
+ * whatever the browser or `/api/config` will tell it, and quietly loses the
+ * device's label for every renewal. `src/lib/service-worker.test.ts` reads both
+ * halves and fails if they drift.
+ */
+export const PUSH_HINT_CACHE = 'phirepass-push-hint';
+export const PUSH_HINT_URL = '/__phirepass-push-hint';
+
+export interface PushHint {
+    /** The VAPID public key this browser subscribed under, base64url. */
+    applicationServerKey: string;
+    label: string;
+    platform: string;
+    browser: string;
+}
+
+/**
+ * Records what a renewal will need, for the case the page is not running when
+ * one is due — which is the usual case, since browsers rotate subscriptions on
+ * their own schedule and mostly while the app is closed.
+ *
+ * Best-effort on purpose. Storage can be full, blocked, or absent in a private
+ * window, and none of that should fail an enable that otherwise succeeded: the
+ * subscription is already registered by the time this runs, and a missing hint
+ * costs a fallback, not the notification.
+ */
+export async function rememberSubscription(hint: PushHint): Promise<void> {
+    if (typeof caches === 'undefined') return;
+
+    try {
+        const cache = await caches.open(PUSH_HINT_CACHE);
+        await cache.put(
+            PUSH_HINT_URL,
+            new Response(JSON.stringify(hint), {
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        );
+    } catch (error) {
+        console.warn('[phirepass] could not record the push renewal hint', error);
+    }
+}
+
+/**
+ * Drops the hint when this browser is no longer subscribed.
+ *
+ * Without this, a person who turns notifications off leaves behind everything
+ * the worker needs to turn them back on — and `pushsubscriptionchange` can
+ * still fire afterwards for the subscription they just released.
+ */
+export async function forgetSubscription(): Promise<void> {
+    if (typeof caches === 'undefined') return;
+
+    try {
+        const cache = await caches.open(PUSH_HINT_CACHE);
+        await cache.delete(PUSH_HINT_URL);
+    } catch (error) {
+        console.warn('[phirepass] could not clear the push renewal hint', error);
+    }
+}

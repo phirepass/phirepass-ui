@@ -36,9 +36,11 @@ import { DEMO_CURRENT_ENDPOINT_HASH } from '@/lib/demo/fixtures';
 import { cn } from '@/lib/utils';
 import {
     currentSubscription,
+    forgetSubscription,
     hashEndpoint,
     permissionState,
     pushSupport,
+    rememberSubscription,
     subscribe,
     unsubscribeCurrent,
     type PushSupport,
@@ -415,6 +417,19 @@ export default function NotificationsPage() {
                 throw new Error(`register ${response.status}`);
             }
 
+            // Leaves the service worker able to renew this subscription by
+            // itself when the browser rotates it — which happens on the
+            // browser's schedule, overwhelmingly while this page is not open.
+            // See `pushsubscriptionchange` in public/sw.js.
+            if (!demo && subscription) {
+                await rememberSubscription({
+                    applicationServerKey: vapidPublicKey,
+                    label: identity.name,
+                    platform: identity.platform,
+                    browser: identity.browser,
+                });
+            }
+
             await refresh();
             setTestPulse((n) => n + 1);
             toast.success('Notifications enabled', {
@@ -440,7 +455,12 @@ export default function NotificationsPage() {
                 throw new Error(`revoke ${response.status}`);
             }
 
-            if (!demo) await unsubscribeCurrent();
+            if (!demo) {
+                await unsubscribeCurrent();
+                // Or the worker would still hold everything it needs to
+                // re-register the subscription just released.
+                await forgetSubscription();
+            }
             await refresh();
             toast('Notifications turned off for this browser', {
                 description: 'Your other registered devices still receive them.',
@@ -471,6 +491,7 @@ export default function NotificationsPage() {
             // every other device drops its own next time it is used.
             if (target.is_current && !demo) {
                 await unsubscribeCurrent();
+                await forgetSubscription();
             }
 
             await refresh();
@@ -511,6 +532,18 @@ export default function NotificationsPage() {
             });
             if (!response.ok) {
                 throw new Error(`rename ${response.status}`);
+            }
+
+            // The hint carries the label a renewal will re-register under, so a
+            // rename that does not reach it survives only until the browser
+            // next rotates the subscription, then silently reverts.
+            if (renameTarget.is_current && !demo) {
+                await rememberSubscription({
+                    applicationServerKey: vapidPublicKey,
+                    label,
+                    platform: renameTarget.platform,
+                    browser: renameTarget.browser,
+                });
             }
 
             await refresh();
