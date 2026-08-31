@@ -115,7 +115,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             {/* No footer in the signed-in app. The bottom padding stays behind
                 as a plain spacer so short pages keep the same breathing room the
                 footer used to give them. */}
-            <main className="flex-1 pb-12">{children}</main>
+            <main className="flex-1">{children}</main>
         </div>
     );
 }

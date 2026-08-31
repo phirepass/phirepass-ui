@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, LucideIcon } from 'lucide-react';
+import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, Workflow, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 import { PhirepassLogo } from '@/components/PhirepassLogo';
@@ -35,6 +35,8 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
     { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
     { href: '/dashboard/monitors', label: 'Monitors', icon: Activity },
+    // Nothing runs these yet — see the notice on the page itself.
+    { href: '/dashboard/pipelines', label: 'Pipelines', icon: Workflow, devOnly: true },
     // Administrative surfaces. Dev-only until RBAC can restrict them to the
     // roles that should see them at all — see src/lib/rbac.ts.
     { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },

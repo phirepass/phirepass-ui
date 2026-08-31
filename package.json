@@ -15,6 +15,12 @@
         "postinstall": "node scripts/fix-phirepass-widgets-wasm.mjs"
     },
     "dependencies": {
+        "@codemirror/commands": "^6.11.0",
+        "@codemirror/language": "^6.12.4",
+        "@codemirror/legacy-modes": "^6.5.3",
+        "@codemirror/search": "^6.7.1",
+        "@codemirror/state": "^6.7.1",
+        "@codemirror/view": "^6.43.9",
         "@hookform/resolvers": "^5.9.1",
         "@next/swc-linux-x64-gnu": "^16.3.3",
         "@radix-ui/react-accordion": "^1.2.20",

@@ -20,16 +20,28 @@ export type Permission =
     | 'servers:manage'
     | 'users:read'
     | 'users:manage'
-    | 'users:invite';
+    | 'users:invite'
+    | 'pipelines:read'
+    | 'pipelines:manage';
 
 /**
  * Cumulative by convention: an owner can do everything an admin can. Spelled
  * out per role rather than layered, so reading one line answers the question.
  */
 const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-    owner: ['servers:read', 'servers:manage', 'users:read', 'users:manage', 'users:invite'],
-    admin: ['servers:read', 'servers:manage', 'users:read', 'users:invite'],
-    member: [],
+    owner: [
+        'servers:read', 'servers:manage',
+        'users:read', 'users:manage', 'users:invite',
+        'pipelines:read', 'pipelines:manage',
+    ],
+    admin: [
+        'servers:read', 'servers:manage',
+        'users:read', 'users:invite',
+        'pipelines:read', 'pipelines:manage',
+    ],
+    // A member runs their own nodes, so reading the pipelines that touch them is
+    // the one administrative thing they are not shut out of.
+    member: ['pipelines:read'],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -41,7 +53,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
     owner: 'Full control, including transferring ownership and removing admins.',
     admin: 'Manages servers and invites users, but cannot change owners.',
-    member: 'Uses their own nodes and tokens; sees nothing administrative.',
+    member: 'Uses their own nodes and tokens; can read pipelines but not change them.',
 };
 
 export function can(role: Role, permission: Permission): boolean {
