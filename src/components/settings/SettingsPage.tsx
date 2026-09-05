@@ -10,6 +10,7 @@ import { useDemoModeSwitch } from '@/components/DemoModeProvider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { STALE_DEVICE_DAYS } from '@/components/notifications/notification-display';
+import { TwoFactorSection } from '@/components/settings/TwoFactorSection';
 import {
     DEMO_DEVICE_SPECS,
     DEMO_MONITOR_SPECS,
@@ -54,6 +55,10 @@ function Swap({ enabled, on, off, className }: {
  * timeout and a dark-mode switch, none of which were wired to anything — a
  * settings page whose controls do nothing teaches people that this product's
  * settings do nothing. Everything here is real; the rest arrives when it works.
+ *
+ * Two-factor authentication is the first of those to come back, on the terms
+ * that note set: it is wired to real endpoints, real tables and the sign-in
+ * flow, and turning it on changes what the next sign-in asks for.
  *
  * Lives in `src/components/` rather than `src/pages/`, which is still an active
  * Pages Router root and would serve a second copy of this at `/Settings`.
@@ -200,6 +205,8 @@ export default function SettingsPage() {
                     </div>
                 </div>
             </section>
+
+            <TwoFactorSection />
 
             <section className="rounded-2xl border border-hairline p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

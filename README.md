@@ -229,6 +229,57 @@ The form asks for no subject line: the topic select is the whole of it, sent as
 instead of on whatever a sender typed. What the message is about is the first
 thing in the body.
 
+## Two-factor authentication
+
+Sign-in is GitHub OAuth, and 2FA is the step after it: a six-digit TOTP code
+from an authenticator app, checked by this app against a secret it holds. It is
+switched on per account in **Settings**, and the whole feature is switched on
+per deployment by `NEXT_PUBLIC_MFA_ENABLED` — unset means **on in production,
+off everywhere else**, which is the default a forgotten variable should land on
+in either direction. Where it is off the endpoints answer `404`, sign-in never
+asks for a code, and Settings does not mention it.
+
+**No credential is needed for any of it.** TOTP is RFC 6238 over `node:crypto`
+(`src/app/lib/totp.ts`, checked against the RFC's own test vectors), the QR code
+is rendered server-side by `qrcode`, and the secret is encrypted with a key
+derived from `JWT_SECRET` by HKDF. That last point has one consequence worth
+knowing before it bites: **rotating `JWT_SECRET` makes enrolled authenticators
+undecryptable.** The rotation already signs everyone out; after it, people
+re-enrol using a recovery code, which is hashed rather than encrypted and so
+survives.
+
+The flow, once it is on:
+
+| Step | What happens |
+|---|---|
+| OAuth callback | Account has 2FA → a 10-minute *challenge* cookie, not a session, and a redirect to `/login/verify` |
+| `/login/verify` | Six digits, or a recovery code |
+| `POST /api/auth/mfa/challenge` | Correct → the session cookie is issued and the challenge cleared |
+
+The challenge token carries `purpose: "mfa"` and `verifyToken` refuses it, so
+moving it into the session cookie — which anyone can do to their own browser —
+buys nothing. Every code is single-use: the TOTP step it matched is written to
+`user_mfa.last_step` in the same `UPDATE` that spends it, so a code read over a
+shoulder is not replayable for the rest of its 30 seconds. Wrong answers are
+budgeted at 10 per 15 minutes per account in Redis, failing open — the
+alternative is a cache outage locking every enrolled account out of the
+product.
+
+Turning 2FA **off**, and regenerating recovery codes, both require a current
+code. A session that could quietly remove the second factor would not be one.
+
+Recovery codes are ten `XXXXX-XXXXX` strings, shown once, stored as SHA-256 —
+not argon2, deliberately: they are 50 bits of machine randomness with no
+dictionary to slow down, and a fast digest buys an indexed single-query lookup
+instead of ten stretched verifications per attempt.
+
+> **Temporary:** the two tables (`user_mfa`, `user_mfa_recovery_codes`) are
+> created by the app itself at startup — `src/instrumentation.ts` and
+> `src/app/lib/mfa-schema.ts` — rather than applied by hand like the schemas
+> above, so the release could not land on a database a step behind it. **Delete
+> both files on the next UI deployment** and move the SQL to
+> `docs/mfa-schema.sql` for the record.
+
 ## Demo mode
 
 A switch in **Settings** fills the dashboard with a sample fleet: eight nodes

@@ -1,6 +1,15 @@
 import { query } from "@/app/lib/db";
 import { fetch_github_token, fetch_github_user } from "@/app/lib/github";
-import { signJWT, buildAuthCookie, buildCookie } from "@/app/lib/auth";
+import {
+    buildAuthCookie,
+    buildCookie,
+    buildMfaChallengeCookie,
+    clearAuthCookie,
+    signMfaChallenge,
+    signSession,
+} from "@/app/lib/auth";
+import { isMfaEnabled } from "@/app/lib/mfa";
+import { IS_MFA_ENABLED } from "@/lib/mfa-feature";
 import { UserInfo } from "@/app/lib/types";
 import { empty_response, json_response } from "@/app/lib/framework";
 
@@ -91,33 +100,60 @@ export async function GET(req: Request) {
             existingUser = await get_user_by_email(userInfo.email);
         }
 
-        // Issue session token with minimal info only
-        const payload = {
-            sub: existingUser?.id,
-            provider: "github",
-        };
-
-        // 7 days
-        const maxAge = 7 * 24 * 60 * 60;
-        const token = signJWT(payload, maxAge);
+        // The insert above returns the row, but it is read back through the same
+        // lookup the sign-in path uses so that both branches below work with an
+        // account that is genuinely there to be queried.
+        if (!existingUser) {
+            throw new Error("User could not be created");
+        }
 
         const requestUrl = get_effective_request_url(req);
-        console.log('Redirecting to dashboard url:', requestUrl.toString()); // Debug log
-        const dashboardUrl = new URL("/dashboard/nodes", requestUrl.origin);
-        console.log('Redirecting to dashboard at:', dashboardUrl.toString()); // Debug log
 
         // Also set a short-lived GitHub token cookie for server-side profile fetches
         const cookieDomain =
             process.env.NODE_ENV === "production"
                 ? process.env.COOKIE_DOMAIN || undefined
                 : undefined;
-        const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
         const ghCookie = buildCookie(
             "phirepass_token",
             accessToken,
             24 * 60 * 60,
             cookieDomain,
         ); // 1 day
+
+        /**
+         * GitHub has said who this is; two-factor decides whether that is
+         * enough. When it is on, what gets set here is a challenge token, not a
+         * session — the session is minted by /api/auth/mfa/challenge once a code
+         * has been read off the authenticator.
+         *
+         * Any existing session is cleared at the same time. Someone re-running
+         * the sign-in flow on an account with 2FA should end up at the code
+         * prompt, not silently back in the dashboard on the old cookie.
+         *
+         * The deployment flag is tested first, so an install with 2FA off does
+         * not pay for a lookup on every sign-in — and an account that enrolled
+         * somewhere the feature is on is simply not challenged here rather than
+         * being locked out of an install that cannot ask.
+         */
+        if (IS_MFA_ENABLED && (await isMfaEnabled(existingUser.id))) {
+            const challenge = signMfaChallenge(existingUser.id, "github");
+            const verifyUrl = new URL("/login/verify", requestUrl.origin);
+
+            const headers = new Headers();
+            headers.set("Location", verifyUrl.toString());
+            headers.append("Set-Cookie", clearAuthCookie(cookieDomain));
+            headers.append("Set-Cookie", buildMfaChallengeCookie(challenge, cookieDomain));
+
+            return empty_response(302, headers);
+        }
+
+        // 7 days
+        const maxAge = 7 * 24 * 60 * 60;
+        const token = signSession(existingUser.id, "github", maxAge);
+
+        const dashboardUrl = new URL("/dashboard/nodes", requestUrl.origin);
+        const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
 
         const headers = new Headers();
         headers.set("Location", dashboardUrl.toString());

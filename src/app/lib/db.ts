@@ -1,4 +1,4 @@
-import { Client, QueryResult } from 'pg';
+import { Client, type QueryResult } from 'pg';
 import fs from 'fs';
 import path from 'path';
 
