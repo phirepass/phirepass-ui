@@ -10,6 +10,8 @@ import {
     Loader2,
     LucideIcon,
     MinusCircle,
+    Pause,
+    PlugZap,
     Terminal,
     XCircle,
 } from 'lucide-react';
@@ -18,13 +20,18 @@ import { describeCron, nextCronRun } from '@/lib/cron';
 import {
     CONVERT_FORMAT_LABELS,
     describeCondition,
+    flattenSteps,
+    isActionStep,
+    latestRun,
     type Pipeline,
+    type PipelineAgent,
     type PipelineRun,
     type PipelineStatus,
     type PipelineStep,
     type StepKind,
     type StepRun,
     type StepRunStatus,
+    type StepTarget,
 } from '@/types/pipeline';
 
 
@@ -236,5 +243,135 @@ export function describeStep(step: PipelineStep): string {
         }
         case 'branch':
             return `if ${describeCondition(step)}`;
+    }
+}
+
+
+/**
+ * Which agents a target currently comes to.
+ *
+ * A target is a *rule*, not a list: `tag: backup` is a promise about whatever
+ * carries that tag at dispatch time, and `all` grows with the fleet. Every view
+ * that wants to say "runs on db-01, nas-01" — the chain tooltip, the chips on a
+ * card, the offline check below — has to resolve that rule the same way, so it
+ * is resolved once here.
+ *
+ * Fleet order is preserved rather than sorted by name, so the same two agents
+ * appear in the same order everywhere they are listed.
+ */
+export function targetAgents(target: StepTarget, agents: PipelineAgent[]): PipelineAgent[] {
+    switch (target.kind) {
+        case 'node':
+            return agents.filter((agent) => agent.id === target.node_id);
+        case 'tag':
+            return agents.filter((agent) => agent.tags.includes(target.tag));
+        case 'all':
+            return agents;
+    }
+}
+
+/**
+ * Every agent the pipeline lands on, once each.
+ *
+ * Offline agents come first. The card only has room for a handful of chips
+ * before it starts counting the rest, and the whole point of drawing them is to
+ * show where the work goes — hiding the unreachable ones behind a `+4` would
+ * spend the row on the agents that are fine.
+ */
+export function pipelineAgents(pipeline: Pipeline, agents: PipelineAgent[]): PipelineAgent[] {
+    const reached = new Map<string, PipelineAgent>();
+
+    for (const { step } of flattenSteps(pipeline.steps)) {
+        if (!isActionStep(step)) continue;
+        for (const agent of targetAgents(step.target, agents)) {
+            reached.set(agent.id, agent);
+        }
+    }
+
+    const fleet = [...reached.values()];
+    return [...fleet.filter((agent) => !agent.online), ...fleet.filter((agent) => agent.online)];
+}
+
+/**
+ * Steps that will not dispatch cleanly, because something they target is down.
+ *
+ * "At least one agent offline" rather than "all of them", because a step
+ * targeting a tag is supposed to run on everything carrying it — a fleet-wide
+ * step that reaches nine machines out of ten did not do what it was asked, and
+ * a card that calls that healthy is a card nobody trusts the second time.
+ */
+export function offlineSteps(pipeline: Pipeline, agents: PipelineAgent[]): PipelineStep[] {
+    return flattenSteps(pipeline.steps)
+        .map(({ step }) => step)
+        .filter((step) => isActionStep(step) && targetAgents(step.target, agents).some((agent) => !agent.online));
+}
+
+/**
+ * What the badge on a pipeline says.
+ *
+ * Deliberately *not* `pipeline.status`: a pipeline can be perfectly "active"
+ * and still be the reason you opened this page. A green mark on a card filed
+ * under "Needs attention" is the list contradicting itself, so the badge
+ * reports health — the last outcome, and whether the agents it needs are
+ * reachable — and lifecycle only takes over once the schedule is switched off.
+ */
+export type Health = 'failing' | 'degraded' | 'running' | 'queued' | 'cancelled' | 'healthy' | 'never' | 'paused' | 'draft';
+
+/**
+ * A tinted well with an icon rather than a coloured dot, because this is the
+ * one thing on a card that should be readable at arm's length: a 7px dot makes
+ * a status *findable* once you already know where to look, and the difference
+ * between "failed" and "an agent is offline" is not a difference of hue anyone
+ * should have to learn. Written out in full because Tailwind cannot resolve
+ * class names assembled at runtime.
+ */
+export const HEALTH_BADGES: Record<Health, { icon: LucideIcon; well: string; tone: string; spin?: boolean }> = {
+    failing: { icon: XCircle, well: 'bg-destructive/12 ring-destructive/20', tone: 'text-destructive' },
+    degraded: { icon: PlugZap, well: 'bg-warning/12 ring-warning/20', tone: 'text-warning' },
+    running: { icon: Loader2, well: 'bg-info/12 ring-info/20', tone: 'text-info', spin: true },
+    queued: { icon: Clock, well: 'bg-info/10 ring-info/15', tone: 'text-info' },
+    cancelled: { icon: Ban, well: 'bg-warning/10 ring-warning/15', tone: 'text-warning' },
+    healthy: { icon: CheckCircle2, well: 'bg-success/12 ring-success/20', tone: 'text-success' },
+    never: { icon: CircleDashed, well: 'bg-white/[0.04] ring-white/[0.06]', tone: 'text-muted-foreground' },
+    paused: { icon: Pause, well: 'bg-white/[0.04] ring-white/[0.06]', tone: 'text-muted-foreground' },
+    draft: { icon: CircleDashed, well: 'bg-white/[0.03] ring-white/[0.05]', tone: 'text-muted-foreground/70' },
+};
+
+/** Lifecycle first once the schedule is off, health otherwise. */
+export function resolveHealth(pipeline: Pipeline, agents: PipelineAgent[]): Health {
+    if (pipeline.status === 'draft') return 'draft';
+    if (pipeline.status === 'paused') return 'paused';
+
+    const unreachable = offlineSteps(pipeline, agents).length > 0;
+    const run = latestRun(pipeline);
+    if (run === null) return unreachable ? 'degraded' : 'never';
+
+    switch (run.status) {
+        case 'failed': return 'failing';
+        case 'running': return 'running';
+        case 'queued': return 'queued';
+        case 'cancelled': return 'cancelled';
+        case 'succeeded': return unreachable ? 'degraded' : 'healthy';
+    }
+}
+
+/** Whether this health is the kind a person has to do something about. */
+export function needsAttention(health: Health): boolean {
+    return health === 'failing' || health === 'degraded';
+}
+
+export function describeHealth(health: Health, offline: number): string {
+    switch (health) {
+        case 'failing': return 'The last run failed';
+        case 'degraded': return offline === 1
+            ? 'A step runs on an agent that is offline'
+            : `${offline} steps run on agents that are offline`;
+        case 'running': return 'Running now';
+        case 'queued': return 'Queued, waiting for a runner';
+        case 'cancelled': return 'The last run was cancelled';
+        case 'healthy': return 'The last run succeeded';
+        case 'never': return 'Never run';
+        case 'paused': return 'Paused — the schedule will not fire';
+        case 'draft': return 'Draft — not scheduled yet';
     }
 }

@@ -6,6 +6,10 @@
     "engines": {
         "node": ">=26"
     },
+    "overrides": {
+        "@codemirror/state": "6.7.4",
+        "@codemirror/view": "6.43.11"
+    },
     "scripts": {
         "dev": "next dev -p 8084",
         "build": "next build",

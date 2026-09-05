@@ -2,21 +2,14 @@
 
 import Link from 'next/link';
 import {
-    Ban,
-    CheckCircle2,
-    CircleDashed,
     Clock,
     GitBranch,
     Hand,
-    Loader2,
-    LucideIcon,
     MoreHorizontal,
     Pause,
     Pencil,
     Play,
-    PlugZap,
     Trash2,
-    XCircle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -39,14 +32,19 @@ import {
 
 import { StepProgressBar } from './StepProgressBar';
 import {
+    HEALTH_BADGES,
     PIPELINE_STATUS_STYLES,
     RUN_STATUS_STYLES,
+    describeHealth,
     describeTrigger,
     formatDuration,
     formatRelativeTime,
     formatUntil,
+    needsAttention,
     nextFiring,
+    offlineSteps,
     recentRuns,
+    resolveHealth,
     runDuration,
     successRate,
 } from './pipeline-display';
@@ -57,35 +55,6 @@ const HISTORY_RUNS = 8;
 /** The chart's tallest and shortest bar, in pixels. */
 const HISTORY_MAX_H = 18;
 const HISTORY_MIN_H = 4;
-
-/**
- * What the badge on the left of a row says.
- *
- * Deliberately *not* `pipeline.status`: a pipeline can be perfectly "active"
- * and still be the reason you opened this page. A green mark on the row sitting
- * under "Needs attention" is the list contradicting itself, so the badge reports
- * health — the last outcome, and whether the agents it needs are reachable —
- * and lifecycle only takes over once the schedule is switched off.
- *
- * It is a tinted well with an icon rather than a coloured dot because it is the
- * one thing on the row that should be readable at arm's length: a 7px dot makes
- * a status *findable* once you already know where to look, and the difference
- * between "failed" and "an agent is offline" is not a difference of hue anyone
- * should have to learn.
- */
-type Health = 'failing' | 'degraded' | 'running' | 'queued' | 'cancelled' | 'healthy' | 'never' | 'paused' | 'draft';
-
-const HEALTH_BADGES: Record<Health, { icon: LucideIcon; well: string; icon_tone: string; spin?: boolean }> = {
-    failing: { icon: XCircle, well: 'bg-destructive/12 ring-destructive/20', icon_tone: 'text-destructive' },
-    degraded: { icon: PlugZap, well: 'bg-warning/12 ring-warning/20', icon_tone: 'text-warning' },
-    running: { icon: Loader2, well: 'bg-info/12 ring-info/20', icon_tone: 'text-info', spin: true },
-    queued: { icon: Clock, well: 'bg-info/10 ring-info/15', icon_tone: 'text-info' },
-    cancelled: { icon: Ban, well: 'bg-warning/10 ring-warning/15', icon_tone: 'text-warning' },
-    healthy: { icon: CheckCircle2, well: 'bg-success/12 ring-success/20', icon_tone: 'text-success' },
-    never: { icon: CircleDashed, well: 'bg-white/[0.04] ring-white/[0.06]', icon_tone: 'text-muted-foreground' },
-    paused: { icon: Pause, well: 'bg-white/[0.04] ring-white/[0.06]', icon_tone: 'text-muted-foreground' },
-    draft: { icon: CircleDashed, well: 'bg-white/[0.03] ring-white/[0.05]', icon_tone: 'text-muted-foreground/70' },
-};
 
 interface PipelineLaneProps {
     pipeline: Pipeline;
@@ -133,16 +102,11 @@ export function PipelineLane({
     const flat = flattenSteps(pipeline.steps);
     const branches = flat.filter((entry) => entry.step.kind === 'branch').length;
 
-    const offlineTargets = flat.filter(({ step }) => {
-        if (step.kind === 'branch') return false;
-        const target = step.target;
-        return target.kind === 'node' && agents.some((agent) => agent.id === target.node_id && !agent.online);
-    });
-
-    const health = resolveHealth(pipeline, run, offlineTargets.length > 0);
+    const offline = offlineSteps(pipeline, agents);
+    const health = resolveHealth(pipeline, agents);
     const badge = HEALTH_BADGES[health];
     const BadgeIcon = badge.icon;
-    const urgent = health === 'failing' || health === 'degraded';
+    const urgent = needsAttention(health);
 
     return (
         // The whole row opens the pipeline. The name stays a real button so the
@@ -179,10 +143,10 @@ export function PipelineLane({
                                 badge.well
                             )}
                         >
-                            <BadgeIcon className={cn('h-4 w-4', badge.icon_tone, badge.spin && 'animate-spin')} />
+                            <BadgeIcon className={cn('h-4 w-4', badge.tone, badge.spin && 'animate-spin')} />
                         </span>
                     </TooltipTrigger>
-                    <TooltipContent>{describeHealth(health, offlineTargets.length)}</TooltipContent>
+                    <TooltipContent>{describeHealth(health, offline.length)}</TooltipContent>
                 </Tooltip>
 
                 <div className="min-w-0">
@@ -388,37 +352,6 @@ function RunHistory({ runs, rate, now }: { runs: PipelineRun[]; rate: number | n
             )}
         </div>
     );
-}
-
-/** Lifecycle first once the schedule is off, health otherwise. */
-function resolveHealth(pipeline: Pipeline, run: PipelineRun | null, unreachable: boolean): Health {
-    if (pipeline.status === 'draft') return 'draft';
-    if (pipeline.status === 'paused') return 'paused';
-    if (run === null) return unreachable ? 'degraded' : 'never';
-
-    switch (run.status) {
-        case 'failed': return 'failing';
-        case 'running': return 'running';
-        case 'queued': return 'queued';
-        case 'cancelled': return 'cancelled';
-        case 'succeeded': return unreachable ? 'degraded' : 'healthy';
-    }
-}
-
-function describeHealth(health: Health, offline: number): string {
-    switch (health) {
-        case 'failing': return 'The last run failed';
-        case 'degraded': return offline === 1
-            ? 'A step runs on an agent that is offline'
-            : `${offline} steps run on agents that are offline`;
-        case 'running': return 'Running now';
-        case 'queued': return 'Queued, waiting for a runner';
-        case 'cancelled': return 'The last run was cancelled';
-        case 'healthy': return 'The last run succeeded';
-        case 'never': return 'Never run';
-        case 'paused': return 'Paused — the schedule will not fire';
-        case 'draft': return 'Draft — not scheduled yet';
-    }
 }
 
 /**
