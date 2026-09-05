@@ -1,37 +1,24 @@
-import { query } from "./db.ts";
+-- Two-factor authentication (TOTP).
+--
+-- Two tables, both keyed on the account: the authenticator's shared secret, and
+-- the recovery codes that stand in for a lost phone. Neither is a column on
+-- `users`, so a row simply not existing is the ordinary state of an account
+-- without 2FA, and turning 2FA off is a delete rather than a set of nullable
+-- columns left behind holding a live secret.
+--
+-- These tables were created by the application itself, at startup, for the one
+-- release that introduced 2FA — the alternative was a deploy that could land on
+-- a database a step behind it. That bootstrap has since been removed, and this
+-- file is the record of what it ran; every deployed environment already has
+-- both tables.
+--
+-- There is no migration runner in either repo, so on a fresh database this is
+-- applied by hand, like the schemas beside it:
+--
+--     psql "$DATABASE_URL" -f docs/mfa-schema.sql
+--
+-- It is written to be re-runnable (IF NOT EXISTS throughout).
 
-/**
- * ⚠️ TEMPORARY — DELETE THIS FILE ON THE NEXT UI DEPLOYMENT ⚠️
- *
- * The two tables two-factor authentication needs, created by the app itself the
- * first time it starts against a database that does not have them.
- *
- * This repo has no migration runner: every other table was applied by hand from
- * a file in `docs/` before the deploy that needed it. Carrying the DDL in the
- * image instead means the release that introduces 2FA cannot land on a database
- * that is a step behind it — which is the whole reason this is here, and also
- * the whole reason it should not stay.
- *
- * **Removing it**, once every environment has started this build at least once
- * (check with `SELECT to_regclass('public.user_mfa')`):
- *
- *   1. delete this file and `src/instrumentation.ts`
- *   2. move the SQL below into `docs/mfa-schema.sql`, beside the other schemas,
- *      for the record of how the tables were made
- *
- * Leaving it in is not harmful — after the first run it is one cheap catalogue
- * lookup per boot — but a server that silently rewrites its own schema is a
- * surprise waiting for whoever debugs the next migration, and it means the
- * application's database user must keep DDL rights it otherwise would not need.
- */
-
-/**
- * Guarded by `to_regclass` rather than written as `CREATE TABLE IF NOT EXISTS`
- * alone, so a database that already has these tables is never issued DDL at
- * all: an app that boots without CREATE rights should be able to start, not
- * fail on a statement that would have been a no-op.
- */
-const CREATE_SQL = `
 -- ─────────────────────────────────────────────────────────────────────────────
 -- user_mfa — one row per account that has started enrolling an authenticator
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -106,47 +93,3 @@ CREATE INDEX IF NOT EXISTS user_mfa_recovery_codes_user_id_idx
 -- accounts drew the same string, which is a coincidence, not an error.
 CREATE UNIQUE INDEX IF NOT EXISTS user_mfa_recovery_codes_unique_idx
     ON user_mfa_recovery_codes (user_id, code_hash);
-`;
-
-/**
- * Runs at most once per process, whatever calls it and however often.
- *
- * The promise is memoised rather than a boolean flag because two requests can
- * arrive before the first CREATE returns; both then await the same work. A
- * failure is memoised too — retrying DDL on every request against a database
- * that refused it once would turn a permissions problem into a log flood.
- */
-let ensured: Promise<void> | null = null;
-
-export function ensureMfaSchema(): Promise<void> {
-    ensured ??= createIfMissing();
-    return ensured;
-}
-
-async function createIfMissing(): Promise<void> {
-    try {
-        const existing = await query(`SELECT to_regclass('public.user_mfa') AS table_name`);
-        if (existing.rows[0]?.table_name) return;
-
-        console.log("[mfa] user_mfa not found, creating two-factor tables");
-
-        // One transaction: a half-created pair — the secret table without the
-        // recovery codes — would let someone enrol into an account they could
-        // then be locked out of.
-        await query("BEGIN");
-        try {
-            await query(CREATE_SQL);
-            await query("COMMIT");
-        } catch (e) {
-            await query("ROLLBACK").catch(() => {});
-            throw e;
-        }
-
-        console.log("[mfa] two-factor tables created");
-    } catch (e) {
-        // Not fatal to the server. Everything else in the dashboard works
-        // without these tables; the 2FA endpoints are what fail, and they fail
-        // with their own error rather than taking the process down at boot.
-        console.warn("[mfa] could not ensure two-factor tables", e);
-    }
-}

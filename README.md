@@ -273,12 +273,17 @@ not argon2, deliberately: they are 50 bits of machine randomness with no
 dictionary to slow down, and a fast digest buys an indexed single-query lookup
 instead of ten stretched verifications per attempt.
 
-> **Temporary:** the two tables (`user_mfa`, `user_mfa_recovery_codes`) are
-> created by the app itself at startup — `src/instrumentation.ts` and
-> `src/app/lib/mfa-schema.ts` — rather than applied by hand like the schemas
-> above, so the release could not land on a database a step behind it. **Delete
-> both files on the next UI deployment** and move the SQL to
-> `docs/mfa-schema.sql` for the record.
+The two tables are `user_mfa` and `user_mfa_recovery_codes`, in
+`docs/mfa-schema.sql`, applied the same way as the schemas above:
+
+```bash
+psql "$DATABASE_URL" -f docs/mfa-schema.sql
+```
+
+They were created by the app itself at startup for the release that introduced
+2FA, so that deploy could not land on a database a step behind it; that
+bootstrap was removed once it had run everywhere, and the file above is what it
+ran.
 
 ## Demo mode
 
