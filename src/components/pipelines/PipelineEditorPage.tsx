@@ -822,7 +822,7 @@ function StepNode({
             </div>
 
             {/* Everything dragging does, without a drag. */}
-            <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+            <div className="flex shrink-0 items-center gap-0.5 mouse:opacity-0 transition-opacity focus-within:opacity-100 mouse:group-hover:opacity-100">
                 <Button
                     variant="ghost"
                     size="icon"

@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
+import plugin from "tailwindcss/plugin";
 
 export default {
     darkMode: "class",
@@ -103,5 +104,24 @@ export default {
             },
         },
     },
-    plugins: [tailwindcssAnimate],
+    plugins: [
+        tailwindcssAnimate,
+        /**
+         * Two variants for the one question Tailwind has no answer to: is there
+         * a pointer that can hover?
+         *
+         * A `hover:` class is not that question — it fires on touch too, where
+         * the browser fakes a hover on tap and then leaves it stuck on the last
+         * thing touched. What this is for is the pattern used all over the
+         * session panels: a control at `opacity-0` that only appears on
+         * `group-hover`. On a phone that control is invisible, and a control you
+         * cannot see is one you cannot use. `mouse:` puts the reveal behind a
+         * real pointer; `touch:` is its complement, for the rare case where the
+         * touch side needs a rule of its own rather than just the default.
+         */
+        plugin(({ addVariant }) => {
+            addVariant('mouse', '@media (hover: hover) and (pointer: fine)');
+            addVariant('touch', '@media (hover: none)');
+        }),
+    ],
 } satisfies Config;

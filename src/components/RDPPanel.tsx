@@ -139,14 +139,17 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
             >
                     {/* Header */}
                     <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-hairline bg-secondary/50">
-                        <div className="flex items-center gap-2">
-                            <MonitorPlay className="w-5 h-5 text-primary" />
-                            <div>
-                                <span className="text-sm font-medium leading-tight">Remote Screen</span>
-                                <p className="text-xs leading-tight text-muted-foreground">Persistent RDP sessions</p>
+                        {/* The subtitle is the first thing to go on a phone:
+                            three icon buttons and Ctrl+Alt+Del have to fit
+                            beside it, and they are the half you can act on. */}
+                        <div className="flex min-w-0 items-center gap-2">
+                            <MonitorPlay className="w-5 h-5 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                                <span className="block truncate text-sm font-medium leading-tight">Remote Screen</span>
+                                <p className="hidden truncate text-xs leading-tight text-muted-foreground sm:block">Persistent RDP sessions</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex shrink-0 items-center gap-1">
                             {tabs.length > 0 && (
                                 <>
                                     <Button
@@ -155,9 +158,13 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                                         onClick={sendCtrlAltDel}
                                         aria-label="Send Ctrl+Alt+Del to the remote host"
                                         title="Send Ctrl+Alt+Del — the browser cannot forward it"
-                                        className="font-mono text-xs"
+                                        className="px-2 font-mono text-xs sm:px-3"
                                     >
-                                        Ctrl+Alt+Del
+                                        {/* The full name where it fits; the
+                                            shape everybody recognises where it
+                                            does not. */}
+                                        <span className="hidden sm:inline">Ctrl+Alt+Del</span>
+                                        <span className="sm:hidden">C-A-D</span>
                                     </Button>
                                     <Button
                                         variant="ghost"
@@ -201,7 +208,7 @@ export function RdpPanel({ isOpen, onClose, tabs, activeTabId, onSelectTab, onCl
                                 >
                                     <span className="font-mono text-xs whitespace-nowrap">{label}</span>
                                     <button
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                                        className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity hover:text-destructive"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onCloseTab(tab.id);

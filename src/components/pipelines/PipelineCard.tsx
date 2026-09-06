@@ -172,7 +172,7 @@ export function PipelineCard({
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="-mr-1 -mt-1 h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                                className="-mr-1 -mt-1 h-7 w-7 shrink-0 rounded-full text-muted-foreground mouse:opacity-0 transition-opacity focus-visible:opacity-100 mouse:group-hover:opacity-100 data-[state=open]:opacity-100"
                                 aria-label={`Actions for ${pipeline.name}`}
                             >
                                 <MoreHorizontal className="h-4 w-4" />

@@ -370,7 +370,7 @@ export function CreateTunnelPanel({ isOpen, onClose, nodeId, serverId, nodeName,
                                 >
                                     <span className="font-mono text-xs whitespace-nowrap">{label}</span>
                                     <button
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                                        className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity hover:text-destructive"
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             handleCloseSession(session);

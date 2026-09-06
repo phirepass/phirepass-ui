@@ -528,8 +528,8 @@ const Landing = () => {
                                     </CarouselItem>
                                 ))}
                             </CarouselContent>
-                            <CarouselPrevious className="opacity-0 group-hover:opacity-100 transition-opacity -left-4 lg:-left-12" />
-                            <CarouselNext className="opacity-0 group-hover:opacity-100 transition-opacity -right-4 lg:-right-12" />
+                            <CarouselPrevious className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity -left-4 lg:-left-12" />
+                            <CarouselNext className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity -right-4 lg:-right-12" />
                         </Carousel>
 
                         <div className="flex items-center justify-center gap-2 mt-6">

@@ -6,10 +6,19 @@
  * for why that registration now happens in development too.
  */
 
+import { isIos, isStandalone } from '@/lib/install';
+
 export type PushSupport =
     /** Everything needed is present. */
     | 'ok'
-    /** The browser has no Push API (Safari before 16.4, most in-app browsers). */
+    /**
+     * iOS, in a browser tab. The Push API is there on 16.4 and later, but only
+     * for an app installed to the Home Screen — so this is a step to take, not
+     * a browser to give up on, and it is worth its own state because the two
+     * read identically through feature detection.
+     */
+    | 'needs-install'
+    /** The browser has no Push API at all (an in-app browser, or something old). */
     | 'unsupported'
     /** Push requires a secure context; http:// on a LAN address will not do. */
     | 'insecure';
@@ -17,7 +26,11 @@ export type PushSupport =
 export function pushSupport(): PushSupport {
     if (typeof window === 'undefined') return 'unsupported';
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        return 'unsupported';
+        // Ask *why* it is missing before reporting it as missing. Telling
+        // somebody on an iPhone that their browser is too old, when the same
+        // browser will do this the moment the app is on the Home Screen, sends
+        // them to look for an update that does not exist.
+        return isIos() && !isStandalone() ? 'needs-install' : 'unsupported';
     }
     // localhost counts as secure, which is what makes local development work at
     // all; a dev server reached over the network by IP does not.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { InvitationNotice } from "@/components/InvitationNotice";
+import { InstallBanner } from "@/components/InstallPrompt";
 import { ReactNode } from "react";
 import { getCachedProfile, getCachedSession, setCachedProfile, setCachedSession } from "./profile-cache";
 import { useDemoMode } from "@/components/DemoModeProvider";
@@ -154,6 +155,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <Header user={user} onLogout={handleLogout} />
                 {/* Speaks once, if an invitation link is what got us here. */}
                 <InvitationNotice />
+                {/* Offers itself once, and only where there is somewhere to install to. */}
+                <InstallBanner />
                 {/* No footer in the signed-in app. The bottom padding stays behind
                     as a plain spacer so short pages keep the same breathing room the
                     footer used to give them. */}

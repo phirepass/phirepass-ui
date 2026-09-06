@@ -297,12 +297,20 @@ export default function NotificationsPage() {
     const alerts = useMemo<AlertEntry[]>(() => {
         const entries: AlertEntry[] = [];
 
-        if (support === 'unsupported') {
+        if (support === 'needs-install') {
+            entries.push({
+                id: 'needs-install',
+                level: 'warning',
+                title: 'Add PhirePass to your Home Screen to receive alerts',
+                message: 'iOS only gives notifications to an installed app. Tap Share, then "Add to Home Screen", and open PhirePass from the icon — everything on this page works from there.',
+                tag: 'install',
+            });
+        } else if (support === 'unsupported') {
             entries.push({
                 id: 'unsupported',
                 level: 'error',
                 title: 'This browser cannot receive push notifications',
-                message: 'It has no Push API. Safari needs 16.4 or newer, and most in-app browsers never expose it.',
+                message: 'It has no Push API. Most in-app browsers never expose one; opening this page in the device browser usually does.',
                 tag: 'unsupported',
             });
         } else if (support === 'insecure') {

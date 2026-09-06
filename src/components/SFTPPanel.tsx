@@ -183,34 +183,40 @@ export function SftpPanel({ isOpen, onClose, tunnels, initialTunnel }: SftpPanel
     <div className="fixed inset-y-0 right-0 w-full md:w-[800px] lg:w-[1100px] bg-card border-l border-hairline shadow-2xl z-50 animate-slide-in-right flex flex-col">
     {/* Header */}
     <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-secondary/50 shrink-0">
-        <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-primary/10">
+        <div className="flex min-w-0 items-center gap-3">
+        <div className="shrink-0 p-2 rounded-lg bg-primary/10">
             <HardDrive className="w-5 h-5 text-primary" />
         </div>
-        <div>
-            <span className="text-sm font-medium">SFTP File Manager</span>
+        {/* Which node this is connected to drops below the title rather than
+            off the edge of a phone. */}
+        <div className="min-w-0">
+            <span className="block truncate text-sm font-medium">SFTP File Manager</span>
             {sourceTunnel && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className="block truncate text-xs text-muted-foreground sm:ml-2 sm:inline">
                 Connected to {sourceTunnel.nodeName}
             </span>
             )}
         </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose}>
         <X className="w-4 h-4" />
         </Button>
     </div>
 
     {/* Mode Tabs */}
     <Tabs value={mode} onValueChange={(v) => setMode(v as 'browse' | 'transfer')} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-full justify-start rounded-none border-b border-hairline bg-background px-4 shrink-0">
-        <TabsTrigger value="browse" className="gap-2">
+        <TabsList className="w-full justify-start overflow-x-auto rounded-none border-b border-hairline bg-background px-4 shrink-0">
+        <TabsTrigger value="browse" className="shrink-0 gap-2">
             <Folder className="w-4 h-4" />
-            Browse & Download
+            {/* "Browse & Download" and "Transfer Between Nodes" together are
+                wider than a phone; the short forms say the same thing. */}
+            <span className="hidden sm:inline">Browse &amp; Download</span>
+            <span className="sm:hidden">Browse</span>
         </TabsTrigger>
-        <TabsTrigger value="transfer" className="gap-2">
+        <TabsTrigger value="transfer" className="shrink-0 gap-2">
             <ArrowRight className="w-4 h-4" />
-            Transfer Between Nodes
+            <span className="hidden sm:inline">Transfer Between Nodes</span>
+            <span className="sm:hidden">Transfer</span>
         </TabsTrigger>
         </TabsList>
 

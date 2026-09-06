@@ -3,6 +3,12 @@ import { X, Plus, Circle, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { TerminalTab, TunnelNode } from '@/types/node';
 import { cn } from '@/lib/utils';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface TerminalPanelProps {
     isOpen: boolean;
@@ -87,18 +93,18 @@ export function TerminalPanel({
         >
             {/* Header */}
             <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-hairline bg-secondary/50">
-                <div className="flex items-center gap-2">
-                    <div className="flex gap-1.5">
+                <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex shrink-0 gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-destructive" />
                         <div className="w-3 h-3 rounded-full bg-warning" />
                         <div className="w-3 h-3 rounded-full bg-success" />
                     </div>
-                    <div className="ml-2">
-                        <span className="text-sm font-medium leading-tight">Terminal</span>
-                        <p className="text-xs leading-tight text-muted-foreground">Interactive SSH session</p>
+                    <div className="ml-2 min-w-0">
+                        <span className="block truncate text-sm font-medium leading-tight">Terminal</span>
+                        <p className="hidden truncate text-xs leading-tight text-muted-foreground sm:block">Interactive SSH session</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -134,7 +140,7 @@ export function TerminalPanel({
                         />
                         <span className="font-mono text-xs">{tab.nodeName}</span>
                         <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                            className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity hover:text-destructive"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onCloseTab(tab.id);
@@ -145,22 +151,32 @@ export function TerminalPanel({
                     </div>
                 ))}
                 {onlineNodes.length > 0 && (
-                    <div className="relative group shrink-0">
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Plus className="w-4 h-4" />
-                        </Button>
-                        <div className="absolute top-full left-0 mt-1 bg-popover border border-hairline rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[160px]">
+                    /*
+                     * Opened by a click, not by hovering the button.
+                     *
+                     * It used to be a div revealed on `group-hover`, which on a
+                     * touch screen is a menu with no way to open it: opening a
+                     * second session was simply not something a phone could do.
+                     */
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0"
+                                aria-label="Open a session on another node"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="min-w-[160px]">
                             {onlineNodes.map((node) => (
-                                <button
-                                    key={node.id}
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary transition-colors first:rounded-t-lg last:rounded-b-lg"
-                                    onClick={() => onAddTab(node)}
-                                >
+                                <DropdownMenuItem key={node.id} onSelect={() => onAddTab(node)}>
                                     {node.stats.host_name}
-                                </button>
+                                </DropdownMenuItem>
                             ))}
-                        </div>
-                    </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
             </div>
 
