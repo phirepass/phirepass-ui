@@ -10,7 +10,6 @@ import { RdpPanel } from '@/components/RDPPanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
-import { ShareManagementDialog } from '@/components/ShareManagementDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { mockSharedNodes } from '@/data/mockSharedNodes';
@@ -167,7 +166,6 @@ export default function Nodes() {
 
     // Share dialogs
     const [shareDialogOpen, setShareDialogOpen] = useState(false);
-    const [shareManagementOpen, setShareManagementOpen] = useState(false);
     const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
     const [viewNodeIdDialogOpen, setViewNodeIdDialogOpen] = useState(false);
     const [nodeToViewId, setNodeToViewId] = useState<TunnelNode | null>(null);
@@ -2253,13 +2251,6 @@ export default function Nodes() {
                         open={shareDialogOpen}
                         onOpenChange={setShareDialogOpen}
                         node={nodeToShare}
-                    />
-
-                    {/* Share Management Dialog */}
-                    <ShareManagementDialog
-                        open={shareManagementOpen}
-                        onOpenChange={setShareManagementOpen}
-                        node={null}
                     />
 
                     <Dialog

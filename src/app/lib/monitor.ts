@@ -170,7 +170,7 @@ async function summarize(session: Session, rows: MonitorRow[]): Promise<MonitorS
     // `$1` is still the caller's own user id, so every placeholder below keeps
     // the number it had; the scope's other two values are appended as $3/$4.
     // See `scopeAppended` for why it is shaped that way.
-    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2);
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2, 'node_id');
     const params = [session.userId, ids, ...scope.params];
 
     // Counts come back from `pg` as strings (bigint), so every aggregate is cast
@@ -227,7 +227,7 @@ export async function loadMonitorById(
     session: Session,
     monitorId: string,
 ): Promise<MonitorSummary | null> {
-    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2);
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2, 'node_id');
 
     const monitors = await query(
         `SELECT m.*, n.name AS node_name
@@ -279,7 +279,7 @@ export async function loadMonitorPage(
 
     // The scope goes on last so it can be numbered against a parameter list
     // that is finished. Conditions are ANDed, so the order is free.
-    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length);
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length, 'node_id');
     conditions.push(scope.sql);
     params.push(...scope.params);
 

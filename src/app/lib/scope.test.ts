@@ -95,3 +95,59 @@ test('a reader without the :all permission still matches their own rows', () => 
     assert.deepEqual(scope.params, [ORG, false, USER]);
     assert.match(scope.sql, /\$2::boolean OR n\.user_id = \$3/);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The share arm
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Shape again, not semantics: the arm adds no parameters, so the risk it
+// carries is that it reuses the *wrong* placeholder — pointing the organisation
+// check at the permission flag, say — which still runs and still returns rows.
+
+test('no share arm unless a caller names the column the node id lives in', () => {
+    const scope = buildScope(shape(false), 'n', { style: 'leading' });
+
+    assert.doesNotMatch(scope.sql, /node_shares/, 'shares are opt-in per scope');
+});
+
+test('a leading share arm reuses $1 for the org and $3 for the caller', () => {
+    const scope = buildScope(shape(false), 'n', { style: 'leading' }, 'id');
+
+    assert.match(scope.sql, /s\.node_id = n\.id/);
+    assert.match(scope.sql, /s\.org_id = \$1/, 'the org must be the same $1 as the first clause');
+    assert.match(scope.sql, /s\.grantee_id = \$3/, 'the grantee must be the caller');
+    assert.match(scope.sql, /s\.revoked_at IS NULL/, 'revocation is evaluated on every read');
+    assert.match(scope.sql, /s\.audience = 'org'/);
+
+    // The whole point of reusing placeholders: the caller's numbering is
+    // untouched, so adding sharing did not renumber a single existing query.
+    assert.deepEqual(scope.params, [ORG, false, USER]);
+});
+
+test('an appended share arm follows the caller parameters, still adding none', () => {
+    const scope = buildScope(shape(false), 'm', { style: 'appended', used: 4 }, 'node_id');
+
+    assert.match(scope.sql, /s\.node_id = m\.node_id/, 'a monitor is shared through its node');
+    assert.match(scope.sql, /s\.org_id = \$5/, 'the org is the appended $5, not $1');
+    assert.match(scope.sql, /s\.grantee_id = \$1/, 'the caller is still $1 in appended style');
+    assert.deepEqual(scope.params, [ORG, false]);
+});
+
+test('the share arm sits inside the second clause, never the first', () => {
+    // If it escaped to the first clause it would widen which *organisation* is
+    // readable, rather than who inside one may read a row. The org equality has
+    // to be the thing the arm is ANDed under.
+    const scope = buildScope(shape(false), 'n', { style: 'leading' }, 'id');
+
+    const firstClause = scope.sql.slice(0, scope.sql.indexOf('AND ($2::boolean'));
+    assert.doesNotMatch(firstClause, /node_shares/);
+});
+
+test('reading everything in the org does not depend on the share arm', () => {
+    // An owner or admin already passes the second clause on $2, so the arm is
+    // additive rather than load bearing for them.
+    const scope = buildScope(shape(true), 'n', { style: 'leading' }, 'id');
+
+    assert.match(scope.sql, /\$2::boolean OR/);
+    assert.equal(scope.params[1], true);
+});

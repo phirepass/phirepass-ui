@@ -6,7 +6,10 @@
  * for why that registration now happens in development too.
  */
 
-import { isIos, isStandalone } from '@/lib/install';
+// Relative and extension-ful, like every other import in this directory: these
+// modules are executed directly by `node --test`, which resolves neither the
+// `@/` alias nor an extensionless specifier.
+import { isIos, isStandalone } from './install.ts';
 
 export type PushSupport =
     /** Everything needed is present. */

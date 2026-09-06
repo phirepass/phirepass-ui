@@ -460,6 +460,15 @@ export function NodeCard({
                                                 <Pencil className="mr-2 w-4 h-4" />
                                                 Rename Node
                                             </DropdownMenuItem>
+                                            {/* Sharing lives beside the other things you can do *to*
+                                                a node rather than beside the ways of connecting to
+                                                one: it changes who reaches the machine, not how. */}
+                                            {onShare ? (
+                                                <DropdownMenuItem onClick={() => onShare(node)}>
+                                                    <Share2 className="mr-2 w-4 h-4" />
+                                                    Share Node
+                                                </DropdownMenuItem>
+                                            ) : null}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 onClick={() => onDelete?.(node)}

@@ -192,7 +192,7 @@ export async function loadMonitorOverview(
     // Every query below shares one parameter list, so the scope is built once —
     // after the optional kind filter, so its own two values land at the end and
     // nothing already numbered has to move. `$1` remains the caller's user id.
-    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length);
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length, 'node_id');
     params.push(...scope.params);
 
     // Counts come back from `pg` as strings (bigint), so every aggregate is cast

@@ -18,6 +18,20 @@ export interface ScopeShape {
     readsAll: boolean;
 }
 
+/**
+ * Where the node id lives, for a scope that should also admit shared nodes.
+ *
+ * Opt-in, and per caller, because the three tables this predicate scopes do not
+ * agree on the question. `nodes` is shared through its own `id`; `monitors`
+ * through `node_id`, so a monitor watching a machine you were given follows the
+ * machine; `pat_tokens` is not shared at all — a token is a credential, and
+ * being lent a node is not being lent the owner's credentials.
+ *
+ * Omitted means "no share arm", which is also what `nodeManageScope` passes:
+ * a share grants *use*, and configuration stays with the owner.
+ */
+export type SharedVia = string | undefined;
+
 export interface Scope {
     sql: string;
     params: unknown[];
@@ -50,16 +64,22 @@ export type ScopeStyle =
  *   entry in `MIGRATION.md` — **and**
  * - either they may read everything in the organisation, or the row is theirs.
  *
- * Node sharing (`phirepass-rs/SHARING.md`, roadmap A3) is one more `OR` in the
- * second clause, and adding it there gives it to every list, count and detail
- * route at once. That is the reason nothing writes its own predicate.
+ * Node sharing (`phirepass-rs/SHARING.md`, roadmap A3) is that one more `OR` in
+ * the second clause — `shareArm` below — and putting it there gave it to every
+ * list, count and detail route at once. That is the reason nothing writes its
+ * own predicate.
  *
  * The boolean is cast explicitly. Left bare, `pg` sends it untyped and Postgres
  * infers it from the `OR` — which works until the fragment is composed into a
  * position where it cannot, and the failure is then a runtime type error in one
  * route rather than something a test would catch.
  */
-export function buildScope(shape: ScopeShape, alias: string, style: ScopeStyle): Scope {
+export function buildScope(
+    shape: ScopeShape,
+    alias: string,
+    style: ScopeStyle,
+    sharedVia?: SharedVia,
+): Scope {
     const a = alias ? `${alias}.` : '';
 
     if (style.style === 'appended') {
@@ -68,16 +88,46 @@ export function buildScope(shape: ScopeShape, alias: string, style: ScopeStyle):
 
         return {
             sql: `((${a}org_id = $${org} OR (${a}org_id IS NULL AND ${a}user_id = $1))
-               AND ($${all}::boolean OR ${a}user_id = $1))`,
+               AND ($${all}::boolean OR ${a}user_id = $1${shareArm(a, sharedVia, `$${org}`, '$1')}))`,
             params: [shape.orgId, shape.readsAll],
         };
     }
 
     return {
         sql: `((${a}org_id = $1 OR (${a}org_id IS NULL AND ${a}user_id = $3))
-               AND ($2::boolean OR ${a}user_id = $3))`,
+               AND ($2::boolean OR ${a}user_id = $3${shareArm(a, sharedVia, '$1', '$3')}))`,
         params: [shape.orgId, shape.readsAll, shape.userId],
     };
+}
+
+/**
+ * The share arm: "or somebody gave this node to me, or to everyone here".
+ *
+ * It sits on the **second** clause, never the first. That placement is the
+ * whole safety argument, and it is worth spelling out:
+ *
+ * - The first clause has already established that the row is in the caller's own
+ *   organisation. A share therefore cannot widen *which* organisation is
+ *   readable; it can only widen *who inside it* reads a given row.
+ * - `org_id` is matched again inside the subquery against the same parameter, so
+ *   even a `node_shares` row that somehow named another organisation — a node
+ *   moved after being shared, a hand-written row — selects nothing.
+ * - `revoked_at IS NULL` is the revocation, and it is evaluated on every read
+ *   rather than cached anywhere.
+ *
+ * Adds no parameters: the organisation and the caller are already values this
+ * fragment passes, so the arm reuses their placeholders and every existing
+ * number in the caller's query stays where it was.
+ */
+function shareArm(a: string, sharedVia: SharedVia, org: string, me: string): string {
+    if (!sharedVia) return '';
+
+    return ` OR EXISTS (
+                   SELECT 1 FROM node_shares s
+                    WHERE s.node_id = ${a}${sharedVia}
+                      AND s.org_id = ${org}
+                      AND s.revoked_at IS NULL
+                      AND (s.audience = 'org' OR s.grantee_id = ${me}))`;
 }
 
 /**

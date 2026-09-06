@@ -329,7 +329,10 @@ export async function requirePermission(permission: Permission): Promise<Session
  * @param alias the table alias the caller used for `nodes`
  */
 export function nodeScope(session: Session, alias = 'n'): Scope {
-    return ownedScope(session, 'nodes:read:all', alias);
+    // `id`, because a node is shared through its own primary key. This is the
+    // one scope that admits shares; see `nodeManageScope` for why it is the
+    // only read scope that does.
+    return buildScope(scopeShape(session, 'nodes:read:all'), alias, { style: 'leading' }, 'id');
 }
 
 /**
@@ -341,6 +344,9 @@ export function nodeScope(session: Session, alias = 'n'): Scope {
  * the two will diverge further, not less.
  */
 export function nodeManageScope(session: Session, alias = 'n'): Scope {
+    // No share arm, deliberately: being given a machine is being given its use.
+    // Renaming it, deleting it, and editing its services stay with the owner and
+    // with whoever reaches the whole organisation.
     return ownedScope(session, 'nodes:manage:all', alias);
 }
 
@@ -372,8 +378,21 @@ export function scopeAppended(
     permission: Permission,
     alias: string,
     used: number,
+    sharedVia?: string,
 ): Scope {
-    return buildScope(scopeShape(session, permission), alias, { style: 'appended', used });
+    return buildScope(scopeShape(session, permission), alias, { style: 'appended', used }, sharedVia);
+}
+
+/**
+ * Which monitors this session may see, shares included.
+ *
+ * A monitor follows its node: if somebody gave you a machine, the checks
+ * watching that machine are part of what you were given — a shared node whose
+ * uptime you cannot see is half a share. `monitors.node_id` is `NOT NULL`, so
+ * there is always a node to follow.
+ */
+export function monitorScope(session: Session, alias = 'm'): Scope {
+    return buildScope(scopeShape(session, 'monitors:read:all'), alias, { style: 'leading' }, 'node_id');
 }
 
 /**
