@@ -1,6 +1,6 @@
 # Phirepass UI
 
-Next.js (App Router) dashboard for Phirepass.
+UI for Phirepass.
 
 **URL**: https://www.phirepass.com/
 
