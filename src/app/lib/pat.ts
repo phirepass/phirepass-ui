@@ -17,14 +17,19 @@ export async function create_pat(input: CreatePATInput): Promise<string> {
         // parallelism: 1,
     });
 
+    // `org_id` alongside `user_id`: the token still belongs to the person who
+    // minted it — that is what shows in their list and what an enrolled node
+    // records as its owner — but the organisation is what decides who may see
+    // and revoke it, and what a node enrolled with it lands in.
     await query(
-        `INSERT INTO pat_tokens (token_id, token_hash, name, user_id, scopes, expires_at)
-        VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO pat_tokens (token_id, token_hash, name, user_id, org_id, scopes, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
             tokenId,
             tokenHash,
             input.name,
             input.user_id,
+            input.org_id,
             input.scopes,
             input.expires_at || null,
         ]

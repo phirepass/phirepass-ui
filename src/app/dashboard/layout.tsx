@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { ReactNode } from "react";
-import { getCachedProfile, setCachedProfile } from "./profile-cache";
+import { getCachedProfile, getCachedSession, setCachedProfile, setCachedSession } from "./profile-cache";
 import { useDemoMode } from "@/components/DemoModeProvider";
 import { clearCachedNodes } from "@/lib/nodesCache";
+import { SessionProvider, sessionFromProfile, type ProfileResponse, type SessionValue } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const { toast } = useToast();
     const isDemo = useDemoMode();
     const cachedProfile = getCachedProfile();
+    const cachedSession = getCachedSession();
     // The URL cleanup below is for the OAuth callback and belongs to the first
     // load only — this effect now also re-runs when demo mode flips, and
     // rewriting the address bar under someone who just toggled a switch is not
@@ -31,6 +33,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         avatar: string | null;
     } | null>(cachedProfile);
 
+    /**
+     * The same `/api/profile` answer, kept whole.
+     *
+     * The header only ever wanted a name and an avatar; `useCurrentRole()` wants
+     * the organisation and the role that came back in the same response. One
+     * fetch, published through `SessionProvider`, so no page has to ask a second
+     * time to find out what it is allowed to show.
+     */
+    const [session, setSession] = useState<SessionValue>(
+        cachedSession ?? { userId: null, email: null, username: null, avatarUrl: null, org: null, role: null, loading: !cachedProfile },
+    );
+
     // Fetch user profile from API using HttpOnly cookies (auth + GitHub token).
     // Skipped if already cached from a previous mount of this layout in this session.
     //
@@ -38,6 +52,25 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     // of what demo mode replaces: the provider drops the cached profile as it
     // installs (and removes) its `fetch` patch, so this asks again and gets
     // whichever of the two answers is now correct.
+    /**
+     * A role can change under a page that is already open — a transfer of
+     * ownership demotes whoever made it, in the same request. The members page
+     * fires this event afterwards; the profile cache is dropped and the fetch
+     * below runs again, so the buttons on screen match what the API will now
+     * allow rather than what it allowed a moment ago.
+     */
+    const [profileNonce, setProfileNonce] = useState(0);
+
+    useEffect(() => {
+        const onSessionChanged = () => {
+            setCachedProfile(null);
+            setProfileNonce((value) => value + 1);
+        };
+
+        window.addEventListener('phirepass:session-changed', onSessionChanged);
+        return () => window.removeEventListener('phirepass:session-changed', onSessionChanged);
+    }, []);
+
     useEffect(() => {
         if (getCachedProfile()) {
             return;
@@ -47,14 +80,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             try {
                 const res = await fetch('/api/profile', { credentials: 'include' });
                 if (res.status === 200) {
-                    const data = await res.json();
+                    const data = await res.json() as ProfileResponse;
                     const userInfo = {
                         name: data.username || null,
                         email: data.email || null,
                         avatar: data.avatar_url || null,
                     };
+                    const nextSession = sessionFromProfile(data);
                     setCachedProfile(userInfo);
+                    setCachedSession(nextSession);
                     setUser(userInfo);
+                    setSession(nextSession);
                     setIsAuthenticated(true);
                     setIsLoading(false);
                     // Clean URL in case callback left params
@@ -65,17 +101,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 } else {
                     setIsAuthenticated(false);
                     setIsLoading(false);
+                    setSession((current) => ({ ...current, loading: false }));
                     router.push('/login');
                 }
             } catch (err) {
                 console.error('Failed to load profile', err);
                 setIsAuthenticated(false);
                 setIsLoading(false);
+                setSession((current) => ({ ...current, loading: false }));
                 router.push('/login');
             }
         };
         load();
-    }, [router, isDemo]);
+    }, [router, isDemo, profileNonce]);
 
     // Keep the page scrollbar permanently visible while on /dashboard (styled in
     // src/index.css), so short pages don't shift horizontally against tall ones.
@@ -110,12 +148,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     };
 
     return (
-        <div className="flex flex-col min-h-screen">
-            <Header user={user} onLogout={handleLogout} />
-            {/* No footer in the signed-in app. The bottom padding stays behind
-                as a plain spacer so short pages keep the same breathing room the
-                footer used to give them. */}
-            <main className="flex-1">{children}</main>
-        </div>
+        <SessionProvider value={session}>
+            <div className="flex flex-col min-h-screen">
+                <Header user={user} onLogout={handleLogout} />
+                {/* No footer in the signed-in app. The bottom padding stays behind
+                    as a plain spacer so short pages keep the same breathing room the
+                    footer used to give them. */}
+                <main className="flex-1">{children}</main>
+            </div>
+        </SessionProvider>
     );
 }

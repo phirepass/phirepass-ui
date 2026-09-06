@@ -20,13 +20,183 @@ near-white used for default buttons and hover borders.
 
 Adding a colour means adding a token, not a hex literal.
 
+## Organisations, roles and members
+
+An **organisation owns** nodes, tokens and monitors; a **user holds a role in
+it**. That replaces what came before — `nodes.user_id == jwt.sub`, written out by
+hand in five queries here and four checks in `phirepass-rs` — and it is what a
+seat, a shared node and an audit log all hang off.
+
+Every account has an organisation from the moment it signs in, so a single
+person is not a special case anywhere in the code: they are an organisation with
+one owner in it, and the access check is identical for them and for a fifty-seat
+customer.
+
+| Role | Reaches |
+|---|---|
+| `owner` | Everything, plus renaming the workspace and handing ownership on |
+| `admin` | Every node in the organisation, and manages members — but cannot touch an owner |
+| `member` | Their own nodes, tokens and monitors, and nothing else |
+
+The table is `src/lib/rbac.ts`, and it is the **only** description of the model:
+the same `Permission` constant gates the button and the route behind it. That
+file is pure and client-safe, which is what lets the server import it.
+
+### Three files, and what each is for
+
+| File | What it owns |
+|---|---|
+| `src/lib/rbac.ts` | The permission table, and the rules about who may act on whom (`canActOnMember`, `canGrantRole`). No I/O — tested on its own. |
+| `src/app/lib/scope.ts` | The SQL predicate, as a pure function. Placeholder numbering is the part that fails silently, so it is tested apart from any database. |
+| `src/app/lib/authz.ts` | Where the two meet a request: `requireSession`, `requirePermission`, and the named scopes (`nodeScope`, `nodeManageScope`, `ownedScope`). |
+
+**`buildScope` is the answer to "which rows may this session see", and nothing
+else answers it.** Three clauses:
+
+```
+(row.org_id = :org  OR  (row.org_id IS NULL AND row.user_id = :me))
+AND (:reads_all  OR  row.user_id = :me)
+```
+
+Every list, count and detail query composes that fragment rather than writing
+its own `WHERE`, which is deliberate: node sharing
+(`phirepass-rs/SHARING.md`) is one more `OR` in the second clause, and adding it
+there gives it to every route at once.
+
+`phirepass-rs/server/src/access.rs` is the same three clauses in Rust, for the
+WebSocket path. Two languages disagreeing about who may reach a node is the
+failure that makes an access model impossible to reason about — the symptom is a
+dashboard that lists a machine and a terminal that refuses it — so both are
+written from this shape and both are tested against the same statements.
+
+### The rules that are enforced, not merely displayed
+
+- **A workspace always has an owner.** The last one cannot be demoted, suspended
+  or removed; losing them is unrecoverable without database access.
+- **Nobody administers themselves.** Role changes, suspension and removal all
+  refuse the caller's own row, so an owner cannot demote their way out of the
+  rule above by accident.
+- **Promotion to owner is a transfer.** The actor steps down to admin in the same
+  statement — one `UPDATE`, so an interruption cannot leave two owners or none.
+- **Suspension closes the API, not the buttons.** `requireSession` reads
+  membership from Postgres on every request, so it takes effect on the next one
+  rather than when a seven-day cookie expires. That includes
+  `/api/auth/websocket-token`, which is the credential that opens an SSH session.
+- **An invitation cannot grant ownership.** Ownership is transferred to somebody
+  who has already signed in, never handed to an address nobody has proved they
+  hold.
+
+### Invitations
+
+Sign-in is OAuth, so the invited address usually has no account yet. The
+invitation is keyed on the address and **claimed by signing in with it** — the
+link in the email is a shortcut to the sign-in page, not the credential, so a
+forwarded invitation is no use to anybody else. `claimInvitations` runs in the
+OAuth callback, before the session is minted, and lands the person in the
+workspace that asked for them rather than in a personal one.
+
+Delivery is best-effort on purpose: a deployment with no `MAILER_API_KEY`, a
+provider outage or a bounced address all leave a working invitation behind, and
+the members page says so rather than reporting a failure for something that
+succeeded.
+
+### Schema and rollout
+
+**The app applies its own schema.** There is nothing to run: starting
+`phirepass-ui` against a database brings it up to what this build expects. See
+*Schema migrations* below.
+
+The migration is `src/app/lib/migrations/001-organizations.ts` — three tables
+(`organizations`, `organization_members`, `organization_invitations`), `org_id`
+on `nodes`/`pat_tokens`/`monitors`, `users.primary_org_id`, and a re-runnable
+backfill that gives every existing account a personal organisation with
+everything it holds reassigned to it.
+
+```bash
+node scripts/check-org-schema.mjs --check    # what is there now, and the ledger
+node scripts/check-org-schema.mjs --verify   # every count should be zero
+```
+
+`org_id` is **nullable** and stays that way through this change, which is what
+makes the deploy order free: a row the backfill has not reached is visible to its
+owner and to nobody else — exactly the behaviour that existed before. A
+`phirepass-rs` that boots first, before the tables exist, treats every caller as
+having no membership for the same reason. `phirepass-rs/MIGRATION.md` carries the
+ordered entry and the separate `SET NOT NULL` to add once `--verify` is clean.
+
+### Where it shows
+
+`/dashboard/users` is no longer dev-gated. It requires `users:read`, so a plain
+member never sees the nav entry or the page, and `/api/org/members` answers 403
+to one regardless of what the client decides. It closes during a demo, for the
+reason Notifications does: there is no members fixture, and the demo lets
+unrecognised routes through to the real network — left open it would list the
+presenter's actual colleagues beside a sample fleet.
+
+## Schema migrations
+
+**The app owns its schema and applies it at startup.** There is no migration
+tool here and nothing to run by hand: `src/instrumentation.ts` calls
+`bootstrapSchema()` once per server instance, before the first request is
+served, and every migration in `src/app/lib/migrations/` is applied. Deploying
+is migrating.
+
+```
+src/app/lib/migrations/index.ts    the ordered list — append only
+src/app/lib/migrations/001-*.ts    one migration: an id, a description, the SQL
+src/app/lib/migrate.ts             the runner
+src/instrumentation.ts             the startup hook Next calls
+```
+
+Four properties, each of them a way this otherwise goes wrong:
+
+- **Every migration is re-runnable, and runs on every boot.** Not "once, then
+  recorded as done" — a database restored from an old dump, or one that missed a
+  deploy, repairs itself by being started against. `schema_migrations` records
+  when each id first appeared and how many times it has run; it is a log, not a
+  gate.
+- **One instance at a time.** A Postgres advisory lock serialises concurrent
+  boots. This is not belt-and-braces: `CREATE TABLE IF NOT EXISTS` is **not**
+  concurrency-safe — two instances running it at the same moment race on the row
+  type Postgres creates alongside the table, and the loser gets
+  `duplicate key value violates unique constraint "pg_type_typname_nsp_index"`.
+  Five instances started together reproduce it every time.
+- **All or nothing, per migration.** Postgres DDL is transactional, so a failure
+  part-way leaves the database as it was. Each migration gets its own
+  transaction, and the run stops at the first failure rather than applying a
+  later change against a database that did not get the earlier one.
+- **A failure does not stop the app booting.** A dashboard that refuses to start
+  because Postgres had a bad minute is worse than one that starts and errors on
+  the routes that need it. It is logged loudly, and the next restart tries again.
+
+The SQL lives in a TypeScript module rather than a `.sql` file read at runtime,
+because the standalone build only ships what it can trace through imports — a
+file read from disk exists in development and is missing in the container. The
+one consequence: a template literal cannot contain a backtick, so SQL comments
+use plain identifiers and the prose that wants formatting goes in the doc comment
+above.
+
+**Everything is migrated this way.** There is no `docs/` directory any more —
+the base tables, organisations, uptime, notifications and MFA are all
+migrations. The `pg_cron` statements the uptime schema needs are the one thing
+that had to change on the way in: `CREATE EXTENSION` and `cron.schedule` require
+privileges the application role may not hold, and a hard failure would be an
+error on every restart of a healthy deployment. They are wrapped in a guard that
+raises a notice and carries on, and the tables are created either way — neither
+job enforces anything a reader depends on. Scheduling is unschedule-then-schedule
+so a restart installs the current definition rather than layering on it.
+
+The scripts under `scripts/` are read-only diagnostics now. They tell you what a
+database holds; they no longer apply anything.
+
 ## Monitoring
 
-`/dashboard/monitor` is shipped and reachable in production. `Servers` and
-`Users` remain dev-gated behind `useDevSurfaceVisible()`
-(`src/hooks/use-dev-surface.ts`, built on `IS_DEV_MODE`) until RBAC can restrict
-them to the roles that should see them — see `src/lib/rbac.ts`. That hook also
-closes them while demo data is on; see below.
+`/dashboard/monitor` is shipped and reachable in production. **`Users` is too,
+as `Members`** — it is gated on `users:read` now that roles are enforced; see
+*Organisations, roles and members* above. `Servers` remains dev-gated behind
+`useDevSurfaceVisible()` (`src/hooks/use-dev-surface.ts`, built on `IS_DEV_MODE`)
+because it is still a mock relay fleet, not because of RBAC. That hook also
+closes it while demo data is on; see below.
 
 The page component lives in `src/components/monitor/`, **not** `src/pages/` —
 that directory is still an active Pages Router root, so a file there would also
@@ -65,14 +235,13 @@ minute and cannot honour anything shorter.
 ### Storage and scheduling
 
 Tables are `monitors`, `monitor_checks`, `monitor_incidents` — see
-`docs/uptime-schema.sql`, which is applied by hand:
+`src/app/lib/migrations/002-uptime.ts`, applied when the app starts. To see what
+a database currently holds, including the scheduled jobs:
 
 ```bash
-psql "$DATABASE_URL" -f docs/uptime-schema.sql
+node scripts/check-uptime-schema.mjs --check
+node scripts/check-uptime-schema.mjs --cron
 ```
-
-There is no migration runner in this repo yet; that file is the schema of record
-and is written to be re-runnable.
 
 Scheduling belongs to the Rust servers, not to this process. Each server polls
 Postgres once a minute for monitors that are due **and** belong to an agent it
@@ -115,14 +284,11 @@ and both halves are configured on `/dashboard/notifications`.
 | Dies by itself | Yes — the push service disowns it, and we prune | No — a dead URL keeps failing until removed |
 
 Tables are `notification_subscriptions`, `notification_webhooks` and
-`notification_preferences` — see `docs/notifications-schema.sql`, applied the
-same way as the uptime schema:
+`notification_preferences` — see `src/app/lib/migrations/003-notifications.ts`,
+applied when the app starts, like every other schema here:
 
 ```bash
-psql "$DATABASE_URL" -f docs/notifications-schema.sql
-# or, reusing the app's own TLS handling:
-node scripts/apply-notifications-schema.mjs --check
-node scripts/apply-notifications-schema.mjs --apply
+node scripts/check-notifications-schema.mjs --check
 ```
 
 Preferences are stored as a jsonb object of *overrides*, so a new event ships
@@ -274,16 +440,12 @@ dictionary to slow down, and a fast digest buys an indexed single-query lookup
 instead of ten stretched verifications per attempt.
 
 The two tables are `user_mfa` and `user_mfa_recovery_codes`, in
-`docs/mfa-schema.sql`, applied the same way as the schemas above:
-
-```bash
-psql "$DATABASE_URL" -f docs/mfa-schema.sql
-```
+`src/app/lib/migrations/004-mfa.ts`, applied when the app starts.
 
 They were created by the app itself at startup for the release that introduced
 2FA, so that deploy could not land on a database a step behind it; that
-bootstrap was removed once it had run everywhere, and the file above is what it
-ran.
+bootstrap was then removed and the DDL moved to a file applied by hand. It is
+back where it started, and this time it stays — see *Schema migrations*.
 
 ## Demo mode
 
@@ -355,9 +517,9 @@ strip paints a whole day amber for a single degraded check, so random spikes
 would turn every bar on the overview amber and the deliberate slowdowns would
 stop meaning anything.
 
-**Dev-gated surfaces are hidden while it is on.** Servers and Users are
-unfinished — a mock relay fleet, roles nothing enforces — and a demo is exactly
-when an audience cannot tell a placeholder from a shipped feature.
+**Dev-gated surfaces are hidden while it is on.** Servers is unfinished — a mock
+relay fleet — and a demo is exactly when an audience cannot tell a placeholder
+from a shipped feature.
 `useDevSurfaceVisible()` requires a dev build *and* demo data off, and both the
 menu entries and the pages themselves consult it: hiding a link is not the same
 as closing the page, so turning the switch on while standing on one of them
@@ -369,7 +531,15 @@ lets anything it does not recognise through to the real network, and there is no
 notifications fixture. Left open, it would sit inside a demo showing the
 account's own registered devices beside a sample fleet, which is the one failure
 this mode exists to prevent. So it checks `useDemoMode()` alone; give it a
-fixture and that check can go too.
+fixture and that check can go too. **Members closes for exactly the same
+reason** — no members fixture, and the alternative is a demo listing the
+presenter's real colleagues. Its other gate, `users:read`, is a real permission
+rather than a placeholder.
+
+The demo's own profile does carry an organisation and a role (`DEMO_ORG`, owner),
+because `/api/profile` answers with both now and `useCurrentRole()` reads them —
+without it every page would fall back to `member` and hide the controls the
+audience is there to see.
 
 The one thing the demo cannot fake is a live session — terminal, SFTP, screen,
 tunnels, and service changes all need a WebSocket to an agent that does not

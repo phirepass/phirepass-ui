@@ -10,7 +10,8 @@ import { PageHeader } from '@/components/PageHeader';
 import { Pager } from '@/components/Pager';
 import { FilterChips, SearchBar } from '@/components/SearchBar';
 import { StatTiles } from '@/components/StatTiles';
-import { can, useCurrentRole } from '@/lib/rbac';
+import { can } from '@/lib/rbac';
+import { useCurrentRole } from '@/lib/session';
 import { createMockServers, latestFleetVersion } from '@/data/mockServers';
 import type { ServerInstance, ServerStatus } from '@/types/server';
 

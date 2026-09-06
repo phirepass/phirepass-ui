@@ -8,6 +8,8 @@ import {
     signMfaChallenge,
     signSession,
 } from "@/app/lib/auth";
+import { ensurePersonalOrg } from "@/app/lib/authz";
+import { claimInvitations } from "@/app/lib/org";
 import { isMfaEnabled } from "@/app/lib/mfa";
 import { IS_MFA_ENABLED } from "@/lib/mfa-feature";
 import { UserInfo } from "@/app/lib/types";
@@ -105,6 +107,27 @@ export async function GET(req: Request) {
         // account that is genuinely there to be queried.
         if (!existingUser) {
             throw new Error("User could not be created");
+        }
+
+        /**
+         * Place the account in an organisation before it has a session.
+         *
+         * Order matters. Invitations are claimed first, so somebody who was
+         * asked into a team lands in that team rather than in a personal
+         * workspace they will never open; `ensurePersonalOrg` then creates one
+         * only for an account that joined nothing — it is a no-op for everybody
+         * else, because it starts by reading the membership it might create.
+         *
+         * Neither is allowed to fail the sign-in. An account with no membership
+         * is repaired by `requireSession` on its first authenticated request, so
+         * the worst case of an outage here is one extra query later, not a
+         * person who cannot get in.
+         */
+        try {
+            await claimInvitations(existingUser.id, existingUser.email);
+            await ensurePersonalOrg(existingUser.id);
+        } catch (orgError) {
+            console.warn(`[server][get][${req.url}] organisation bootstrap deferred:`, orgError);
         }
 
         const requestUrl = get_effective_request_url(req);

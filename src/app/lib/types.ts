@@ -15,7 +15,8 @@ export type PAToken = {
     id: string; // uuid
     token_id: string; // public identifier
     token_hash: string; // hashed token for verification
-    user_id: string; // owner user id
+    user_id: string; // the member who minted it
+    org_id: string; // the organisation a node enrolled with it belongs to
     name: string; // token name given by user
     scopes: string[]; // permissions associated with the token
     created_at: string;
@@ -26,6 +27,7 @@ export type PAToken = {
 export type CreatePATInput = {
     name: string;
     user_id: string;
+    org_id: string;
     scopes: string[];
     expires_at?: string | null;
 };

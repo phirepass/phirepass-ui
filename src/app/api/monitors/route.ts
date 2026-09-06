@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { authzErrorStatus, nodeScope, requireSession, scopeAt } from '@/app/lib/authz';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
 import { loadMonitorById, loadMonitorPage } from '@/app/lib/monitor';
@@ -36,14 +36,14 @@ function parsePositiveInt(raw: string | null, fallback: number): number {
  */
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const params = new URL(req.url).searchParams;
 
         const page = parsePositiveInt(params.get('page'), 1);
         const limit = parsePositiveInt(params.get('limit'), DEFAULT_LIMIT);
         const search = params.get('q')?.trim() || undefined;
 
-        const { monitors, total } = await loadMonitorPage(user.id, {
+        const { monitors, total } = await loadMonitorPage(session, {
             kind: parseEnum(params.get('kind'), KINDS),
             status: parseEnum(params.get('status'), STATUSES),
             search,
@@ -54,13 +54,14 @@ export async function GET(req: Request) {
         return json_response({ monitors, total, page, limit }, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }
 
 export async function POST(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const payload = await req.json().catch(() => ({})) as Record<string, unknown>;
 
         const parsed = parseMonitor(payload);
@@ -69,12 +70,17 @@ export async function POST(req: Request) {
         }
         const input = parsed.value;
 
-        // The picker only ever offers the caller's own nodes, but that is a UI
-        // affordance — re-check here, or a hand-written request could point a
+        // The picker only ever offers nodes the caller can reach, but that is a
+        // UI affordance — re-check here, or a hand-written request could point a
         // monitor at somebody else's agent and have this server probe from it.
+        //
+        // `nodeScope`, not "their own nodes": an administrator who can already
+        // open a shell on a colleague's box may certainly watch a URL from it.
+        // A member still only reaches their own.
+        const nodeAccess = scopeAt(nodeScope(session, 'n'), 1);
         const node = await query(
-            `SELECT id FROM nodes WHERE id = $1 AND user_id = $2`,
-            [input.node_id, user.id],
+            `SELECT n.id FROM nodes n WHERE n.id = $1 AND ${nodeAccess.sql}`,
+            [input.node_id, ...nodeAccess.params],
         );
         if (node.rowCount === 0) {
             return json_response({ error: 'Unknown agent' }, 400);
@@ -85,13 +91,13 @@ export async function POST(req: Request) {
         // forever, firing as a herd every interval with the rest idle.
         const created = await query(
             `INSERT INTO monitors (
-                user_id, node_id, name, kind, target,
+                user_id, org_id, node_id, name, kind, target,
                 interval_secs, timeout_ms, method, expected_status,
                 keyword, keyword_mode, follow_redirects, degraded_ms,
                 expiry_warn_days, paused, agent_offline_is_outage,
                 next_check_at
             ) VALUES (
-                $1, $2, $3, $4, $5,
+                $1, $18, $2, $3, $4, $5,
                 $6, $7, $8, $9,
                 $10, $11, $12, $13,
                 $14, $15, $16,
@@ -99,7 +105,7 @@ export async function POST(req: Request) {
             )
             RETURNING id`,
             [
-                user.id,
+                session.userId,
                 input.node_id,
                 input.name,
                 input.kind,
@@ -119,13 +125,18 @@ export async function POST(req: Request) {
                 // typed as the integer column, and reusing it inside a floating
                 // point expression leaves its type ambiguous.
                 input.interval_secs,
+                // Appended rather than inserted at position 2: renumbering
+                // seventeen placeholders to add one column is how the wrong
+                // value ends up in the wrong field.
+                session.orgId,
             ],
         );
 
-        const monitor = await loadMonitorById(user.id, created.rows[0].id as string);
+        const monitor = await loadMonitorById(session, created.rows[0].id as string);
         return json_response({ monitor }, 201);
     } catch (e) {
         console.warn(`[server][post][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }

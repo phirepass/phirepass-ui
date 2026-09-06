@@ -1,17 +1,34 @@
--- Uptime monitoring schema.
---
--- Design and reasoning live in phirepass-rs/MONITOR.md. In short: every check
--- runs from an agent. Postgres holds the schedule; each Rust server polls once a
--- minute for monitors whose agent it currently holds a WebSocket to, claims them
--- with FOR UPDATE SKIP LOCKED, sends a probe frame, and writes the result back.
--- Agents never touch this database.
---
--- There is no migration runner in either repo, so this file is applied by hand:
---
---     psql "$DATABASE_URL" -f docs/uptime-schema.sql
---
--- It is written to be re-runnable (IF NOT EXISTS throughout).
+import type { Migration } from './types';
 
+/**
+ * Uptime monitoring: `monitors`, `monitor_checks`, `monitor_incidents`.
+ *
+ * A monitor names one of the account's own nodes and the check runs *there*, on
+ * that machine's own network — which is the whole point, because the services
+ * people want to watch are usually unreachable from anywhere else. The
+ * scheduling and locking rules are in `phirepass-rs/MONITOR.md`.
+ *
+ * Two `pg_cron` jobs finish the picture: `uptime-offline-sweep` records a check
+ * for monitors whose agent is connected to no server at all, and
+ * `uptime-prune-checks` drops raw checks past 30 days, subject to a floor of the
+ * most recent 200 per monitor.
+ *
+ * **Both are optional.** `pg_cron` may not be installed and the application role
+ * may not hold `USAGE` on its schema, and this migration runs on every boot — so
+ * a hard failure there would be an error on every restart of a deployment that
+ * is otherwise perfectly healthy. The guarded block at the end raises a notice
+ * instead, and the tables are created either way. Neither job enforces anything
+ * a reader depends on: the sweep records that an agent was absent, the prune
+ * reclaims space.
+ *
+ * Scheduling is unschedule-then-schedule, so re-running installs the current
+ * definition rather than layering on whatever was there. That also retires the
+ * schedule/unschedule/reschedule sequence the hand-applied file had accumulated.
+ */
+export const uptime: Migration = {
+    id: '002-uptime',
+    description: 'monitors, checks and incidents, plus the pg_cron jobs where available',
+    sql: `
 -- ─────────────────────────────────────────────────────────────────────────────
 -- monitors — one row per saved check
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -39,13 +56,13 @@ CREATE TABLE IF NOT EXISTS monitors (
                                 CHECK (expiry_warn_days BETWEEN 1 AND 365),
     paused           boolean   NOT NULL DEFAULT false,
 
-    -- What an offline agent means for this monitor. false records `unknown` and
-    -- stays quiet; true records `down` and alerts. The default must stay false —
+    -- What an offline agent means for this monitor. false records unknown and
+    -- stays quiet; true records down and alerts. The default must stay false —
     -- the opposite turns every agent upgrade into a wave of false outages across
     -- every monitor on that node.
     agent_offline_is_outage boolean NOT NULL DEFAULT false,
 
-    -- scheduling. `next_check_at` carries both the schedule and the mutual
+    -- scheduling. next_check_at carries both the schedule and the mutual
     -- exclusion: claiming a row is the same statement that pushes it forward.
     next_check_at    timestamptz NOT NULL,
     last_dispatch_at timestamptz,
@@ -58,7 +75,7 @@ CREATE TABLE IF NOT EXISTS monitors (
     last_latency_ms  integer,
     last_status_code integer,
     last_error       text,
-    -- Why the last check reached the verdict it did, machine-readable. `error`
+    -- Why the last check reached the verdict it did, machine-readable. error
     -- carries the prose; this carries the category, so the UI can tell an agent
     -- timeout from an agent disconnect without matching on wording.
     last_reason      text,
@@ -103,7 +120,7 @@ CREATE INDEX IF NOT EXISTS monitor_checks_idx
     INCLUDE (status, latency_ms);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- monitor_incidents — one row per contiguous stretch of `down`
+-- monitor_incidents — one row per contiguous stretch of down
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS monitor_incidents (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -118,7 +135,7 @@ CREATE INDEX IF NOT EXISTS monitor_incidents_idx
     ON monitor_incidents (monitor_id, started_at DESC);
 
 -- At most one open incident per monitor, enforced rather than assumed:
--- `open_incident_since` in the UI contract is a single value, so a second open
+-- open_incident_since in the UI contract is a single value, so a second open
 -- row would make it ambiguous.
 CREATE UNIQUE INDEX IF NOT EXISTS monitor_incidents_open_idx
     ON monitor_incidents (monitor_id) WHERE resolved_at IS NULL;
@@ -159,7 +176,75 @@ CREATE TRIGGER monitors_touch_updated_at
 -- Set it near the tick and this starts taking rows a busy server was about to
 -- claim, inventing gaps that never happened; SKIP LOCKED prevents two writers,
 -- not misattribution.
-SELECT cron.schedule('uptime-offline-sweep', '*/2 * * * *', $job$
+
+-- Job 2 — prune raw checks beyond the 30-day window the dashboard draws.
+--
+-- There is deliberately no rollup table: 30 days of raw rows is enough to
+-- compute the daily strip with a GROUP BY on read, which is one fewer table and
+-- one fewer job. Odd minute so this does not land on top of anything else.
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Added after the initial schema; safe to re-run.
+--
+-- unknown is too coarse on its own: it covers an agent that timed out, one
+-- that disconnected mid-probe, one that shed the check at its capacity cap, and
+-- a kind this build cannot run. The free-text error distinguishes them to a
+-- human but not to code, which is what a filter or a coloured strip needs.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE monitors       ADD COLUMN IF NOT EXISTS last_reason text;
+ALTER TABLE monitor_checks ADD COLUMN IF NOT EXISTS reason      text;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Added after the initial schema; safe to re-run.
+--
+-- Retention floor, required by the ssl kind.
+--
+-- The flat 30-day prune above assumes short intervals, and that held while
+-- http was the only creatable kind: a 900s monitor writes ~96 checks a day, so
+-- 30 days is thousands of rows and the window is generous. A daily ssl monitor
+-- writes one. The same window keeps 30 — fewer than the 200 the detail dialog
+-- asks for, so its latency chart and recent-checks table would stay permanently
+-- sparse from the monitor's second month onward.
+--
+-- The floor keeps the most recent 200 rows per monitor regardless of age, and
+-- only then applies the 30-day cutoff.
+--
+-- The LATERAL rides monitor_checks_idx (monitor_id, checked_at DESC), so it
+-- reads 201 index entries per monitor rather than ranking the whole table.
+-- OFFSET 200 LIMIT 1 returns no row for a monitor with 200 checks or fewer,
+-- and the join then excludes that monitor from the delete entirely — which is
+-- exactly the "young or slow monitor" case the floor exists to protect.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Scheduled jobs — installed only where pg_cron is available
+-- ─────────────────────────────────────────────────────────────────────────────
+--
+-- These used to be bare SELECT cron.schedule(...) calls in a file applied by
+-- hand. They run on every boot now, which means two changes were required:
+--
+--   * pg_cron may not be installed, and the application role may not hold USAGE
+--     on the cron schema. Either would turn a routine startup into an error on
+--     every restart, so both are a NOTICE and the tables are created regardless.
+--     Neither job enforces anything a reader depends on: the sweep records that
+--     an agent was absent, the prune reclaims space.
+--
+--   * Scheduling is now unschedule-then-schedule, so re-running installs the
+--     current definition rather than layering on whatever was there. That also
+--     retires the schedule/unschedule/reschedule dance the hand-applied file
+--     had accumulated for the prune job.
+DO $cron_guard$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+        RAISE NOTICE 'pg_cron is not installed; uptime jobs were not scheduled';
+        RETURN;
+    END IF;
+
+    BEGIN PERFORM cron.unschedule('uptime-offline-sweep'); EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN PERFORM cron.unschedule('uptime-prune-checks');  EXCEPTION WHEN OTHERS THEN NULL; END;
+
+PERFORM cron.schedule('uptime-offline-sweep', '*/2 * * * *', $job$
 WITH stale AS (
     SELECT id, interval_secs, agent_offline_is_outage
     FROM monitors
@@ -193,59 +278,7 @@ FROM stale s
 WHERE m.id = s.id;
 $job$);
 
--- Job 2 — prune raw checks beyond the 30-day window the dashboard draws.
---
--- There is deliberately no rollup table: 30 days of raw rows is enough to
--- compute the daily strip with a GROUP BY on read, which is one fewer table and
--- one fewer job. Odd minute so this does not land on top of anything else.
-SELECT cron.schedule('uptime-prune-checks', '17 3 * * *', $job$
-DELETE FROM monitor_checks
-WHERE checked_at < now() - interval '30 days';
-$job$);
-
-
--- ─────────────────────────────────────────────────────────────────────────────
--- Added after the initial schema; safe to re-run.
---
--- `unknown` is too coarse on its own: it covers an agent that timed out, one
--- that disconnected mid-probe, one that shed the check at its capacity cap, and
--- a kind this build cannot run. The free-text `error` distinguishes them to a
--- human but not to code, which is what a filter or a coloured strip needs.
--- ─────────────────────────────────────────────────────────────────────────────
-ALTER TABLE monitors       ADD COLUMN IF NOT EXISTS last_reason text;
-ALTER TABLE monitor_checks ADD COLUMN IF NOT EXISTS reason      text;
-
-
--- ─────────────────────────────────────────────────────────────────────────────
--- Added after the initial schema; safe to re-run.
---
--- Retention floor, required by the `ssl` kind.
---
--- The flat 30-day prune above assumes short intervals, and that held while
--- `http` was the only creatable kind: a 900s monitor writes ~96 checks a day, so
--- 30 days is thousands of rows and the window is generous. A daily `ssl` monitor
--- writes one. The same window keeps 30 — fewer than the 200 the detail dialog
--- asks for, so its latency chart and recent-checks table would stay permanently
--- sparse from the monitor's second month onward.
---
--- The floor keeps the most recent 200 rows per monitor regardless of age, and
--- only then applies the 30-day cutoff.
---
--- The LATERAL rides `monitor_checks_idx (monitor_id, checked_at DESC)`, so it
--- reads 201 index entries per monitor rather than ranking the whole table.
--- `OFFSET 200 LIMIT 1` returns no row for a monitor with 200 checks or fewer,
--- and the join then excludes that monitor from the delete entirely — which is
--- exactly the "young or slow monitor" case the floor exists to protect.
--- ─────────────────────────────────────────────────────────────────────────────
-DO $$
-BEGIN
-    PERFORM cron.unschedule('uptime-prune-checks');
-EXCEPTION WHEN OTHERS THEN
-    -- Not yet scheduled: a first-time apply must not fail here.
-    NULL;
-END $$;
-
-SELECT cron.schedule('uptime-prune-checks', '17 3 * * *', $job$
+PERFORM cron.schedule('uptime-prune-checks', '17 3 * * *', $job$
 DELETE FROM monitor_checks c
 USING monitors m,
 LATERAL (
@@ -259,3 +292,9 @@ WHERE c.monitor_id = m.id
   AND c.checked_at < now() - interval '30 days'
   AND c.checked_at < floor.checked_at;
 $job$);
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'uptime jobs were not scheduled: %', SQLERRM;
+END
+$cron_guard$;
+`,
+};

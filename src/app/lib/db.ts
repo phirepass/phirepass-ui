@@ -57,8 +57,26 @@ function createClient() {
 
 async function ensureConnected() {
     if (!clientReady) {
-        clientReady = client.connect().catch((error) => {
+        const attempt = client;
+
+        clientReady = attempt.connect().catch((error) => {
             markDisconnected();
+
+            // A `pg` Client cannot be connected twice — even when the first
+            // attempt *failed*. Leaving the spent client in place meant every
+            // later attempt threw "Client has already been connected. You cannot
+            // reuse a client", so a database that was briefly unreachable the
+            // first time this process touched it stayed unreachable until a
+            // restart. `reconnect()` handles the same problem for a connection
+            // that dropped mid-life; this is the other half, for one that never
+            // came up.
+            //
+            // Guarded on identity so a concurrent caller that has already
+            // swapped in a replacement does not have it thrown away.
+            if (client === attempt) {
+                client = createClient();
+            }
+
             throw error;
         });
     }

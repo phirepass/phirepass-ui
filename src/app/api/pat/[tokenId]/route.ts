@@ -1,4 +1,4 @@
-import { verifyToken } from "@/app/lib/auth";
+import { authzErrorStatus, ownedScope, requireSession, scopeAt } from "@/app/lib/authz";
 import { json_response } from "@/app/lib/framework";
 import { query } from "@/app/lib/db";
 
@@ -7,14 +7,15 @@ export async function DELETE(
     { params }: { params: Promise<{ tokenId: string }> },
 ) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const { tokenId } = await params;
+        const scope = scopeAt(ownedScope(session, 'tokens:read:all', 'pat_tokens'), 1);
 
         const result = await query(
             `DELETE FROM pat_tokens
-            WHERE token_id = $1 AND user_id = $2
+            WHERE token_id = $1 AND ${scope.sql}
             RETURNING id`,
-            [tokenId, user.id],
+            [tokenId, ...scope.params],
         );
 
         if (result.rowCount === 0) {
@@ -24,6 +25,7 @@ export async function DELETE(
         return json_response({ success: true }, 200);
     } catch (e) {
         console.warn(`[server][delete][${req.url}]`, e);
-        return json_response({ error: "Server error" }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }

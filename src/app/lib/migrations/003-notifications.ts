@@ -1,29 +1,31 @@
--- Web Push subscriptions.
---
--- One row per *browser*, not per person: a push subscription is issued by the
--- browser's own push service, so the same laptop signed into the same account
--- in both Safari and Chrome is two rows. `endpoint` is what the push service
--- gives back and is globally unique, which makes it the natural conflict key —
--- re-enabling in a browser that already has a subscription refreshes the row
--- rather than accumulating duplicates.
---
--- There is no migration runner in either repo, so this file is applied by hand:
---
---     psql "$DATABASE_URL" -f docs/notifications-schema.sql
---
--- or, reusing the app's own TLS handling:
---
---     node scripts/apply-notifications-schema.mjs --check
---     node scripts/apply-notifications-schema.mjs --apply
---
--- It is written to be re-runnable (IF NOT EXISTS throughout).
+import type { Migration } from './types';
 
+/**
+ * Notification destinations and the switches that decide what reaches them.
+ *
+ * `notification_subscriptions` is one row per browser that accepted push,
+ * `notification_webhooks` one per URL somebody typed, and
+ * `notification_preferences` a jsonb object of *overrides* — so a new event
+ * ships with its default already applied to every account and needs no backfill.
+ *
+ * This app owns the catalogue and the switches; `phirepass-courier` does the
+ * sending and reads these tables.
+ *
+ * The `DO` block at the top renames `push_subscriptions` if a database still has
+ * the pre-rename name. It is guarded on the old name existing and the new one
+ * not, so it is inert everywhere else — including on a fresh database, where the
+ * `CREATE` below does the work instead.
+ */
+export const notifications: Migration = {
+    id: '003-notifications',
+    description: 'notification subscriptions, webhooks and per-event preferences',
+    sql: `
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Rename: push_subscriptions → notification_subscriptions
 -- ─────────────────────────────────────────────────────────────────────────────
 --
 -- The table was originally named for its mechanism (Web Push). It is named for
--- its role now, so it sits with `notification_preferences` rather than beside
+-- its role now, so it sits with notification_preferences rather than beside
 -- it under a different vocabulary.
 --
 -- Guarded on both sides so this file stays re-runnable: it fires only when the
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS notification_subscriptions (
 
     -- The two halves of the ECDH key material the push service needs in order
     -- for the payload to be encrypted end to end. Opaque base64url; the server
-    -- only ever hands them to `web-push`.
+    -- only ever hands them to web-push.
     p256dh         text NOT NULL CHECK (length(p256dh) BETWEEN 1 AND 512),
     auth           text NOT NULL CHECK (length(auth) BETWEEN 1 AND 512),
 
@@ -95,7 +97,7 @@ CREATE INDEX IF NOT EXISTS notification_subscriptions_user_id_idx
 -- notification_preferences — which events a person wants, per account
 -- ─────────────────────────────────────────────────────────────────────────────
 --
--- One row per user, holding a jsonb object of `event id -> boolean`, rather than
+-- One row per user, holding a jsonb object of event id -> boolean, rather than
 -- a row per event or a column per event. The event catalogue is defined in code
 -- (src/types/notification.ts) and is expected to grow; a column-per-event schema
 -- would need a migration every time one is added, and a row-per-event table
@@ -103,7 +105,7 @@ CREATE INDEX IF NOT EXISTS notification_subscriptions_user_id_idx
 -- answer.
 --
 -- With jsonb, the stored object is a set of *overrides*: anything absent falls
--- back to that event's `defaultEnabled` in code. So adding an event ships with
+-- back to that event's defaultEnabled in code. So adding an event ships with
 -- its intended default already applied to everyone, and no data migration.
 CREATE TABLE IF NOT EXISTS notification_preferences (
     user_id    uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -123,10 +125,10 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
 -- Web push reaches a *person* at a browser they had to grant permission in;
 -- a webhook reaches a *system* at a URL, with no permission step and no
 -- expiry. Same events, same preferences row, different transport — which is
--- exactly the split the courier already models as `NotificationKind`
--- (`web.push` | `webhook` | `email`) in phirepass-rs/common/src/notifications.rs.
+-- exactly the split the courier already models as NotificationKind
+-- (web.push | webhook | email) in phirepass-rs/common/src/notifications.rs.
 --
--- Not folded into `notification_subscriptions` with a `kind` column, because
+-- Not folded into notification_subscriptions with a kind column, because
 -- almost nothing is shared: a subscription carries ECDH key material and is
 -- issued (and revoked) by a browser's push service, while an endpoint carries a
 -- signing secret and is typed in by hand. Merging them would give one table two
@@ -145,7 +147,7 @@ CREATE TABLE IF NOT EXISTS notification_webhooks (
     -- uniqueness that matters is per user, and it lives in the index below.
     url           text NOT NULL CHECK (length(url) BETWEEN 1 AND 2048),
 
-    -- Shared secret for the HMAC in `X-Phirepass-Signature`. Stored in the clear
+    -- Shared secret for the HMAC in X-Phirepass-Signature. Stored in the clear
     -- on purpose: signing needs the original bytes at send time, so a hash here
     -- would make the header unforgeable by us as well as by an attacker. It is
     -- shown to the person once, at creation, and only ever hinted at afterwards.
@@ -179,3 +181,5 @@ CREATE INDEX IF NOT EXISTS notification_webhooks_user_id_idx
 -- it doubles delivery to a system that has no way to tell the two apart.
 CREATE UNIQUE INDEX IF NOT EXISTS notification_webhooks_user_url_idx
     ON notification_webhooks (user_id, url);
+`,
+};

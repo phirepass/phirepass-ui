@@ -1,5 +1,11 @@
 import { json_response } from '@/app/lib/framework';
-import { verifyToken } from '@/app/lib/auth';
+import {
+    authzErrorStatus,
+    nodeManageScope,
+    nodeScope,
+    requireSession,
+    scopeAt,
+} from '@/app/lib/authz';
 import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
 import type { NodeStatus } from '@/types/node';
@@ -97,6 +103,12 @@ type NodeStatsPayload = {
 
 type UserNodeRow = {
     id: string;
+    /**
+     * Which member enrolled it. Still meaningful after organisations: `org_id`
+     * decides who may reach a node, `user_id` still says whose it is — and it is
+     * also half of the Redis key its live stats are written under.
+     */
+    user_id: string;
     name: string | null;
     created_at: string;
     settings: unknown;
@@ -421,22 +433,36 @@ function normalizeStatsPayload(
     };
 }
 
-async function getUserNodeStats(redis: Awaited<ReturnType<typeof getRedisClient>>, userId: string) {
-    if (!redis){
-        return new Map();
-    }
-
-    const statsKeyPattern = `phirepass:users:${userId}:nodes:*`;
-    const keys: string[] = [];
-
-    for await (const batch of redis.scanIterator({ MATCH: statsKeyPattern })) {
-        keys.push(...(batch as string[]));
-    }
-
+/**
+ * Live stats for a known set of nodes, read by exact key.
+ *
+ * This used to walk the keyspace — `SCAN phirepass:users:{me}:nodes:*` — which
+ * had two problems and organisations made the second one fatal. It was a
+ * keyspace walk on every dashboard poll (`TODO.md`), and the key is namespaced
+ * under the node's **owner**, so an administrator listing a colleague's node
+ * would scan their own prefix and find nothing.
+ *
+ * Both go away by building the keys instead of searching for them: the node list
+ * has already come back from Postgres, org-scoped, and every row carries the
+ * `user_id` that is the other half of its key. Nothing is guessed and nothing is
+ * scanned.
+ *
+ * The relay has the same problem from the other side and cannot solve it this
+ * way — it holds a node id and no owner. That is `STABILITY_AUDIT.md` item 1,
+ * whose reverse index is the first step of sharing (`SHARING.md`); it is not
+ * needed here.
+ */
+async function getNodeStats(
+    redis: Awaited<ReturnType<typeof getRedisClient>>,
+    nodes: readonly { id: string; user_id: string }[],
+) {
     const entries = new Map<string, { stats?: NodeStatsPayload; info: NodeInfoPayload | null }>();
-    if (keys.length === 0) {
+
+    if (!redis || nodes.length === 0) {
         return entries;
     }
+
+    const keys = nodes.map((node) => `phirepass:users:${node.user_id}:nodes:${node.id}`);
 
     // Pipeline all hash reads into a single round trip instead of awaiting them one by one.
     let pipeline: ReturnType<typeof redis.multi> = redis.multi();
@@ -491,17 +517,24 @@ function parseHashField<T>(value: string | undefined, key: string, field: string
 
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const redis = await getRedisClient();
         const url = new URL(req.url);
         const requestedId = url.searchParams.get('id');
 
+        // Every node this session may see, and nothing about how that is
+        // decided: `nodeScope` owns the predicate, so an admin reading the whole
+        // organisation and a member reading their own machines are the same
+        // query with different parameters — and adding shared nodes later is a
+        // change there, not here.
+        const scope = nodeScope(session, 'n');
+
         const result = await query(
-            `SELECT id, name, created_at, settings
-            FROM nodes
-            WHERE user_id = $1
-            ORDER BY created_at DESC`,
-            [user.id]
+            `SELECT n.id, n.user_id, n.name, n.created_at, n.settings
+            FROM nodes n
+            WHERE ${scope.sql}
+            ORDER BY n.created_at DESC`,
+            scope.params
         );
 
         const nodesFromDb = result.rows as UserNodeRow[];
@@ -510,20 +543,27 @@ export async function GET(req: Request) {
         // node_id run from the server fleet rather than an agent, so they belong
         // to no node and are excluded.
         //
-        // Non-fatal by design: the uptime schema is applied by hand (see
-        // docs/uptime-schema.sql — there is no migration runner), so a database
-        // without a `monitors` table must still be able to list nodes. On
-        // failure the counts are simply absent.
+        // Non-fatal by design: `monitors` arrives with the startup migration
+        // (src/app/lib/migrations/002-uptime.ts), and a database the app has not
+        // yet migrated must still be able to list nodes. On failure the counts
+        // are simply absent.
         let monitorCountByNode = new Map<string, number>();
         let monitorCountsAvailable = true;
         try {
-            const monitorCounts = await query(
-                `SELECT node_id, count(*)::int AS total
-                FROM monitors
-                WHERE user_id = $1 AND node_id IS NOT NULL
-                GROUP BY node_id`,
-                [user.id]
-            );
+            // Counted over the nodes this session can already see rather than
+            // over the caller's own monitors: an administrator looking at a
+            // colleague's node wants to know it is watched, not that they
+            // personally are not watching it.
+            const nodeIds = nodesFromDb.map((node) => node.id);
+            const monitorCounts = nodeIds.length === 0
+                ? { rows: [] as { node_id: string; total: number }[] }
+                : await query(
+                    `SELECT node_id, count(*)::int AS total
+                    FROM monitors
+                    WHERE node_id = ANY($1::uuid[])
+                    GROUP BY node_id`,
+                    [nodeIds]
+                );
             monitorCountByNode = new Map<string, number>(
                 (monitorCounts.rows as { node_id: string; total: number }[]).map((row) => [row.node_id, row.total])
             );
@@ -532,7 +572,7 @@ export async function GET(req: Request) {
             monitorCountsAvailable = false;
         }
 
-        const statsById = await getUserNodeStats(redis, user.id);
+        const statsById = await getNodeStats(redis, nodesFromDb);
 
         const mergedNodes = nodesFromDb.map((node) => {
             const rawPayload = statsById.get(node.id);
@@ -560,6 +600,10 @@ export async function GET(req: Request) {
 
             return {
                 id: node.id,
+                // Who enrolled it. The list is no longer necessarily all yours,
+                // so the client needs this to say "Anna's" on a row and to
+                // decide whether to offer rename and delete.
+                owner_id: node.user_id,
                 name: node.name ?? payload?.name ?? '',
                 ip,
                 server_id: payload?.server_id ?? node.id,
@@ -581,13 +625,14 @@ export async function GET(req: Request) {
         return json_response(filteredNodes, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }
 
 export async function PATCH(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const payload = await req.json() as { id?: unknown; name?: unknown };
 
         const id = typeof payload.id === 'string' ? payload.id.trim() : '';
@@ -605,28 +650,37 @@ export async function PATCH(req: Request) {
             return json_response({ error: 'Node name must be 120 characters or less' }, 400);
         }
 
+        // Names are unique per organisation now, not per person. Two members
+        // of the same team each calling a box `staging` was previously fine and
+        // is now the confusion this check exists to prevent — they are looking
+        // at one list.
         const duplicateNameResult = await query(
             `SELECT 1
-            FROM nodes
-            WHERE user_id = $1
-                AND id <> $2
-                AND LOWER(TRIM(name)) = LOWER($3)
+            FROM nodes n
+            WHERE (n.org_id = $1 OR (n.org_id IS NULL AND n.user_id = $4))
+                AND n.id <> $2
+                AND LOWER(TRIM(n.name)) = LOWER($3)
             LIMIT 1`,
-            [user.id, id, name]
+            [session.orgId, id, name, session.userId]
         );
 
         if ((duplicateNameResult.rowCount ?? 0) > 0) {
-            return json_response({ error: 'You already have a node with that name' }, 409);
+            return json_response({ error: 'A node in this workspace already has that name' }, 409);
         }
+
+        const scope = scopeAt(nodeManageScope(session, 'nodes'), 2);
 
         const result = await query(
             `UPDATE nodes
             SET name = $1
-            WHERE id = $2 AND user_id = $3
+            WHERE id = $2 AND ${scope.sql}
             RETURNING id, name`,
-            [name, id, user.id]
+            [name, id, ...scope.params]
         );
 
+        // 404 rather than 403 for a node that exists but is somebody else's:
+        // the caller cannot see it, so telling them it is there is telling them
+        // something they are not entitled to know.
         if (result.rowCount === 0) {
             return json_response({ error: 'Node not found' }, 404);
         }
@@ -634,13 +688,14 @@ export async function PATCH(req: Request) {
         return json_response(result.rows[0], 200);
     } catch (e) {
         console.warn(`[server][patch][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }
 
 export async function DELETE(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const redis = await getRedisClient();
         const url = new URL(req.url);
         const requestId = url.searchParams.get('id');
@@ -656,25 +711,33 @@ export async function DELETE(req: Request) {
             return json_response({ error: 'Node id is required' }, 400);
         }
 
+        const scope = scopeAt(nodeManageScope(session, 'nodes'), 1);
+
+        // `user_id` comes back from the delete because the Redis key is
+        // namespaced under the node's owner, who is not necessarily the person
+        // pressing the button any more.
         const result = await query(
             `DELETE FROM nodes
-            WHERE id = $1 AND user_id = $2
-            RETURNING id`,
-            [id, user.id]
+            WHERE id = $1 AND ${scope.sql}
+            RETURNING id, user_id`,
+            [id, ...scope.params]
         );
 
         if (result.rowCount === 0) {
             return json_response({ error: 'Node not found' }, 404);
         }
 
+        const ownerId = (result.rows[0] as { user_id: string }).user_id;
+
         if (redis) {
-            const redisKey = `phirepass:users:${user.id}:nodes:${id}`;
+            const redisKey = `phirepass:users:${ownerId}:nodes:${id}`;
             await redis.del(redisKey);
         }
 
         return json_response({ id }, 200);
     } catch (e) {
         console.warn(`[server][delete][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }

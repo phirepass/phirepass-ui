@@ -1,4 +1,5 @@
 import { query } from '@/app/lib/db';
+import { scopeAppended, type Session } from '@/app/lib/authz';
 import { HISTORY_DAYS, buildDaily, windowFrom } from '@/lib/uptime-window';
 import type {
     CheckPoint,
@@ -160,13 +161,17 @@ export interface MonitorPageFilters {
  * the whole point of paginating: the list endpoint aggregates history for one
  * page of monitors, not for the entire fleet.
  */
-async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSummary[]> {
+async function summarize(session: Session, rows: MonitorRow[]): Promise<MonitorSummary[]> {
     if (rows.length === 0) {
         return [];
     }
 
     const ids = rows.map((row) => row.id);
-    const params = [userId, ids];
+    // `$1` is still the caller's own user id, so every placeholder below keeps
+    // the number it had; the scope's other two values are appended as $3/$4.
+    // See `scopeAppended` for why it is shaped that way.
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2);
+    const params = [session.userId, ids, ...scope.params];
 
     // Counts come back from `pg` as strings (bigint), so every aggregate is cast
     // to int in SQL rather than parsed here.
@@ -180,7 +185,7 @@ async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSum
                 round(avg(c.latency_ms))::int                        AS avg_latency_ms
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
-        WHERE m.user_id = $1
+        WHERE ${scope.sql}
         AND c.monitor_id = ANY($2::uuid[])
         AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${HISTORY_DAYS - 1})
         GROUP BY 1, 2`,
@@ -191,7 +196,7 @@ async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSum
         `SELECT i.monitor_id, i.started_at
         FROM monitor_incidents i
         JOIN monitors m ON m.id = i.monitor_id
-        WHERE m.user_id = $1
+        WHERE ${scope.sql}
         AND i.monitor_id = ANY($2::uuid[])
         AND i.resolved_at IS NULL`,
         params,
@@ -217,20 +222,22 @@ async function summarize(userId: string, rows: MonitorRow[]): Promise<MonitorSum
     ));
 }
 
-/** One monitor, or null when it is not owned by `userId`. */
+/** One monitor, or null when this session may not see it. */
 export async function loadMonitorById(
-    userId: string,
+    session: Session,
     monitorId: string,
 ): Promise<MonitorSummary | null> {
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', 2);
+
     const monitors = await query(
         `SELECT m.*, n.name AS node_name
         FROM monitors m
         JOIN nodes n ON n.id = m.node_id
-        WHERE m.user_id = $1 AND m.id = $2`,
-        [userId, monitorId],
+        WHERE ${scope.sql} AND m.id = $2`,
+        [session.userId, monitorId, ...scope.params],
     );
 
-    const [summary] = await summarize(userId, monitors.rows as MonitorRow[]);
+    const [summary] = await summarize(session, monitors.rows as MonitorRow[]);
     return summary ?? null;
 }
 
@@ -243,11 +250,11 @@ export async function loadMonitorById(
  * itself already has to fan out into history and incidents.
  */
 export async function loadMonitorPage(
-    userId: string,
+    session: Session,
     filters: MonitorPageFilters,
 ): Promise<{ monitors: MonitorSummary[]; total: number }> {
-    const conditions: string[] = ['m.user_id = $1'];
-    const params: unknown[] = [userId];
+    const conditions: string[] = [];
+    const params: unknown[] = [session.userId];
 
     if (filters.kind) {
         params.push(filters.kind);
@@ -269,6 +276,12 @@ export async function loadMonitorPage(
             `(m.name ILIKE ${placeholder} OR m.target ILIKE ${placeholder} OR n.name ILIKE ${placeholder})`,
         );
     }
+
+    // The scope goes on last so it can be numbered against a parameter list
+    // that is finished. Conditions are ANDed, so the order is free.
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length);
+    conditions.push(scope.sql);
+    params.push(...scope.params);
 
     const where = conditions.join(' AND ');
 
@@ -295,17 +308,17 @@ export async function loadMonitorPage(
     );
 
     return {
-        monitors: await summarize(userId, monitors.rows as MonitorRow[]),
+        monitors: await summarize(session, monitors.rows as MonitorRow[]),
         total,
     };
 }
 
 /** One monitor plus its recent checks and incidents, or null if not owned. */
 export async function loadMonitorDetail(
-    userId: string,
+    session: Session,
     monitorId: string,
 ): Promise<MonitorDetail | null> {
-    const monitor = await loadMonitorById(userId, monitorId);
+    const monitor = await loadMonitorById(session, monitorId);
     if (!monitor) {
         return null;
     }

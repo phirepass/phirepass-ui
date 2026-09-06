@@ -25,6 +25,7 @@ import {
     DEMO_MONITOR_SPECS,
     DEMO_NODE_SPECS,
     DEMO_TOKEN_SPECS,
+    DEMO_ORG,
     DEMO_USER,
     DEMO_WEBHOOK_SPECS,
     type DemoMonitorSpec,
@@ -194,6 +195,8 @@ function initialState(): DemoState {
             id: token.id,
             token_id: token.token_id,
             name: token.name,
+            // The demo is one person's workspace, so every token is theirs.
+            user_id: DEMO_USER.id,
             scopes: ['server:register'],
             created_at: new Date(now - token.created_days_ago * DAY_MS).toISOString(),
             expires_at: token.expires_in_days === null
@@ -248,8 +251,10 @@ function state(): DemoState {
  * profile, so this stays a constant rather than a fixture that pretends to be
  * one.
  */
-export function demoUser(): UserInfo {
-    return { ...DEMO_USER };
+export function demoUser(): UserInfo & { org: typeof DEMO_ORG; role: 'owner' } {
+    // The role and organisation ride along with the identity, because that is
+    // how the real route answers and `useCurrentRole()` reads it from there.
+    return { ...DEMO_USER, org: DEMO_ORG, role: 'owner' as const };
 }
 
 // ---------------------------------------------------------------------------
@@ -1173,6 +1178,7 @@ export function createDemoToken(name: string, expiresAt: string | null): string 
         id: crypto.randomUUID(),
         token_id: tokenId,
         name,
+        user_id: DEMO_USER.id,
         scopes: ['server:register'],
         created_at: new Date(now).toISOString(),
         expires_at: expiresAt,

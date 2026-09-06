@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { json_response } from '@/app/lib/framework';
 import { TEST_EVENT, testWebhookPayload } from '@/app/lib/notification-test';
 import { sendToWebhook } from '@/app/lib/webhooks';
@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const { id } = await ctx.params;
 
         if (!UUID.test(id)) {

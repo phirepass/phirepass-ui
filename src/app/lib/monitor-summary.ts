@@ -1,4 +1,5 @@
 import { query } from '@/app/lib/db';
+import { scopeAppended, type Session } from '@/app/lib/authz';
 import type {
     DailyBucket,
     MonitorKind,
@@ -177,16 +178,22 @@ interface ProblemRow {
  * and that kind's problems for its alert strip.
  */
 export async function loadMonitorOverview(
-    userId: string,
+    session: Session,
     kind?: MonitorKind,
 ): Promise<MonitorOverview> {
-    const params: unknown[] = [userId];
+    const params: unknown[] = [session.userId];
     let kindFilter = '';
 
     if (kind) {
         params.push(kind);
         kindFilter = `AND m.kind = $${params.length}`;
     }
+
+    // Every query below shares one parameter list, so the scope is built once —
+    // after the optional kind filter, so its own two values land at the end and
+    // nothing already numbered has to move. `$1` remains the caller's user id.
+    const scope = scopeAppended(session, 'monitors:read:all', 'm', params.length);
+    params.push(...scope.params);
 
     // Counts come back from `pg` as strings (bigint), so every aggregate is cast
     // to int in SQL rather than parsed here.
@@ -199,7 +206,7 @@ export async function loadMonitorOverview(
                 count(*) FILTER (WHERE ${EFFECTIVE_STATUS} = 'unknown')::int       AS unknown,
                 count(*) FILTER (WHERE ${EFFECTIVE_STATUS} = 'paused')::int        AS paused
         FROM monitors m
-        WHERE m.user_id = $1 ${kindFilter}
+        WHERE ${scope.sql} ${kindFilter}
         GROUP BY m.kind`,
         params,
     );
@@ -213,7 +220,7 @@ export async function loadMonitorOverview(
                 count(*) FILTER (WHERE c.status = 'down')::int     AS down_checks
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
-        WHERE m.user_id = $1 ${kindFilter}
+        WHERE ${scope.sql} ${kindFilter}
         AND c.checked_at >= now() - interval '24 hours'
         GROUP BY m.kind`,
         params,
@@ -224,7 +231,7 @@ export async function loadMonitorOverview(
                 m.kind, m.id, m.name, m.last_checked_at,
                 ${EFFECTIVE_STATUS} AS status
         FROM monitors m
-        WHERE m.user_id = $1 ${kindFilter}
+        WHERE ${scope.sql} ${kindFilter}
         ORDER BY m.kind, ${SEVERITY} ASC, m.name ASC`,
         params,
     );
@@ -235,7 +242,7 @@ export async function loadMonitorOverview(
                 ${EXPIRES_AT}                     AS expires_at,
                 (m.cert_expires_at IS NOT NULL)   AS is_cert
         FROM monitors m
-        WHERE m.user_id = $1 ${kindFilter}
+        WHERE ${scope.sql} ${kindFilter}
         AND ${EXPIRES_AT} IS NOT NULL
         ORDER BY m.kind, ${EXPIRES_AT} ASC`,
         params,
@@ -254,7 +261,7 @@ export async function loadMonitorOverview(
                 round(avg(c.latency_ms))::int                        AS avg_latency_ms
         FROM monitor_checks c
         JOIN monitors m ON m.id = c.monitor_id
-        WHERE m.user_id = $1 ${kindFilter}
+        WHERE ${scope.sql} ${kindFilter}
         AND c.checked_at >= date_trunc('day', now()) - make_interval(days => ${PANEL_HISTORY_DAYS - 1})
         GROUP BY 1, 2`,
         params,
@@ -274,7 +281,7 @@ export async function loadMonitorOverview(
                     ${EXPIRES_AT}                     AS expires_at,
                     (m.cert_expires_at IS NOT NULL)   AS is_cert
             FROM monitors m
-            WHERE m.user_id = $1 ${kindFilter}
+            WHERE ${scope.sql} ${kindFilter}
             AND (
                 (NOT m.paused AND m.last_status IN ('down', 'degraded'))
                 OR (

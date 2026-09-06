@@ -13,7 +13,7 @@ import {
  * else falls back to `defaultEnabled` from the catalogue in code. That is what
  * lets a new event ship with a sensible default already applied to every
  * existing account without a backfill — see the note in
- * docs/notifications-schema.sql.
+ * migrations/003-notifications.ts.
  *
  * The flip side is that the catalogue is the authority on which ids exist. Ids
  * that are no longer in it are dropped on read rather than surfaced, so

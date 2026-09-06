@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { authzErrorStatus, requireSession } from '@/app/lib/authz';
 import { json_response } from '@/app/lib/framework';
 import { loadMonitorOverview } from '@/app/lib/monitor-summary';
 import type { MonitorKind } from '@/types/monitor';
@@ -18,7 +18,7 @@ const KINDS: MonitorKind[] = ['http', 'ssl', 'domain'];
  */
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const raw = new URL(req.url).searchParams.get('kind');
         // An unrecognised kind is refused rather than silently widened to "all",
         // which would answer a scoped request with unscoped data.
@@ -26,10 +26,11 @@ export async function GET(req: Request) {
             return json_response({ error: 'Unknown monitor kind' }, 400);
         }
 
-        const overview = await loadMonitorOverview(user.id, (raw as MonitorKind) ?? undefined);
+        const overview = await loadMonitorOverview(session, (raw as MonitorKind) ?? undefined);
         return json_response(overview, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }

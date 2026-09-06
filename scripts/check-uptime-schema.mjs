@@ -1,14 +1,17 @@
 /**
- * Applies docs/notifications-schema.sql, reusing the same connection shape as
+ * Read-only diagnostics for the uptime schema and its pg_cron jobs.
+ *
+ * **This script applies nothing.** The app owns its schema and migrates the
+ * database at startup (src/app/lib/migrations/002-uptime.ts, run from
+ * src/instrumentation.ts), so applying from here as well would be a second
+ * writer racing the first.
+ *
+ * Reuses the same connection shape as
  * src/app/lib/db.ts (pg + PGSSLROOTCERT) so TLS is handled exactly as the app
- * does it. A sibling of scripts/apply-uptime-schema.mjs, same three modes.
- * Run from the phirepass-ui directory.
+ * does it. Run from the phirepass-ui directory.
  *
- *   node scripts/apply-notifications-schema.mjs --check   read-only prerequisites
- *   node scripts/apply-notifications-schema.mjs --apply   apply in one transaction
- *
- * Nothing here schedules a job — push delivery is request-driven for now — so
- * --cron only reports what pg_cron already holds.
+ *   node scripts/check-uptime-schema.mjs --check   tables, extensions, jobs
+ *   node scripts/check-uptime-schema.mjs --cron    jobs and their run history
  */
 import fs from 'fs';
 import path from 'path';
@@ -62,7 +65,7 @@ if (mode === '--check') {
     const tables = await client.query(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = 'public'
-           AND table_name IN ('users','notification_subscriptions','notification_preferences','notification_webhooks')
+           AND table_name IN ('users','nodes','monitors','monitor_checks','monitor_incidents')
          ORDER BY table_name`,
     );
     console.log('relevant tables present:', tables.rows.map((r) => r.table_name).join(', ') || '(none)');
@@ -86,7 +89,7 @@ if (mode === '--check') {
                 r.start_time, r.end_time
          FROM cron.job_run_details r
          JOIN cron.job j ON j.jobid = r.jobid
-         WHERE j.jobname LIKE 'notifications-%'
+         WHERE j.jobname LIKE 'uptime-%'
          ORDER BY r.start_time DESC
          LIMIT 10`,
     );
@@ -102,18 +105,10 @@ if (mode === '--check') {
         })));
     }
 } else if (mode === '--apply') {
-    const sql = fs.readFileSync(path.resolve(process.cwd(), 'docs/notifications-schema.sql'), 'utf8');
-    try {
-        await client.query('BEGIN');
-        await client.query(sql);
-        await client.query('COMMIT');
-        console.log('applied and committed');
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('ROLLED BACK — nothing was changed');
-        console.error(err.message);
-        process.exitCode = 1;
-    }
+    console.error('--apply is gone: the app migrates the database when it starts.');
+    console.error('Restart phirepass-ui against this DATABASE_URL instead.');
+    console.error('See src/app/lib/migrations/002-uptime.ts.');
+    process.exitCode = 2;
 } else {
     console.error(`unknown mode: ${mode}`);
     process.exitCode = 2;

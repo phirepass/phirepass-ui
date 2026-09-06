@@ -54,6 +54,22 @@ export const DEMO_USER: UserInfo = {
     provider: 'demo',
 };
 
+/**
+ * The workspace the sample fleet belongs to, and the presenter's role in it.
+ *
+ * `/api/profile` now carries both, and `useCurrentRole()` reads them — so
+ * without this the demo would answer the profile call with no role and every
+ * page would fall back to `member`, hiding controls the audience is there to
+ * see. Owner, because a demo shows the whole product.
+ */
+export const DEMO_ORG = {
+    id: 'a41f7c68-3d2b-4f19-9a05-6e8b1c2d3e4f',
+    name: 'Northwind Ops',
+    slug: 'northwind-ops',
+    personal: false,
+    created_at: new Date('2025-02-11T09:00:00Z').toISOString(),
+};
+
 const LOCATIONS = {
     frankfurt: {
         ip: '138.201.44.9', hostname: 'static.9.44.201.138.clients.your-server.de',

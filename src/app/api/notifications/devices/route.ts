@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
 import { endpointHash, listSubscriptions, pushConfigured } from '@/app/lib/push';
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const PLATFORMS = new Set(['macos', 'windows', 'linux', 'ios', 'android']);
 
-/** Trimmed to the column limits in docs/notifications-schema.sql. */
+/** Trimmed to the column limits in migrations/003-notifications.ts. */
 function clean(value: unknown, max: number): string | null {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim();
@@ -24,7 +24,7 @@ function clean(value: unknown, max: number): string | null {
  */
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const rows = await listSubscriptions(user.id);
 
         return json_response({
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
 
         if (!pushConfigured()) {
             return json_response({ error: 'Push is not configured on this server' }, 503);

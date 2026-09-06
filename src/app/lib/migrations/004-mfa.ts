@@ -1,24 +1,21 @@
--- Two-factor authentication (TOTP).
---
--- Two tables, both keyed on the account: the authenticator's shared secret, and
--- the recovery codes that stand in for a lost phone. Neither is a column on
--- `users`, so a row simply not existing is the ordinary state of an account
--- without 2FA, and turning 2FA off is a delete rather than a set of nullable
--- columns left behind holding a live secret.
---
--- These tables were created by the application itself, at startup, for the one
--- release that introduced 2FA — the alternative was a deploy that could land on
--- a database a step behind it. That bootstrap has since been removed, and this
--- file is the record of what it ran; every deployed environment already has
--- both tables.
---
--- There is no migration runner in either repo, so on a fresh database this is
--- applied by hand, like the schemas beside it:
---
---     psql "$DATABASE_URL" -f docs/mfa-schema.sql
---
--- It is written to be re-runnable (IF NOT EXISTS throughout).
+import type { Migration } from './types';
 
+/**
+ * Two-factor authentication: `user_mfa` and `user_mfa_recovery_codes`.
+ *
+ * Neither is a column on `users`, so a row simply not existing is the ordinary
+ * state of an account without 2FA, and turning 2FA off is a delete rather than a
+ * set of nullable columns left behind holding a live secret.
+ *
+ * These tables were once created by the application itself at startup, for the
+ * one release that introduced 2FA, and that bootstrap was then removed and the
+ * DDL moved to a file applied by hand. It is back where it started, and this
+ * time it stays: the app owns its schema.
+ */
+export const mfa: Migration = {
+    id: '004-mfa',
+    description: 'the TOTP secret and recovery codes for two-factor authentication',
+    sql: `
 -- ─────────────────────────────────────────────────────────────────────────────
 -- user_mfa — one row per account that has started enrolling an authenticator
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -93,3 +90,5 @@ CREATE INDEX IF NOT EXISTS user_mfa_recovery_codes_user_id_idx
 -- accounts drew the same string, which is a coincidence, not an error.
 CREATE UNIQUE INDEX IF NOT EXISTS user_mfa_recovery_codes_unique_idx
     ON user_mfa_recovery_codes (user_id, code_hash);
+`,
+};

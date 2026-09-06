@@ -13,6 +13,12 @@ export interface PatToken {
     /** Last successful agent auth with this token; null when never presented. */
     last_used_at?: string | null;
     status: PatTokenStatus;
+    /**
+     * Which member minted it. The list is org-scoped for anyone holding
+     * `tokens:read:all`, so a row is no longer necessarily the reader's own and
+     * the page needs this to say whose it is.
+     */
+    user_id: string;
     // No `node_count`. The list endpoint used to select a hardcoded `0` for it and
     // the UI printed that as fact. Counting enrolments per token needs the claim
     // path to record which token enrolled each node, which it does not — so the

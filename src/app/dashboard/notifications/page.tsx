@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * The gate was there because the page configured a pipeline that did not exist:
  * no subscription store, no VAPID keys, no worker. All three exist now
  * (`notification_subscriptions` and `notification_preferences` in
- * docs/notifications-schema.sql, `public/sw.js`, and the VAPID pair the server
+ * migrations/003-notifications.ts, `public/sw.js`, and the VAPID pair the server
  * reports through `/api/config`), so what the page promises is what it does.
  *
  * The demo gate is gone too, and for the reason it named: it was closed only

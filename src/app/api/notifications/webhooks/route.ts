@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
 import {
@@ -28,7 +28,7 @@ const MAX_ENDPOINTS = 20;
  */
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const rows = await listWebhooks(user.id);
 
         return json_response({ webhooks: rows.map(publicWebhook) }, 200);
@@ -48,7 +48,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const body = await req.json().catch(() => ({}));
 
         let url: string;

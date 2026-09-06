@@ -54,6 +54,13 @@ export type SendEmailInput = {
     html?: string;
     /** Set so a support reply goes to the person who wrote in, not to us. */
     replyTo?: string;
+    /**
+     * Who receives it. Defaults to the support mailbox, which is what every
+     * send did when this file only carried the contact form. An invitation is
+     * the first message this product sends *outward*, to somebody who may not
+     * have an account yet, so it names its own recipient.
+     */
+    to?: string | string[];
 };
 
 export type SendEmailResult =
@@ -75,7 +82,7 @@ export async function sendEmail(
         const { data, error } = await Promise.race([
             mailer.emails.send({
                 from: FROM_MAIL_ADDRESS,
-                to: TO_MAILER_ADDRESS,
+                to: input.to ?? TO_MAILER_ADDRESS,
                 subject: input.subject,
                 text: input.text,
                 ...(input.html ? { html: input.html } : {}),

@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { json_response } from '@/app/lib/framework';
 import { getPreferences, savePreferences } from '@/app/lib/notification-preferences';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /** The resolved set — every event in the catalogue has an answer. */
 export async function GET(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         return json_response({ preferences: await getPreferences(user.id) }, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
  */
 export async function PUT(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const body = await req.json().catch(() => ({}));
         const incoming = body?.preferences;
 

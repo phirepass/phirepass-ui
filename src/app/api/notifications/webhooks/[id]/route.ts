@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
 import {
@@ -29,7 +29,7 @@ const MAX_LABEL = 120;
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const { id } = await ctx.params;
 
         if (!UUID.test(id)) {
@@ -125,7 +125,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
  */
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
         const { id } = await ctx.params;
 
         if (!UUID.test(id)) {

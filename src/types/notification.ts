@@ -10,7 +10,7 @@
  *
  * Subscriptions, endpoints and preferences are all real —
  * `notification_subscriptions`, `notification_webhooks` and
- * `notification_preferences` in docs/notifications-schema.sql — and so is the
+ * `notification_preferences` in migrations/003-notifications.ts — and so is the
  * delivery path: producers in the Rust server post to `phirepass-courier`,
  * which reads the preferences row this page writes, resolves the person into
  * the destinations they registered, and sends. This dashboard owns the
@@ -222,7 +222,7 @@ export const DEVICE_PLATFORM_LABELS: Record<DevicePlatform, string> = {
  * you register in both Safari and Chrome.
  *
  * The view model behind a row in the device list, assembled from
- * `GET /api/notifications/devices` — see `docs/notifications-schema.sql` for
+ * `GET /api/notifications/devices` — see `migrations/003-notifications.ts` for
  * what is actually stored.
  */
 export interface RegisteredDevice {
@@ -246,7 +246,7 @@ export interface RegisteredDevice {
 
 /**
  * One webhook endpoint, as a row in the webhook list — assembled from
- * `GET /api/notifications/webhooks`; see `docs/notifications-schema.sql` for
+ * `GET /api/notifications/webhooks`; see `migrations/003-notifications.ts` for
  * what is actually stored.
  *
  * The secret is absent by design. It exists to let the receiver verify the

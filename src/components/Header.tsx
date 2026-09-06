@@ -5,6 +5,9 @@ import { Button } from './ui/button';
 import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, Workflow, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
+import { useDemoMode } from '@/components/DemoModeProvider';
+import { can, type Permission } from '@/lib/rbac';
+import { useCurrentRole } from '@/lib/session';
 import { PhirepassLogo } from '@/components/PhirepassLogo';
 import { ContactSupportDialog } from '@/components/ContactSupportDialog';
 import {
@@ -30,6 +33,18 @@ type NavItem = {
     icon: LucideIcon;
     /** Hidden outside dev builds, and while demo data is on; see `useDevSurfaceVisible`. */
     devOnly?: boolean;
+    /**
+     * Shown only to a role that holds this permission. Unlike `devOnly` this is
+     * a real gate rather than a placeholder for one — the page and the route
+     * behind it check the same constant (`src/lib/rbac.ts`).
+     */
+    permission?: Permission;
+    /**
+     * Hidden while demo data is on, for a page that has no fixture behind it.
+     * Left visible it would show the presenter's real data beside a sample
+     * fleet, which is the one failure demo mode exists to prevent.
+     */
+    demoUnsafe?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -40,7 +55,10 @@ const NAV_ITEMS: NavItem[] = [
     // Administrative surfaces. Dev-only until RBAC can restrict them to the
     // roles that should see them at all — see src/lib/rbac.ts.
     { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },
-    { href: '/dashboard/users', label: 'Users', icon: Users, devOnly: true },
+    // Members is shipped: the roles it shows are enforced. It needs `users:read`,
+    // so a plain member never sees it, and it closes during a demo because there
+    // is no members fixture.
+    { href: '/dashboard/users', label: 'Members', icon: Users, permission: 'users:read', demoUnsafe: true },
 ];
 
 export function Header({ user, onLogout }: HeaderProps) {
@@ -55,8 +73,15 @@ export function Header({ user, onLogout }: HeaderProps) {
     const isActivePath = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
 
     const devSurfaces = useDevSurfaceVisible();
+    const isDemo = useDemoMode();
+    const role = useCurrentRole();
 
-    const navItems = NAV_ITEMS.filter((item) => !item.devOnly || devSurfaces);
+    const navItems = NAV_ITEMS.filter((item) => {
+        if (item.devOnly && !devSurfaces) return false;
+        if (item.demoUnsafe && isDemo) return false;
+        if (item.permission && !can(role, item.permission)) return false;
+        return true;
+    });
 
     // Generate initials from name or email
     const getInitials = () => {

@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { requireSession } from '@/app/lib/authz';
 import { json_response } from '@/app/lib/framework';
 import { TEST_EVENT, TEST_PUSH, testWebhookPayload } from '@/app/lib/notification-test';
 import { pushConfigured, sendToUser } from '@/app/lib/push';
@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: Request) {
     try {
-        const user = await verifyToken();
+        const user = (await requireSession()).user;
 
         const body = await req.json().catch(() => ({}));
         const channel = body?.channel === 'web.push' || body?.channel === 'webhook'

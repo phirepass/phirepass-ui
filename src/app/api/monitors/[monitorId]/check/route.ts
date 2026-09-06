@@ -1,4 +1,4 @@
-import { verifyToken } from '@/app/lib/auth';
+import { authzErrorStatus, requireSession, scopeAppended } from '@/app/lib/authz';
 import { query } from '@/app/lib/db';
 import { json_response } from '@/app/lib/framework';
 import { loadMonitorById } from '@/app/lib/monitor';
@@ -20,21 +20,22 @@ export async function POST(
     { params }: { params: Promise<{ monitorId: string }> },
 ) {
     try {
-        const user = await verifyToken();
+        const session = await requireSession();
         const { monitorId } = await params;
+        const scope = scopeAppended(session, 'monitors:read:all', 'monitors', 2);
 
         const result = await query(
             `UPDATE monitors
             SET next_check_at = now()
-            WHERE id = $1 AND user_id = $2 AND NOT paused
+            WHERE id = $2 AND ${scope.sql} AND NOT paused
             RETURNING id`,
-            [monitorId, user.id],
+            [session.userId, monitorId, ...scope.params],
         );
 
         if (result.rowCount === 0) {
             const exists = await query(
-                `SELECT paused FROM monitors WHERE id = $1 AND user_id = $2`,
-                [monitorId, user.id],
+                `SELECT paused FROM monitors WHERE id = $2 AND ${scope.sql}`,
+                [session.userId, monitorId, ...scope.params],
             );
             if (exists.rowCount === 0) {
                 return json_response({ error: 'Monitor not found' }, 404);
@@ -42,10 +43,11 @@ export async function POST(
             return json_response({ error: 'Resume the monitor before checking it' }, 409);
         }
 
-        const monitor = await loadMonitorById(user.id, monitorId);
+        const monitor = await loadMonitorById(session, monitorId);
         return json_response({ monitor }, 200);
     } catch (e) {
         console.warn(`[server][post][${req.url}]`, e);
-        return json_response({ error: 'Server error' }, 500);
+        const { status, body } = authzErrorStatus(e);
+        return json_response(body, status);
     }
 }
