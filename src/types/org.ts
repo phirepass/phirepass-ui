@@ -80,3 +80,24 @@ export interface InviteMemberInput {
     email: string;
     role: Exclude<Role, 'owner'>;
 }
+
+/**
+ * One workspace this account belongs to, as the switcher lists it.
+ *
+ * `Organization` plus the caller's own standing in it — the same two facts the
+ * header already shows for the *current* workspace, for every other one they
+ * could move to. `member_count` is what tells two similarly named workspaces
+ * apart in the menu (a personal `dimitrmo` beside a team `dimitrmo`), which is
+ * the whole reason the list is worth rendering rather than a bare name.
+ *
+ * A suspended membership is listed, not hidden: knowing access was withdrawn
+ * somewhere is more useful than a workspace quietly disappearing. Switching into
+ * one is refused by the route.
+ */
+export interface Membership {
+    org: Organization;
+    role: Role;
+    status: MemberStatus;
+    member_count: number;
+    joined_at: string;
+}

@@ -7,9 +7,10 @@ import { cn } from '@/lib/utils';
 import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 import { useDemoMode } from '@/components/DemoModeProvider';
 import { can, type Permission } from '@/lib/rbac';
-import { useCurrentRole } from '@/lib/session';
+import { useCurrentRole, useCurrentOrg } from '@/lib/session';
 import { PhirepassLogo } from '@/components/PhirepassLogo';
 import { ContactSupportDialog } from '@/components/ContactSupportDialog';
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -75,6 +76,7 @@ export function Header({ user, onLogout }: HeaderProps) {
     const devSurfaces = useDevSurfaceVisible();
     const isDemo = useDemoMode();
     const role = useCurrentRole();
+    const currentOrg = useCurrentOrg();
 
     const navItems = NAV_ITEMS.filter((item) => {
         if (item.devOnly && !devSurfaces) return false;
@@ -140,6 +142,14 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <span className="text-gradient">Phire</span>
                             <span className="text-foreground">pass</span>
                         </Link>
+                        {/* Scope sits beside the product name, the way a
+                            document's location does in a macOS toolbar — it
+                            says which workspace everything to the right of it
+                            belongs to. Renders nothing at all for an account
+                            with one workspace, separator included. */}
+                        <div className="hidden md:block">
+                            <WorkspaceSwitcher currentOrgId={currentOrg?.id ?? null} />
+                        </div>
                     </div>
 
                     {/* Desktop Nav — the current route is a raised toolbar
@@ -277,6 +287,11 @@ export function Header({ user, onLogout }: HeaderProps) {
                             <X className="w-5 h-5" />
                         </Button>
                     </div>
+                    <WorkspaceSwitcher
+                        currentOrgId={currentOrg?.id ?? null}
+                        variant="inline"
+                        onSwitch={() => setMenuOpen(false)}
+                    />
                     {navItems.map((item) => (
                         <Button
                             key={item.href}

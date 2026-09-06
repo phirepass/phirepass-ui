@@ -29,7 +29,7 @@ import crypto from 'node:crypto';
 import { query } from './db';
 import { AuthzError, type Session } from './authz';
 import { canActOnMember, canGrantRole, isRole, type Role } from '@/lib/rbac';
-import type { OrgMember, OrgSummary, Organization } from '@/types/org';
+import type { MemberStatus, Membership, OrgMember, OrgSummary, Organization } from '@/types/org';
 
 /** Matches the CHECK on `organization_invitations.expires_at`'s default. */
 const INVITATION_TTL_DAYS = 14;
@@ -582,4 +582,118 @@ export async function renameOrganization(session: Session, name: string): Promis
     }
 
     return row;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Belonging to more than one
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Every workspace this account is a member of.
+ *
+ * Keyed on the user rather than on an organisation, which is what makes it the
+ * one function here that is *not* scoped to `session.orgId`: it is asked
+ * precisely by somebody who wants to leave the organisation they are currently
+ * in. `listMembers` answers "who is in this workspace"; this answers "which
+ * workspaces am I in", and the two are deliberately not the same query.
+ *
+ * Ordered personal-first and then by name, because the personal workspace is the
+ * one every account has and the one people navigate back to by reflex — an
+ * alphabetical list that buries it under a team is a list you have to read.
+ */
+export async function listMemberships(userId: string): Promise<Membership[]> {
+    const result = await query(
+        `SELECT o.id, o.name, o.slug, o.personal, o.created_at,
+                m.role, m.status, m.joined_at,
+                (SELECT count(*)::int FROM organization_members c WHERE c.org_id = o.id) AS member_count
+         FROM organization_members m
+         JOIN organizations o ON o.id = m.org_id
+         WHERE m.user_id = $1
+         ORDER BY o.personal DESC, lower(o.name) ASC, o.created_at ASC`,
+        [userId],
+    );
+
+    return (result.rows as {
+        id: string;
+        name: string;
+        slug: string;
+        personal: boolean;
+        created_at: string;
+        role: string;
+        status: string;
+        joined_at: string;
+        member_count: number;
+    }[]).map((row) => {
+        // Same reading as `readMembership`: a role or status this build does not
+        // know is a database written by a newer one, and guessing either way is
+        // worse than refusing.
+        if (!isRole(row.role)) {
+            throw new AuthzError(500, 'Server error', `unknown role ${row.role} for user ${userId}`);
+        }
+        if (row.status !== 'active' && row.status !== 'suspended') {
+            throw new AuthzError(500, 'Server error', `unknown member status ${row.status} for user ${userId}`);
+        }
+
+        return {
+            org: {
+                id: row.id,
+                name: row.name,
+                slug: row.slug,
+                personal: row.personal,
+                created_at: row.created_at,
+            },
+            role: row.role,
+            status: row.status as MemberStatus,
+            member_count: row.member_count,
+            joined_at: row.joined_at,
+        };
+    });
+}
+
+/** Organisation ids are uuids; anything else is a 400, not a query Postgres has to refuse. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Move this account's session into another workspace it belongs to.
+ *
+ * Writes `users.primary_org_id`, which is the first thing `readMembership`
+ * sorts on — so the switch takes effect on the very next request, for every
+ * device this account is signed in on, without reissuing the session cookie.
+ * That is the point of keeping the organisation out of the JWT: it can change
+ * without anybody signing in again.
+ *
+ * The membership check is inside the UPDATE rather than a read before it, so
+ * two requests racing cannot land on a workspace the second one was removed
+ * from in between. `status = 'active'` is part of it: a suspended member is
+ * refused here rather than switched into a workspace whose every subsequent
+ * request `requireSession` would answer 403.
+ */
+export async function setActiveOrganization(userId: string, orgId: unknown): Promise<Membership> {
+    if (typeof orgId !== 'string' || !UUID_PATTERN.test(orgId)) {
+        throw new AuthzError(400, 'A workspace is required');
+    }
+
+    const result = await query(
+        `UPDATE users u
+         SET primary_org_id = $2
+         WHERE u.id = $1
+           AND EXISTS (SELECT 1 FROM organization_members m
+                       WHERE m.user_id = u.id AND m.org_id = $2 AND m.status = 'active')
+         RETURNING u.primary_org_id`,
+        [userId, orgId],
+    );
+
+    if (result.rowCount === 0) {
+        // One message for "not a member" and for "suspended there". Which of the
+        // two it is says something about the other workspace to somebody who is
+        // not in it, and the switcher never offers either case anyway.
+        throw new AuthzError(403, 'You do not have access to that workspace');
+    }
+
+    const membership = (await listMemberships(userId)).find((entry) => entry.org.id === orgId);
+    if (!membership) {
+        throw new AuthzError(500, 'Server error', `membership vanished for user ${userId} org ${orgId}`);
+    }
+
+    return membership;
 }
