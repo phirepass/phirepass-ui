@@ -9,6 +9,7 @@ import { json_response } from '@/app/lib/framework';
 import { verifySecondFactor } from '@/app/lib/mfa';
 import { outcomeResponse, readSubmittedCode } from '@/app/lib/mfa-outcome';
 import { mfaGate } from '@/lib/mfa-feature';
+import { invitePath, PENDING_INVITATION_COOKIE, readCookie } from '@/app/lib/invitation-link';
 
 /** Matches the session the OAuth callback issues when 2FA is off. */
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
@@ -53,7 +54,13 @@ export async function POST(req: Request) {
         headers.append('Set-Cookie', buildAuthCookie(session, SESSION_SECONDS, domain));
         headers.append('Set-Cookie', clearMfaChallengeCookie(domain));
 
-        return new Response(JSON.stringify({ redirect: '/dashboard/nodes' }), {
+        // The same hand-off the OAuth callback makes, for the account that had
+        // a second factor in the way: an invitation opened before signing in is
+        // still parked in a cookie, and this is the first moment there is a
+        // session to accept it with.
+        const pending = readCookie(req.headers.get('cookie'), PENDING_INVITATION_COOKIE);
+
+        return new Response(JSON.stringify({ redirect: pending ? invitePath(pending) : '/dashboard/nodes' }), {
             status: 200,
             headers,
         });

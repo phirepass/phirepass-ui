@@ -164,6 +164,14 @@ CREATE INDEX IF NOT EXISTS organization_invitations_email_idx
     ON organization_invitations (email)
     WHERE accepted_at IS NULL AND revoked_at IS NULL;
 
+-- The other claim path: somebody opened the link in the mail (/invite/[token],
+-- acceptInvitation in src/app/lib/org.ts). Unfiltered, unlike the index above,
+-- because that lookup deliberately finds revoked, expired and already-accepted
+-- rows too — it has a different thing to say about each of them, and a link
+-- that lands on "nothing here" would be the same dead end this route replaced.
+CREATE INDEX IF NOT EXISTS organization_invitations_token_idx
+    ON organization_invitations (token_hash);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- The owning column on the three resource tables
 -- ─────────────────────────────────────────────────────────────────────────────

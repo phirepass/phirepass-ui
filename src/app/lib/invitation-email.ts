@@ -14,6 +14,7 @@
 
 import { getMailer, sendEmail } from './email';
 import { SITE_URL } from '@/lib/site';
+import { invitePath } from './invitation-link';
 
 export type InvitationDelivery =
     | { sent: true; id: string | null }
@@ -31,16 +32,20 @@ export interface InvitationEmailInput {
 /**
  * Where the link points.
  *
- * `/login` rather than a bespoke accept page: the whole flow is "sign in with
- * the address that was invited", and a page whose only job is to forward to
- * OAuth is a page that can go wrong. The token rides along so a future accept
- * screen — one that names the organisation before asking anybody to sign in —
- * has something to look the invitation up by without changing the mail.
+ * `/invite/<token>`, which is a redirect rather than a page: it accepts the
+ * invitation and lands the reader in the dashboard, in the workspace they were
+ * invited to, whether or not they were already signed in. See
+ * `src/app/invite/[token]/route.ts` for the paths through it.
+ *
+ * It pointed at `/login?invitation=<token>` before, and nothing read the token:
+ * somebody already signed in was bounced to the dashboard without the
+ * invitation being looked at, and somebody signing in fresh landed in whichever
+ * workspace they already had. The link is still not the credential — the
+ * address is, and `acceptInvitation` checks it — so a forwarded one remains
+ * useless to anybody else.
  */
 export function invitationUrl(token: string): string {
-    const url = new URL('/login', SITE_URL);
-    url.searchParams.set('invitation', token);
-    return url.toString();
+    return new URL(invitePath(token), SITE_URL).toString();
 }
 
 function escapeHtml(value: string): string {
@@ -66,7 +71,9 @@ export async function sendInvitationEmail(input: InvitationEmailInput): Promise<
     const text = [
         `${input.invitedBy} has invited you to the ${input.orgName} workspace on PhirePass.`,
         '',
-        `Sign in with this address to accept: ${link}`,
+        `Accept the invitation: ${link}`,
+        '',
+        'Sign in with this address — the invitation is tied to it.',
         '',
         `This invitation expires ${expiresLabel}.`,
         '',
@@ -75,7 +82,8 @@ export async function sendInvitationEmail(input: InvitationEmailInput): Promise<
 
     const html = [
         `<p>${escapeHtml(input.invitedBy)} has invited you to the <strong>${escapeHtml(input.orgName)}</strong> workspace on PhirePass.</p>`,
-        `<p><a href="${escapeHtml(link)}">Sign in with this address to accept</a></p>`,
+        `<p><a href="${escapeHtml(link)}">Accept the invitation</a></p>`,
+        `<p>Sign in with this address — the invitation is tied to it.</p>`,
         `<p>This invitation expires ${escapeHtml(expiresLabel)}.</p>`,
         `<p>If you were not expecting this, you can ignore it — nothing happens until you sign in.</p>`,
     ].join('\n');
