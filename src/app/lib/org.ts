@@ -697,3 +697,143 @@ export async function setActiveOrganization(userId: string, orgId: unknown): Pro
 
     return membership;
 }
+
+/**
+ * What opening an invitation link did.
+ *
+ * Every one of these lands the person in the dashboard — the outcome decides
+ * what they are told when they get there, not whether they get there. That is
+ * the whole point of the route: a link from an email should never dead-end on a
+ * page about itself.
+ */
+export type AcceptOutcome =
+    /** Joined, and the session now opens in that workspace. */
+    | 'joined'
+    /** Already a member — the callback claimed it by address moments ago, or they had joined before. Switched to it. */
+    | 'switched'
+    /** Signed in as somebody else. The invitation is untouched. */
+    | 'mismatch'
+    /** In that workspace, but suspended there. Not switched into it. */
+    | 'suspended'
+    /** Withdrawn by an administrator. */
+    | 'revoked'
+    /** Past `expires_at` and never accepted. */
+    | 'expired'
+    /** No such token — mistyped, superseded by a resend, or already used by another account. */
+    | 'unknown';
+
+export interface AcceptResult {
+    outcome: AcceptOutcome;
+    /** The workspace in question, where the token named one worth naming. */
+    org: Organization | null;
+}
+
+/**
+ * Accept an invitation from the link in the mail.
+ *
+ * **The token says which workspace; the address is still what grants the
+ * membership.** A forwarded link is useless to anybody else — signing in as
+ * someone the invitation was not addressed to gets `mismatch` and changes
+ * nothing. That is the rule `inviteMember` was written under and this does not
+ * relax it; what the token adds is knowing *which* invitation was opened, so
+ * somebody who belongs to several workspaces lands in the right one instead of
+ * wherever they happened to be last.
+ *
+ * The order of the checks matters. Membership is tested before expiry and
+ * before `accepted_at`, because the ordinary signed-out path arrives here
+ * having *already* been claimed: the OAuth callback claims by address on the
+ * way through (`claimInvitations`), so by the time this runs the invitation is
+ * accepted and the person is a member. Reporting that as "expired" would be a
+ * lie told at the exact moment the thing worked.
+ */
+export async function acceptInvitation(
+    userId: string,
+    userEmail: string,
+    token: unknown,
+): Promise<AcceptResult> {
+    if (typeof token !== 'string' || !token) {
+        return { outcome: 'unknown', org: null };
+    }
+
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const found = await query(
+        `SELECT i.id, i.org_id, i.email, i.role, i.expires_at, i.accepted_at, i.revoked_at,
+                o.id AS o_id, o.name, o.slug, o.personal, o.created_at
+         FROM organization_invitations i
+         JOIN organizations o ON o.id = i.org_id
+         WHERE i.token_hash = $1`,
+        [hash],
+    );
+
+    const row = found.rows[0] as {
+        id: string;
+        org_id: string;
+        email: string;
+        role: Role;
+        expires_at: string;
+        accepted_at: string | null;
+        revoked_at: string | null;
+        o_id: string;
+        name: string;
+        slug: string;
+        personal: boolean;
+        created_at: string;
+    } | undefined;
+
+    if (!row) return { outcome: 'unknown', org: null };
+
+    const org: Organization = {
+        id: row.o_id,
+        name: row.name,
+        slug: row.slug,
+        personal: row.personal,
+        created_at: row.created_at,
+    };
+
+    // Nothing below this line is said to somebody the invitation is not for.
+    // The workspace name is not theirs to learn from a link they were forwarded.
+    if (row.email !== userEmail.trim().toLowerCase()) {
+        return { outcome: 'mismatch', org: null };
+    }
+
+    if (row.revoked_at) return { outcome: 'revoked', org };
+
+    const existing = await query(
+        'SELECT status FROM organization_members WHERE org_id = $1 AND user_id = $2',
+        [row.org_id, userId],
+    );
+    const member = existing.rows[0] as { status: string } | undefined;
+
+    if (member) {
+        if (member.status === 'suspended') return { outcome: 'suspended', org };
+
+        await query('UPDATE users SET primary_org_id = $2 WHERE id = $1', [userId, row.org_id]);
+        return { outcome: 'switched', org };
+    }
+
+    if (row.accepted_at) return { outcome: 'unknown', org: null };
+    if (new Date(row.expires_at).getTime() <= Date.now()) return { outcome: 'expired', org };
+
+    await query(
+        `INSERT INTO organization_members (org_id, user_id, role, status, invited_by)
+         SELECT $1, $2, $3, 'active', i.invited_by
+         FROM organization_invitations i WHERE i.id = $4
+         ON CONFLICT (org_id, user_id) DO NOTHING`,
+        [row.org_id, userId, row.role, row.id],
+    );
+
+    await query(
+        `UPDATE organization_invitations
+         SET accepted_at = now(), accepted_by = $2
+         WHERE id = $1 AND accepted_at IS NULL`,
+        [row.id, userId],
+    );
+
+    // Unconditional, unlike the claim at sign-in: opening the link is somebody
+    // saying "take me there", and landing them anywhere else is not an answer
+    // to it.
+    await query('UPDATE users SET primary_org_id = $2 WHERE id = $1', [userId, row.org_id]);
+
+    return { outcome: 'joined', org };
+}

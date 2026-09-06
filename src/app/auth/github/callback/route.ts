@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/auth";
 import { ensurePersonalOrg } from "@/app/lib/authz";
 import { claimInvitations } from "@/app/lib/org";
+import { invitePath, PENDING_INVITATION_COOKIE, readCookie } from "@/app/lib/invitation-link";
 import { isMfaEnabled } from "@/app/lib/mfa";
 import { IS_MFA_ENABLED } from "@/lib/mfa-feature";
 import { UserInfo } from "@/app/lib/types";
@@ -175,11 +176,23 @@ export async function GET(req: Request) {
         const maxAge = 7 * 24 * 60 * 60;
         const token = signSession(existingUser.id, "github", maxAge);
 
-        const dashboardUrl = new URL("/dashboard/nodes", requestUrl.origin);
+        /**
+         * An invitation opened before signing in comes back to its own route
+         * rather than to the dashboard.
+         *
+         * `claimInvitations` above has almost certainly already granted the
+         * membership — it claims by address, and the address is what just
+         * authenticated — but it deliberately does not move somebody who is
+         * already settled elsewhere. Opening the link is that person saying
+         * where they want to be, so /invite/[token] gets to say it, land them in
+         * that workspace, and leave the notice that says so.
+         */
+        const pending = readCookie(req.headers.get("cookie"), PENDING_INVITATION_COOKIE);
+        const destination = new URL(pending ? invitePath(pending) : "/dashboard/nodes", requestUrl.origin);
         const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
 
         const headers = new Headers();
-        headers.set("Location", dashboardUrl.toString());
+        headers.set("Location", destination.toString());
         headers.append("Set-Cookie", authCookie);
         // headers.append("Set-Cookie", ghCookie);
 
