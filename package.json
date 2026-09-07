@@ -1,7 +1,7 @@
 {
     "name": "phirepass-ui",
     "private": true,
-    "version": "0.0.163",
+    "version": "0.0.164",
     "type": "module",
     "engines": {
         "node": ">=26"
