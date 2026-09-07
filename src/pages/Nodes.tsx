@@ -12,7 +12,6 @@ import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
-import { mockSharedNodes } from '@/data/mockSharedNodes';
 import { FilePanelTab, NodeStats, TunnelNode, RdpPanelTab } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
+import { useCurrentUserId } from '@/lib/session';
 import { useDemoMode } from '@/components/DemoModeProvider';
 import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import initChannel, { Channel } from 'phirepass-channel';
@@ -67,6 +67,16 @@ export default function Nodes() {
     const [loading, setLoading] = useState(() => initialCachedNodes === null);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    /**
+     * Which slice of the list to show.
+     *
+     * The list stopped being "your nodes" twice — once when an organisation
+     * could own a machine, again when somebody could be given one — so "all" is
+     * now a genuinely mixed set and the two halves answer different questions.
+     * `mine` is "what am I responsible for"; `shared` is "what did somebody lend
+     * me", which is the one people actually go looking for and could not find.
+     */
+    const [ownership, setOwnership] = useState<'all' | 'mine' | 'shared'>('all');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [nodesPage, setNodesPage] = useState(1);
     // True once we have a live /api/nodes response for this page load. Nodes rendered
@@ -252,11 +262,39 @@ export default function Nodes() {
     const [disableHttpProxyError, setDisableHttpProxyError] = useState<string | null>(null);
 
     const { config } = useRuntimeConfig();
+    const currentUserId = useCurrentUserId();
+
+    /*
+     * Whether the fleet contains anything the caller does not own. Computed
+     * before the filter runs, so choosing "Shared with me" and finding nothing
+     * does not make the control that got you there disappear.
+     */
+    const hasSharedNodes = nodes.some(
+        (node) => node.owner_id && node.owner_id !== currentUserId,
+    );
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const filteredNodes = nodes
         .filter(node => !!node.stats)
         .filter((node) => {
+            /*
+             * "Not mine" rather than "shared with me", and the difference is
+             * worth being honest about: this list already only holds nodes the
+             * session may reach, but *why* it may reach one — a share, or an
+             * admin role over the whole workspace — is a distinction the client
+             * is not told and should not guess. An administrator filtering to
+             * `shared` therefore sees every colleague's machine, which is the
+             * true answer to "what is here that is not mine".
+             *
+             * A node whose owner is unknown (an older cached entry, a deleted
+             * account) counts as mine, so a cache from a previous version does
+             * not make somebody's own fleet vanish behind a filter.
+             */
+            if (ownership !== 'all') {
+                const isMine = !node.owner_id || node.owner_id === currentUserId;
+                if ((ownership === 'mine') !== isMine) return false;
+            }
+
             if (!normalizedQuery) return true;
 
             const name = (node.name ?? '').toLowerCase();
@@ -1613,7 +1651,36 @@ export default function Nodes() {
                             />
                         </div>
 
-                        {/* Layout toggle button removed */}
+                        {/*
+                          * Shown only when there is something to filter. On a
+                          * personal workspace every node is yours, and a control
+                          * whose every option gives the same list is a control
+                          * that teaches somebody it is broken.
+                          */}
+                        {hasSharedNodes && (
+                            <div className="flex items-center gap-0.5 rounded-full border border-hairline bg-input/60 p-0.5 shadow-sunken">
+                                {([
+                                    { id: 'all', label: 'All' },
+                                    { id: 'mine', label: 'Mine' },
+                                    { id: 'shared', label: 'Shared with me' },
+                                ] as const).map((option) => (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => { setOwnership(option.id); setNodesPage(1); }}
+                                        aria-pressed={ownership === option.id}
+                                        className={cn(
+                                            'rounded-full px-3 py-1 text-xs transition-colors duration-150 ease-mac',
+                                            ownership === option.id
+                                                ? 'bg-white/[0.10] text-foreground'
+                                                : 'text-muted-foreground hover:text-foreground',
+                                        )}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Bulk Actions */}
@@ -1631,6 +1698,21 @@ export default function Nodes() {
                             <NodeCard
                                 key={node.id}
                                 node={node}
+                                /*
+                                 * The badge `NodeCard` has always been able to
+                                 * render and has never been given anything to
+                                 * render it from. A card in a mixed list has to
+                                 * say whose machine it is, or "delete" and
+                                 * "rename" sit under somebody else's box with
+                                 * nothing to warn you.
+                                 *
+                                 * "Shared" is the honest word for both routes to
+                                 * getting here — a share, or a role that reaches
+                                 * the whole workspace — since which of the two it
+                                 * was is not something the client is told.
+                                 */
+                                isShared={!!node.owner_id && node.owner_id !== currentUserId}
+                                sharedBy={node.owner_name ?? undefined}
                                 actionsDisabled={!nodesFresh}
                                 statusPending={!nodesFresh}
                                 onCreateTunnel={guardLive(handleCreateTunnel)}
@@ -2208,7 +2290,11 @@ export default function Nodes() {
 
                     {filteredNodes.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
-                            <p>No nodes found matching your search.</p>
+                            <p>
+                                {ownership === 'shared' && !normalizedQuery
+                                    ? 'Nobody has shared a node with you yet.'
+                                    : 'No nodes found matching your search.'}
+                            </p>
                         </div>
                     )}
 

@@ -27,6 +27,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ nodeId: string 
 /**
  * Share the node — with the whole workspace, or with one member of it.
  *
+ * Also how a share is **changed**: posting the same audience again rewrites the
+ * one live grant rather than adding a second, so narrowing its services or
+ * moving its expiry comes through here. There is no PATCH for the same reason
+ * there is no second table — one writer, one row, one meaning.
+ *
  * Answers with the refreshed list rather than the row it wrote, the way
  * `/api/org/members` does: sharing changes both lists at once (a named member
  * leaves the candidate list as they join the share list), and a caller patching
@@ -36,9 +41,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ nodeId: string
     try {
         const session = await requireSession();
         const { nodeId } = await ctx.params;
-        const payload = await req.json().catch(() => ({})) as { audience?: unknown; user_id?: unknown };
+        const payload = await req.json().catch(() => ({})) as {
+            audience?: unknown;
+            user_id?: unknown;
+            services?: unknown;
+            expires_at?: unknown;
+        };
 
-        return json_response(await createShare(session, nodeId, payload.audience, payload.user_id), 200);
+        return json_response(
+            await createShare(
+                session,
+                nodeId,
+                payload.audience,
+                payload.user_id,
+                payload.services,
+                payload.expires_at,
+            ),
+            200,
+        );
     } catch (e) {
         console.warn(`[server][post][${req.url}]`, e);
         const { status, body } = authzErrorStatus(e);

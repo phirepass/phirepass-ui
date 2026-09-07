@@ -113,7 +113,17 @@ export function buildScope(
  *   even a `node_shares` row that somehow named another organisation — a node
  *   moved after being shared, a hand-written row — selects nothing.
  * - `revoked_at IS NULL` is the revocation, and it is evaluated on every read
- *   rather than cached anywhere.
+ *   rather than cached anywhere. `expires_at` is read in the same breath and is
+ *   deliberately not a separate concept: a share that ran out and a share that
+ *   was withdrawn grant exactly the same thing, which is nothing, and any reader
+ *   that checked one without the other would be a reader that honours a share
+ *   past the hour it was lent for.
+ *
+ * What this arm does **not** narrow is the service. `services` scopes which of
+ * SSH/SFTP/HTTP/RDP a session may open, and that is a per-message decision the
+ * Rust server makes (`server/src/access.rs`); the dashboard's question is only
+ * whether the node is visible at all. A share naming one service still lists the
+ * machine — it has to, or there would be nothing to open the session from.
  *
  * Adds no parameters: the organisation and the caller are already values this
  * fragment passes, so the arm reuses their placeholders and every existing
@@ -126,9 +136,22 @@ function shareArm(a: string, sharedVia: SharedVia, org: string, me: string): str
                    SELECT 1 FROM node_shares s
                     WHERE s.node_id = ${a}${sharedVia}
                       AND s.org_id = ${org}
-                      AND s.revoked_at IS NULL
+                      AND ${LIVE_SHARE}
                       AND (s.audience = 'org' OR s.grantee_id = ${me}))`;
 }
+
+/**
+ * What makes a `node_shares` row count, aliased `s`.
+ *
+ * One string, exported, because it is repeated in `node-share.ts` and in the
+ * Rust server's own query, and a copy of it that forgot the expiry check is a
+ * share that outlives its own deadline. Anything reading `node_shares` for an
+ * access decision uses this; the only readers that do not are the ones showing
+ * the audit trail, which want the withdrawn rows precisely because they are
+ * withdrawn.
+ */
+export const LIVE_SHARE =
+    "s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at > now())";
 
 /**
  * Shift every placeholder in a fragment by `offset`, so a leading scope can sit

@@ -27,15 +27,117 @@
 
 import { query } from './db';
 import { AuthzError, nodeManageScope, scopeAt, type Session } from './authz';
-import type { NodeShare, ShareAudience, ShareCandidate } from '@/types/share';
+import { LIVE_SHARE } from './scope';
+import {
+    SHAREABLE_SERVICES,
+    type NodeShare,
+    type ShareAudience,
+    type ShareCandidate,
+    type ShareableService,
+} from '@/types/share';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The longest a share may be lent for.
+ *
+ * A ceiling rather than a default, and it exists so "expires" keeps meaning
+ * something: a picker that offers a decade offers a share nobody will ever see
+ * end, which is a share with no expiry wearing a date. Beyond this, say no
+ * expiry and mean it — that at least shows up honestly in the list.
+ */
+const MAX_SHARE_DAYS = 365;
 
 function requireUuid(value: unknown, what: string): string {
     if (typeof value !== 'string' || !UUID.test(value)) {
         throw new AuthzError(400, `That is not a valid ${what}`);
     }
     return value;
+}
+
+/**
+ * The services a share names, normalised, or `[]` for "every service".
+ *
+ * Refuses an unknown name rather than dropping it, which is the opposite of what
+ * a *reader* does with one. The asymmetry is deliberate and it is the safe
+ * direction of each: a writer who typed something this build does not understand
+ * gets told, because the alternative is a share that silently grants less than
+ * they asked for and a support conversation about why the shell does not open.
+ * A reader drops it, because the alternative is a share written by a newer
+ * dashboard that grants everything or nothing.
+ *
+ * Duplicates collapse and order is normalised so two requests that mean the same
+ * thing store the same array — otherwise the row changes on every save and the
+ * audit trail records edits nobody made.
+ */
+function normalizeServices(value: unknown): ShareableService[] {
+    if (value === undefined || value === null) {
+        return [];
+    }
+
+    if (!Array.isArray(value)) {
+        throw new AuthzError(400, 'Services must be a list');
+    }
+
+    const known = new Set<string>(SHAREABLE_SERVICES);
+    const chosen = new Set<ShareableService>();
+
+    for (const entry of value) {
+        if (typeof entry !== 'string') {
+            throw new AuthzError(400, 'Services must be a list of service names');
+        }
+
+        const name = entry.trim().toUpperCase();
+        if (!known.has(name)) {
+            throw new AuthzError(400, `This workspace has no service called ${entry}`);
+        }
+
+        chosen.add(name as ShareableService);
+    }
+
+    // Naming every service and naming none reach the same place on purpose:
+    // both mean "everything", and storing the empty array for both keeps one
+    // representation of one meaning. The difference the column carries is about
+    // services added *later*, and somebody who ticked every box has said they
+    // want those too.
+    if (chosen.size === SHAREABLE_SERVICES.length) {
+        return [];
+    }
+
+    return SHAREABLE_SERVICES.filter((service) => chosen.has(service));
+}
+
+/**
+ * When a share should stop granting, as an ISO string, or `null` for never.
+ *
+ * A date already in the past is refused rather than stored: it would be a row
+ * that grants nothing from the moment it is written, and the person who wrote it
+ * would see the share appear in the list and expect it to work.
+ */
+function normalizeExpiry(value: unknown): string | null {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    if (typeof value !== 'string') {
+        throw new AuthzError(400, 'An expiry must be a date');
+    }
+
+    const at = new Date(value);
+    if (Number.isNaN(at.getTime())) {
+        throw new AuthzError(400, 'That is not a date this can read');
+    }
+
+    const now = Date.now();
+    if (at.getTime() <= now) {
+        throw new AuthzError(400, 'That expiry has already passed');
+    }
+
+    if (at.getTime() - now > MAX_SHARE_DAYS * 24 * 60 * 60 * 1000) {
+        throw new AuthzError(400, `A share can run for at most ${MAX_SHARE_DAYS} days`);
+    }
+
+    return at.toISOString();
 }
 
 /**
@@ -82,13 +184,13 @@ export async function listShares(
     const { orgId, ownerId } = await shareableNode(session, id);
 
     const shares = await query(
-        `SELECT s.id, s.audience, s.grantee_id, s.created_at,
+        `SELECT s.id, s.audience, s.grantee_id, s.services, s.expires_at, s.created_at,
                 u.email AS grantee_email, u.username AS grantee_username, u.avatar_url AS grantee_avatar_url,
                 g.username AS granted_by_username, g.email AS granted_by_email
          FROM node_shares s
          LEFT JOIN users u ON u.id = s.grantee_id
          LEFT JOIN users g ON g.id = s.granted_by
-         WHERE s.node_id = $1 AND s.org_id = $2 AND s.revoked_at IS NULL
+         WHERE s.node_id = $1 AND s.org_id = $2 AND ${LIVE_SHARE}
          ORDER BY (s.audience = 'org') DESC, lower(coalesce(u.username, u.email)) ASC`,
         [id, orgId],
     );
@@ -111,7 +213,7 @@ export async function listShares(
            AND NOT EXISTS (
                SELECT 1 FROM node_shares s
                 WHERE s.node_id = $3 AND s.grantee_id = u.id
-                  AND s.audience = 'member' AND s.revoked_at IS NULL)
+                  AND s.audience = 'member' AND ${LIVE_SHARE})
          ORDER BY lower(coalesce(u.username, u.email)) ASC`,
         [orgId, ownerId, id],
     );
@@ -125,15 +227,31 @@ export async function listShares(
 /**
  * Share the node with the whole organisation, or with one person in it.
  *
- * Idempotent by way of the two partial unique indexes: sharing twice is the
- * same share, so a double-clicked button updates nothing and answers with the
- * list rather than a conflict.
+ * Also the **edit** path, and deliberately the only one. Sharing again with the
+ * same audience does not make a second grant — the two partial unique indexes
+ * say so — it rewrites the one that exists, so changing which services a share
+ * opens, or how long it runs, is the same request as making it. A separate PATCH
+ * would be a second way to write the row, and the two would eventually disagree
+ * about what a share is allowed to say.
+ *
+ * `ON CONFLICT … DO UPDATE`, not `DO NOTHING`, is what makes that true, and it
+ * buys a second thing: an **expired** share is still `revoked_at IS NULL`, so it
+ * still occupies its unique index even though nothing reads it any more. `DO
+ * NOTHING` would silently refuse to re-lend a machine whose share ran out
+ * yesterday. The update revives that row rather than leaving a corpse in the way
+ * of the grant somebody just asked for.
+ *
+ * What the conflict does **not** bypass is the membership guard: a row that is
+ * refused by the `WHERE EXISTS` below never reaches the index, so it never
+ * conflicts and never updates.
  */
 export async function createShare(
     session: Session,
     nodeId: string,
     audience: unknown,
     granteeId: unknown,
+    services?: unknown,
+    expiresAt?: unknown,
 ): Promise<{ shares: NodeShare[]; candidates: ShareCandidate[] }> {
     const id = requireUuid(nodeId, 'node id');
     const { orgId, ownerId } = await shareableNode(session, id);
@@ -142,12 +260,20 @@ export async function createShare(
         throw new AuthzError(400, 'A share is either with the workspace or with one member');
     }
 
+    // Validated before either statement, so a malformed service name is a 400
+    // that changed nothing rather than a 400 after a partial write.
+    const chosen = normalizeServices(services);
+    const expiry = normalizeExpiry(expiresAt);
+
     if ((audience as ShareAudience) === 'org') {
         await query(
-            `INSERT INTO node_shares (node_id, org_id, audience, granted_by)
-             VALUES ($1, $2, 'org', $3)
-             ON CONFLICT DO NOTHING`,
-            [id, orgId, session.userId],
+            `INSERT INTO node_shares (node_id, org_id, audience, granted_by, services, expires_at)
+             VALUES ($1, $2, 'org', $3, $4, $5)
+             ON CONFLICT (node_id) WHERE audience = 'org' AND revoked_at IS NULL
+             DO UPDATE SET services = EXCLUDED.services,
+                           expires_at = EXCLUDED.expires_at,
+                           granted_by = EXCLUDED.granted_by`,
+            [id, orgId, session.userId, chosen, expiry],
         );
 
         return listShares(session, id);
@@ -168,33 +294,33 @@ export async function createShare(
      * which a membership is removed and a share is created anyway — small, but
      * this is the guard that keeps a node inside its tenant.
      */
-    const inserted = await query(
-        `INSERT INTO node_shares (node_id, org_id, audience, grantee_id, granted_by)
-         SELECT $1, $2, 'member', $3, $4
+    const written = await query(
+        `INSERT INTO node_shares (node_id, org_id, audience, grantee_id, granted_by, services, expires_at)
+         SELECT $1, $2, 'member', $3, $4, $5, $6
           WHERE EXISTS (SELECT 1 FROM organization_members m
                          WHERE m.org_id = $2 AND m.user_id = $3 AND m.status = 'active')
-         ON CONFLICT DO NOTHING
+         ON CONFLICT (node_id, grantee_id) WHERE audience = 'member' AND revoked_at IS NULL
+         DO UPDATE SET services = EXCLUDED.services,
+                       expires_at = EXCLUDED.expires_at,
+                       granted_by = EXCLUDED.granted_by
          RETURNING id`,
-        [id, orgId, grantee, session.userId],
+        [id, orgId, grantee, session.userId, chosen, expiry],
     );
 
     /*
-     * Nothing written is either "already shared" or "not a member of this
-     * workspace", and those must not be told apart by a caller: the second
-     * would confirm whether an address belongs to an organisation the caller
-     * cannot otherwise enumerate. So the already-shared case is resolved by
-     * asking, and only a genuine non-member reaches the refusal.
+     * Nothing written now means exactly one thing.
+     *
+     * It used to mean two — "already shared" or "not a member" — because the
+     * conflict wrote nothing and returned nothing, and the two had to be told
+     * apart by a second query that deliberately answered the same way to both:
+     * confirming that an address belongs to a workspace the caller cannot
+     * enumerate is itself an answer. `DO UPDATE` returns the row for every
+     * member, conflict or not, so the only path left to zero rows is the
+     * `WHERE EXISTS` above refusing a non-member — and that is the person the
+     * refusal is for.
      */
-    if (inserted.rowCount === 0) {
-        const live = await query(
-            `SELECT 1 FROM node_shares
-              WHERE node_id = $1 AND grantee_id = $2 AND audience = 'member' AND revoked_at IS NULL`,
-            [id, grantee],
-        );
-
-        if (live.rowCount === 0) {
-            throw new AuthzError(403, 'That person is not a member of this workspace');
-        }
+    if (written.rowCount === 0) {
+        throw new AuthzError(403, 'That person is not a member of this workspace');
     }
 
     return listShares(session, id);

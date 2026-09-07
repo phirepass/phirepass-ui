@@ -109,6 +109,16 @@ type UserNodeRow = {
      * also half of the Redis key its live stats are written under.
      */
     user_id: string;
+    /**
+     * What to call that member on a card that is not the caller's own.
+     *
+     * Joined rather than resolved client-side, because the list is the only
+     * place that needs it and a second round trip per distinct owner would be a
+     * request per colleague. Null when the account has been deleted, which the
+     * `ON DELETE SET NULL` on `nodes` does not cover — the node outlives them.
+     */
+    owner_username: string | null;
+    owner_email: string | null;
     name: string | null;
     created_at: string;
     settings: unknown;
@@ -530,8 +540,10 @@ export async function GET(req: Request) {
         const scope = nodeScope(session, 'n');
 
         const result = await query(
-            `SELECT n.id, n.user_id, n.name, n.created_at, n.settings
+            `SELECT n.id, n.user_id, n.name, n.created_at, n.settings,
+                    o.username AS owner_username, o.email AS owner_email
             FROM nodes n
+            LEFT JOIN users o ON o.id = n.user_id
             WHERE ${scope.sql}
             ORDER BY n.created_at DESC`,
             scope.params
@@ -603,7 +615,12 @@ export async function GET(req: Request) {
                 // Who enrolled it. The list is no longer necessarily all yours,
                 // so the client needs this to say "Anna's" on a row and to
                 // decide whether to offer rename and delete.
+                //
+                // The name comes with the id rather than being looked up: a card
+                // that says "shared by 8f2c…" has told the reader nothing, and
+                // resolving it client-side would be a request per colleague.
                 owner_id: node.user_id,
+                owner_name: node.owner_username?.trim() || node.owner_email?.split('@')[0] || null,
                 name: node.name ?? payload?.name ?? '',
                 ip,
                 server_id: payload?.server_id ?? node.id,

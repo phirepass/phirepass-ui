@@ -143,6 +143,19 @@ test('the share arm sits inside the second clause, never the first', () => {
     assert.doesNotMatch(firstClause, /node_shares/);
 });
 
+/**
+ * Expiry is checked wherever revocation is, and this pins that they travel
+ * together. A predicate that tested one without the other is a share that keeps
+ * granting after the hour it was lent for — which looks like it works, in the
+ * only test somebody would think to write.
+ */
+test('a share that ran out is as dead as one that was withdrawn', () => {
+    const scope = buildScope(shape(false), 'n', { style: 'leading' }, 'id');
+
+    assert.match(scope.sql, /s\.revoked_at IS NULL/);
+    assert.match(scope.sql, /s\.expires_at IS NULL OR s\.expires_at > now\(\)/);
+});
+
 test('reading everything in the org does not depend on the share arm', () => {
     // An owner or admin already passes the second clause on $2, so the arm is
     // additive rather than load bearing for them.

@@ -20,6 +20,23 @@ import type { Role } from '@/lib/rbac';
  */
 export type ShareAudience = 'org' | 'member';
 
+/**
+ * The services a share may name, as `ServiceKind` variant names.
+ *
+ * Uppercase because that is how `ServiceKind` serialises on the wire and how the
+ * kind already arrives inside a node's `settings.services` — the same string in
+ * the share row, the node record and the Rust enum, so nothing has to translate
+ * between three spellings of "ssh".
+ *
+ * This list is the dashboard's copy of `common/src/protocol/settings.rs`, and it
+ * is allowed to be *behind* it: a name a build does not know is dropped by
+ * whoever reads it rather than refused, so a share written by a newer dashboard
+ * loses one service on an older server instead of granting everything.
+ */
+export const SHAREABLE_SERVICES = ['SSH', 'SFTP', 'HTTP', 'RDP'] as const;
+
+export type ShareableService = (typeof SHAREABLE_SERVICES)[number];
+
 export interface NodeShare {
     id: string;
     audience: ShareAudience;
@@ -33,6 +50,26 @@ export interface NodeShare {
     /** Whoever shared it. Null if that account has since been deleted. */
     granted_by_username: string | null;
     granted_by_email: string | null;
+
+    /**
+     * Which services this share opens.
+     *
+     * **Empty means every service**, including any added to the node later. That
+     * is not the same as naming them all, and the difference is the reason the
+     * dialog writes an explicit list: a machine that grows a new HTTP service
+     * next month should not hand it to everyone who was lent its shell today.
+     * Empty arrives from shares made before `006-share-scope`, and from someone
+     * who deliberately asked for everything.
+     */
+    services: ShareableService[];
+
+    /**
+     * When this share stops granting anything, or null for no expiry.
+     *
+     * Read in the same predicate as `revoked_at` everywhere, because an expired
+     * share and a withdrawn one grant the same thing.
+     */
+    expires_at: string | null;
 
     created_at: string;
 }

@@ -61,7 +61,26 @@ AND (:reads_all  OR  row.user_id = :me)
 Every list, count and detail query composes that fragment rather than writing
 its own `WHERE`, which is deliberate: node sharing
 (`phirepass-rs/SHARING.md`) is one more `OR` in the second clause, and adding it
-there gives it to every route at once.
+there gave it to every route at once — which is exactly what happened.
+
+That arm is **opt-in per scope**, through the column the node id lives in:
+`nodes` is shared through its own `id`, `monitors` through `node_id` so a monitor
+follows the machine it watches, and `pat_tokens` deliberately not at all — a
+token is a credential, and being lent a node is not being lent the owner's
+credentials. `nodeManageScope` passes no column either, because a share grants
+*use* and configuration stays with the owner.
+
+What counts as a live share is `LIVE_SHARE`, exported from `scope.ts` and
+repeated nowhere: `revoked_at IS NULL AND (expires_at IS NULL OR expires_at >
+now())`. Withdrawn and expired grant the same thing, which is nothing, and a copy
+of that predicate that forgot the second half is a share that outlives its own
+deadline.
+
+Which *services* a share opens is not this fragment's question — the dashboard
+decides whether a node is visible, and a share naming one service still has to
+list the machine or there is nothing to open a session from. Per-service
+enforcement is `may_open_service` in `phirepass-rs/server/src/access.rs`, asked
+per message.
 
 `phirepass-rs/server/src/access.rs` is the same three clauses in Rust, for the
 WebSocket path. Two languages disagreeing about who may reach a node is the
@@ -177,8 +196,12 @@ use plain identifiers and the prose that wants formatting goes in the doc commen
 above.
 
 **Everything is migrated this way.** There is no `docs/` directory any more —
-the base tables, organisations, uptime, notifications and MFA are all
-migrations. The `pg_cron` statements the uptime schema needs are the one thing
+the base tables, organisations, uptime, notifications, MFA and node sharing are
+all migrations. Sharing is two of them, and the split is the ordinary shape of
+this: `005-node-shares` created the table, and `006-share-scope` added
+`services` and `expires_at` to it with `ADD COLUMN IF NOT EXISTS` and a default
+that makes every existing row mean what it meant the day before — every service,
+no expiry. The `pg_cron` statements the uptime schema needs are the one thing
 that had to change on the way in: `CREATE EXTENSION` and `cron.schedule` require
 privileges the application role may not hold, and a hard failure would be an
 error on every restart of a healthy deployment. They are wrapped in a guard that

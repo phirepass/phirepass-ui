@@ -120,6 +120,17 @@ export type NodeStatus = 'online' | 'connecting' | 'offline';
 export interface TunnelNode {
     connected_for_secs: number;
     id: string;
+    /**
+     * Which account enrolled this node.
+     *
+     * The list stopped being "your nodes" when organisations landed and stopped
+     * again when sharing did, so a card has to be able to say whose machine it
+     * is. Optional so nodes restored from an older local cache still typecheck;
+     * absent means the same thing as "we do not know", not "yours".
+     */
+    owner_id?: string;
+    /** What to call that account. Null if it has since been deleted. */
+    owner_name?: string | null;
     ip: string;
     is_online: boolean;
     /** Optional so nodes restored from an older local cache still typecheck. */
