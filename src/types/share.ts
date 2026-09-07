@@ -21,21 +21,16 @@ import type { Role } from '@/lib/rbac';
 export type ShareAudience = 'org' | 'member';
 
 /**
- * The services a share may name, as `ServiceKind` variant names.
+ * The services a share may name, and the rule for reading a stored list of them.
  *
- * Uppercase because that is how `ServiceKind` serialises on the wire and how the
- * kind already arrives inside a node's `settings.services` — the same string in
- * the share row, the node record and the Rust enum, so nothing has to translate
- * between three spellings of "ssh".
- *
- * This list is the dashboard's copy of `common/src/protocol/settings.rs`, and it
- * is allowed to be *behind* it: a name a build does not know is dropped by
- * whoever reads it rather than refused, so a share written by a newer dashboard
- * loses one service on an older server instead of granting everything.
+ * Defined in `app/lib/share-services.ts` and re-exported here so the browser
+ * keeps importing its wire shapes from one place. That module has no imports at
+ * all, which is what lets the rule be tested by the bare `node --test` runner —
+ * the same reason `scope.ts` is split out of `authz.ts`.
  */
-export const SHAREABLE_SERVICES = ['SSH', 'SFTP', 'HTTP', 'RDP'] as const;
+import { SHAREABLE_SERVICES, type ShareableService } from '@/app/lib/share-services';
 
-export type ShareableService = (typeof SHAREABLE_SERVICES)[number];
+export { SHAREABLE_SERVICES, type ShareableService };
 
 export interface NodeShare {
     id: string;

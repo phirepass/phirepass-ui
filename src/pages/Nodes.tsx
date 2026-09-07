@@ -475,7 +475,12 @@ export default function Nodes() {
             serverId: node.server_id,
             serviceId,
             serviceName: serviceName ?? null,
-            destination: detail ? `${detail.host}:${detail.port}` : undefined,
+            // Only when the service record came back in full. A grantee is not
+            // told the host and port, so this label is simply absent for them
+            // rather than reading "undefined:undefined" — the agent dials the
+            // address in its own settings either way, which is why this was
+            // already allowed to be missing.
+            destination: detail?.host ? `${detail.host}:${detail.port ?? ''}` : undefined,
         };
 
         setRdpPanelTabs((prev) => (
@@ -660,15 +665,25 @@ export default function Nodes() {
         setDeleteDialogOpen(true);
     };
 
+    /*
+     * What `/api/nodes/services` answers, and it answers two shapes.
+     *
+     * `id`, `name` and `kind` always arrive. Everything below them is withheld
+     * from somebody who may *use* this node but not configure it — a grantee —
+     * because the full record carries service passwords in the clear
+     * (`phirepass-rs/PLAN.md` P01). They are optional here rather than assumed,
+     * so a caller that needs one has to say what it does without it; the edit
+     * dialogs already did, and the RDP label did not.
+     */
     type ServiceDetail = {
         id: string;
         name: string | null;
         kind: string;
-        host: string;
-        port: number;
-        username: string | null;
-        password: string | null;
-        scheme: 'http' | 'https' | null;
+        host?: string;
+        port?: number;
+        username?: string | null;
+        password?: string | null;
+        scheme?: 'http' | 'https' | null;
     };
 
     const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'rdp'): Promise<ServiceDetail[]> => {
@@ -698,7 +713,7 @@ export default function Nodes() {
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableSshName(detail?.name ?? '');
         setEnableSshHost(detail?.host || '0.0.0.0');
-        setEnableSshPort(detail ? String(detail.port) : '22');
+        setEnableSshPort(detail?.port ? String(detail.port) : '22');
         setEnableSshUsername(detail?.username ?? '');
         setEnableSshPassword(detail?.password ?? '');
         setEnableSshLoadingDetails(false);
@@ -716,7 +731,7 @@ export default function Nodes() {
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableSftpName(detail?.name ?? '');
         setEnableSftpHost(detail?.host || '0.0.0.0');
-        setEnableSftpPort(detail ? String(detail.port) : '22');
+        setEnableSftpPort(detail?.port ? String(detail.port) : '22');
         setEnableSftpUsername(detail?.username ?? '');
         setEnableSftpPassword(detail?.password ?? '');
         setEnableSftpLoadingDetails(false);
@@ -734,7 +749,7 @@ export default function Nodes() {
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableHttpProxyName(detail?.name ?? '');
         setEnableHttpProxyHost(detail?.host || '0.0.0.0');
-        setEnableHttpProxyPort(detail ? String(detail.port) : '8080');
+        setEnableHttpProxyPort(detail?.port ? String(detail.port) : '8080');
         setEnableHttpProxyUsername(detail?.username ?? '');
         setEnableHttpProxyPassword(detail?.password ?? '');
         setEnableHttpProxyScheme(detail?.scheme ?? 'http');
@@ -785,7 +800,7 @@ export default function Nodes() {
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableRdpName(detail?.name ?? '');
         setEnableRdpHost(detail?.host || '0.0.0.0');
-        setEnableRdpPort(detail ? String(detail.port) : '3389');
+        setEnableRdpPort(detail?.port ? String(detail.port) : '3389');
         setEnableRdpLoadingDetails(false);
     };
 

@@ -1,7 +1,16 @@
 import { json_response } from '@/app/lib/framework';
-import { authzErrorStatus, nodeManageScope, requireSession, scopeAt } from '@/app/lib/authz';
+import {
+    authzErrorStatus,
+    nodeManageScope,
+    nodeScope,
+    requireSession,
+    scopeAt,
+    type Session,
+} from '@/app/lib/authz';
+import { LIVE_SHARE } from '@/app/lib/scope';
 import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
+import { unionShareServices, type ShareableService } from '@/app/lib/share-services';
 
 type NodeSettings = Record<string, unknown>;
 
@@ -15,6 +24,57 @@ type ServiceDetail = {
     password: string | null;
     scheme: 'http' | 'https' | null;
 };
+
+/**
+ * What somebody who may *use* a node — but not configure it — is told about its
+ * services.
+ *
+ * Enough to pick one from a list and open a session against it, and nothing
+ * else. `host` and `port` go too, not only the password: they describe the
+ * inside of somebody else's machine, and nothing on the use path needs them —
+ * the tunnel is opened by service id and the agent dials its own configured
+ * address.
+ */
+type ServiceSummary = Pick<ServiceDetail, 'id' | 'name' | 'kind'>;
+
+function toSummary(service: ServiceDetail): ServiceSummary {
+    return { id: service.id, name: service.name, kind: service.kind };
+}
+
+/**
+ * Which service kinds a share opens for this session, or `null` for "every one".
+ *
+ * The dashboard's copy of `ServiceSet` in `phirepass-rs/server/src/access.rs`,
+ * and it follows the same two rules, because a picker that offers a session the
+ * server will refuse is worse than one that never offered it:
+ *
+ * - **An empty `services` array means every service**, including ones added to
+ *   the node later. It is not the same as naming none.
+ * - **Two live shares union.** An organisation-wide share and one naming this
+ *   person can both exist, and being named in a second share must never take
+ *   away what the first gave.
+ *
+ * Only called for a session that reached the node *through* a share. Somebody
+ * who owns it, or administers the organisation that does, is never narrowed —
+ * see `Reach::Direct`, which is the same distinction on the server.
+ */
+async function sharedServiceKinds(
+    session: Session,
+    nodeId: string,
+): Promise<ReadonlySet<ShareableService> | null> {
+    const result = await query(
+        `SELECT s.services
+           FROM node_shares s
+          WHERE s.node_id = $1
+            AND s.org_id = $2
+            AND ${LIVE_SHARE}
+            AND (s.audience = 'org' OR s.grantee_id = $3)`,
+        [nodeId, session.orgId, session.userId],
+    );
+
+    return unionShareServices(result.rows as { services: string[] | null }[]);
+}
+
 
 function normalizeSettings(value: unknown): NodeSettings {
     if (!value) {
@@ -110,9 +170,32 @@ async function fetchLiveServices(ownerId: string, nodeId: string): Promise<unkno
     }
 }
 
-// Returns the full configuration (including credentials) for a node's services,
-// so the edit dialog can be pre-filled. Kept out of the polled /api/nodes list
-// response since that's fetched repeatedly and doesn't need credentials in it.
+/**
+ * A node's services — in full for whoever may configure it, and as a bare list
+ * for whoever may only use it.
+ *
+ * **This route answers two different questions and used to refuse one of them.**
+ * It fills the edit dialogs, which need `host`, `port`, `username` and
+ * `password`; and it fills the service picker that opening an SSH, SFTP, HTTP or
+ * RDP session goes through, which needs an id and a name. It was scoped to
+ * `nodeManageScope` for the first, so the second returned **404 to every
+ * grantee** — sharing a node let somebody see it in their list and then refused
+ * to tell them what they could open on it. The share worked; there was no way to
+ * reach it.
+ *
+ * The fix is not to relax the scope. Service credentials are still stored in
+ * plaintext in `nodes.settings` (`phirepass-rs/PLAN.md` P01), so handing a
+ * grantee this response whole would hand them the passwords for what runs on
+ * somebody else's machine — which is precisely the line `SHARING.md` draws
+ * between *using* a node and *configuring* it, and the reason `may_configure`
+ * on the server takes no share argument at all.
+ *
+ * So the **scope decides visibility and the shape decides detail**: reachable at
+ * all is `nodeScope` (which admits shares), and everything sensitive is gated on
+ * `nodeManageScope` separately. A grantee gets `id`, `name` and `kind`, narrowed
+ * to the services their share actually opens. Nobody who could not read a
+ * credential before can read one now.
+ */
 export async function GET(req: Request) {
     try {
         const session = await requireSession();
@@ -124,24 +207,30 @@ export async function GET(req: Request) {
             return json_response({ error: 'Node id is required' }, 400);
         }
 
-        // The **manage** scope, not the read scope, and this is the route that
-        // makes the difference matter: the answer contains service passwords in
-        // the clear (`phirepass-rs/PLAN.md` P01 — they are stored unencrypted in
-        // `nodes.settings`). Reaching a node and being handed the credentials
-        // for what runs on it are different rights, which is exactly the
-        // distinction `SHARING.md` draws between using a node and configuring
-        // it. Until P01 lands, only somebody who could already change the node
-        // gets to read them back.
-        const scope = scopeAt(nodeManageScope(session, 'n'), 1);
+        // Visibility first, and this is the read scope: a node somebody was
+        // given is a node they can open a session against, so it has to resolve
+        // here or the picker has nothing to show.
+        const readable = scopeAt(nodeScope(session, 'n'), 1);
 
         const result = await query(
-            `SELECT n.settings, n.user_id FROM nodes n WHERE n.id = $1 AND ${scope.sql}`,
-            [nodeId, ...scope.params]
+            `SELECT n.settings, n.user_id FROM nodes n WHERE n.id = $1 AND ${readable.sql}`,
+            [nodeId, ...readable.params]
         );
 
         if (result.rowCount === 0) {
             return json_response({ error: 'Node not found' }, 404);
         }
+
+        // Detail second, asked separately rather than folded into the query
+        // above, because the two answers are genuinely different: one decides
+        // whether the node exists for this caller, the other whether they may be
+        // handed its credentials.
+        const manageable = scopeAt(nodeManageScope(session, 'n'), 1);
+        const manageResult = await query(
+            `SELECT 1 FROM nodes n WHERE n.id = $1 AND ${manageable.sql}`,
+            [nodeId, ...manageable.params]
+        );
+        const canManage = (manageResult.rowCount ?? 0) > 0;
 
         const ownerId = (result.rows[0] as { user_id: string }).user_id;
         const liveServices = await fetchLiveServices(ownerId, nodeId);
@@ -152,9 +241,24 @@ export async function GET(req: Request) {
             services = extractServices(settings.services);
         }
 
-        const filtered = services.filter((service) => !requestedKind || service.kind === requestedKind);
+        if (requestedKind) {
+            services = services.filter((service) => service.kind === requestedKind);
+        }
 
-        return json_response({ services: filtered }, 200);
+        if (canManage) {
+            return json_response({ services, can_manage: true }, 200);
+        }
+
+        // Narrowed to what the share opens, so the picker never offers a session
+        // the server would refuse on the next frame.
+        const permitted = await sharedServiceKinds(session, nodeId);
+        const visible = permitted === null
+            ? services
+            : services.filter((service) => permitted.has(service.kind as ShareableService));
+
+        // `can_manage` is on the response so the client can tell "withheld" from
+        // "there are none", which are different things to say to a person.
+        return json_response({ services: visible.map(toSummary), can_manage: false }, 200);
     } catch (e) {
         console.warn(`[server][get][${req.url}]`, e);
         const { status, body } = authzErrorStatus(e);
