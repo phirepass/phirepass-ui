@@ -444,9 +444,20 @@ const Tunnels = () => {
             </Tabs>
 
             {/* Create Tunnel Panel */}
-            <CreateTunnelPanel isOpen={showCreateDialog}
+            {/* No sessions of its own: this page is the pre-App-Router leftover
+                (see the repo's CLAUDE.md) and opens no services, so the panel
+                renders its empty state. */}
+            <CreateTunnelPanel
+                isOpen={showCreateDialog}
                 onClose={() => setShowCreateDialog(false)}
-                nodeId={null} />
+                sessions={[]}
+                activeId={null}
+                onFocus={() => undefined}
+                onCloseSession={() => undefined}
+                onDisconnect={() => undefined}
+                onReconnect={() => undefined}
+                onStatus={() => undefined}
+            />
 
             {/* Terminal Panel */}
             <TerminalPanel

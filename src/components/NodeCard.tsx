@@ -145,6 +145,24 @@ interface NodeCardProps {
     onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'rdp') => Promise<ListedService[]>;
     isShared?: boolean;
     sharedBy?: string;
+    /**
+     * Whether this session may *configure* the node, as opposed to use it.
+     *
+     * The dashboard's copy of `nodeManageScope` — its owner, and whoever reaches
+     * the whole workspace. It is not the negation of `isShared`: an organisation
+     * admin looking at a colleague's machine sees the "Shared" badge and may
+     * still rename, delete and edit it.
+     *
+     * Everything it gates would be refused anyway — by `nodeManageScope` on the
+     * dashboard's routes and by `may_configure` on the server, which takes no
+     * share argument at all. Offering the button regardless is what turns a
+     * clear rule into a mysterious failure, so this hides or disables rather
+     * than letting somebody find out by clicking.
+     *
+     * Defaults to `true` so a caller that has not been updated keeps today's
+     * behaviour rather than silently losing its own controls.
+     */
+    canManage?: boolean;
     // True while the node's data may be stale (e.g. rendered from a local cache before
     // the first live API response of this page load). Keeps the action buttons from
     // acting on possibly-outdated service state.
@@ -186,6 +204,7 @@ export function NodeCard({
     onListServices,
     isShared = false,
     sharedBy,
+    canManage = true,
     actionsDisabled = false,
     statusPending = false,
 }: NodeCardProps) {
@@ -456,27 +475,39 @@ export function NodeCard({
                                                 <Globe className="mr-2 w-4 h-4" />
                                                 View Node ID
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => onRename?.(node)}>
-                                                <Pencil className="mr-2 w-4 h-4" />
-                                                Rename Node
-                                            </DropdownMenuItem>
-                                            {/* Sharing lives beside the other things you can do *to*
-                                                a node rather than beside the ways of connecting to
-                                                one: it changes who reaches the machine, not how. */}
-                                            {onShare ? (
-                                                <DropdownMenuItem onClick={() => onShare(node)}>
-                                                    <Share2 className="mr-2 w-4 h-4" />
-                                                    Share Node
-                                                </DropdownMenuItem>
+                                            {/* Renaming, sharing and deleting are the node's
+                                                *configuration*, so they are the owner's — and an
+                                                administrator's. Omitted rather than shown disabled:
+                                                a menu is read top to bottom, and three greyed rows
+                                                would say "you nearly can" about something that will
+                                                never be true for this person on this machine.
+                                                "View Node ID" stays, because it is the one thing
+                                                here that reading a node already entitles you to. */}
+                                            {canManage ? (
+                                                <>
+                                                    <DropdownMenuItem onClick={() => onRename?.(node)}>
+                                                        <Pencil className="mr-2 w-4 h-4" />
+                                                        Rename Node
+                                                    </DropdownMenuItem>
+                                                    {/* Sharing lives beside the other things you can do *to*
+                                                        a node rather than beside the ways of connecting to
+                                                        one: it changes who reaches the machine, not how. */}
+                                                    {onShare ? (
+                                                        <DropdownMenuItem onClick={() => onShare(node)}>
+                                                            <Share2 className="mr-2 w-4 h-4" />
+                                                            Share Node
+                                                        </DropdownMenuItem>
+                                                    ) : null}
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() => onDelete?.(node)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="mr-2 w-4 h-4" />
+                                                        Delete Node
+                                                    </DropdownMenuItem>
+                                                </>
                                             ) : null}
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                onClick={() => onDelete?.(node)}
-                                                className="text-destructive focus:text-destructive"
-                                            >
-                                                <Trash2 className="mr-2 w-4 h-4" />
-                                                Delete Node
-                                            </DropdownMenuItem>
                                             {/* SSH Modal handled by parent */}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -862,10 +893,17 @@ export function NodeCard({
                                         <button
                                             type="button"
                                             onClick={() => void runOrPickInstance(kind)}
-                                            disabled={actionsDisabled}
+                                            // An empty tile is an *add* button, which is
+                                            // configuration. A grantee can open what is already
+                                            // there and nothing else, so the tile stays visible —
+                                            // "this node has no SFTP" is true and worth knowing —
+                                            // but it does not invite a click that cannot work.
+                                            disabled={actionsDisabled || (!configured && !canManage)}
                                             aria-label={configured
                                                 ? `Open ${label} on ${node.name}`
-                                                : `Add a ${label} service to ${node.name}`}
+                                                : canManage
+                                                    ? `Add a ${label} service to ${node.name}`
+                                                    : `No ${label} service on ${node.name}`}
                                             className={cn(
                                                 'mac-squircle flex items-center gap-2.5 rounded-[9px] border px-3 py-2.5 text-left transition-colors',
                                                 'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
@@ -895,7 +933,9 @@ export function NodeCard({
                                     <TooltipContent>
                                         {configured
                                             ? `${count} ${label} ${count === 1 ? 'service' : 'services'}`
-                                            : `No ${label} service yet - click to add one`}
+                                            : canManage
+                                                ? `No ${label} service yet - click to add one`
+                                                : `No ${label} service. Only this node's owner can add one.`}
                                     </TooltipContent>
                                 </Tooltip>
                             );
@@ -945,42 +985,62 @@ export function NodeCard({
                                         {displayName}
                                     </span>
                                 </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Edit ${displayName}`}
-                                    onClick={() => selectServiceInstance(() => triggerEditService(serviceInstancePicker.kind, instance.id))}
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    aria-label={`Delete ${displayName}`}
-                                    onClick={() => selectServiceInstance(() => triggerDisableService(serviceInstancePicker.kind, instance.id))}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {/* Editing a service reads its credentials back, which is
+                                    exactly what the settings path stays owner-gated for while
+                                    they are stored in the clear. Deleting it is configuration
+                                    by any reading. Both are dropped rather than disabled: the
+                                    row then reads as one wide "open this" button, which is all
+                                    a grantee can do with it. */}
+                                {canManage ? (
+                                    <>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={`Edit ${displayName}`}
+                                            onClick={() => selectServiceInstance(() => triggerEditService(serviceInstancePicker.kind, instance.id))}
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            aria-label={`Delete ${displayName}`}
+                                            onClick={() => selectServiceInstance(() => triggerDisableService(serviceInstancePicker.kind, instance.id))}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </>
+                                ) : null}
                             </div>
                             );
                         })}
                     </div>
                     <DialogFooter className="flex-col items-stretch gap-1.5 sm:flex-col">
-                        <Button
-                            variant="outline"
-                            className="w-full gap-2"
-                            onClick={() => selectServiceInstance(() => triggerEnableService(serviceInstancePicker!.kind))}
-                            disabled={httpLimitReached}
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add {serviceInstancePicker ? serviceInstanceLabel(serviceInstancePicker.kind) : ''}
-                        </Button>
-                        {httpLimitReached ? (
+                        {canManage ? (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    className="w-full gap-2"
+                                    onClick={() => selectServiceInstance(() => triggerEnableService(serviceInstancePicker!.kind))}
+                                    disabled={httpLimitReached}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add {serviceInstancePicker ? serviceInstanceLabel(serviceInstancePicker.kind) : ''}
+                                </Button>
+                                {httpLimitReached ? (
+                                    <p className="text-xs text-muted-foreground text-center">
+                                        Only one HTTP service is allowed per node.
+                                    </p>
+                                ) : null}
+                            </>
+                        ) : (
+                            // Said once, plainly, rather than left for somebody to infer from
+                            // three missing buttons.
                             <p className="text-xs text-muted-foreground text-center">
-                                Only one HTTP service is allowed per node.
+                                Shared with you — only this node&apos;s owner can change its services.
                             </p>
-                        ) : null}
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

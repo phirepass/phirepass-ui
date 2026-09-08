@@ -150,36 +150,18 @@ export interface TunnelNode {
     monitor_count?: number;
 }
 
+/**
+ * The three panels' tab shapes used to live here, one per protocol, and they
+ * disagreed about what a tab was. They are now one `Session` in
+ * `@/lib/sessions` — see that module for why three copies of "what is open" was
+ * the problem rather than a detail.
+ */
 export interface TerminalTab {
     id: string;
     nodeId: string;
     nodeName: string;
     isConnected: boolean;
     history: string[];
-}
-
-export interface FilePanelTab {
-    id: string;
-    nodeId: string;
-    nodeName: string;
-    serverId?: string;
-    serviceId: string;
-    serviceName?: string | null;
-}
-
-export interface RdpPanelTab {
-    id: string;
-    nodeId: string;
-    nodeName: string;
-    serverId?: string;
-    serviceId: string;
-    serviceName?: string | null;
-    /**
-    * `host:port` from the service settings. The agent dials from those same
-    * settings, so this never affects routing — it is only what the browser
-    * names in the CredSSP service principal, which some hosts check.
-    */
-    destination?: string;
 }
 
 export interface FileItem {

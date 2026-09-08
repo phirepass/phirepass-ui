@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // ...existing code...
 import { DashboardStats } from '@/components/DashboardStats';
@@ -12,7 +12,7 @@ import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
 import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
-import { FilePanelTab, NodeStats, TunnelNode, RdpPanelTab } from '@/types/node';
+import { NodeStats, TunnelNode } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
-import { useCurrentUserId } from '@/lib/session';
+import { useCurrentUserId, useCurrentRole } from '@/lib/session';
+import { useSessions } from '@/lib/use-sessions';
+import { sessionId } from '@/lib/sessions';
+import { can } from '@/lib/rbac';
 import { useDemoMode } from '@/components/DemoModeProvider';
 import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import initChannel, { Channel } from 'phirepass-channel';
@@ -157,19 +160,21 @@ export default function Nodes() {
 
     // File panel state
     const [filePanelOpen, setFilePanelOpen] = useState(false);
-    const [filePanelTabs, setFilePanelTabs] = useState<FilePanelTab[]>([]);
-    const [activeFileTabId, setActiveFileTabId] = useState<string | null>(null);
 
     // RDP panel state
     const [rdpPanelOpen, setRdpPanelOpen] = useState(false);
-    const [rdpPanelTabs, setRdpPanelTabs] = useState<RdpPanelTab[]>([]);
-    const [activeRdpTabId, setActiveRdpTabId] = useState<string | null>(null);
 
     // Create tunnel panel state
     const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
-    const [selectedTunnelNode, setSelectedTunnelNode] = useState<TunnelNode | null>(null);
-    const [selectedTunnelServiceId, setSelectedTunnelServiceId] = useState<string | null>(null);
-    const [selectedTunnelServiceName, setSelectedTunnelServiceName] = useState<string | null>(null);
+
+    /*
+     * Every live session, for all three protocols, in one list.
+     *
+     * The page owns it rather than any panel: a session outlives the panel that
+     * shows it — closing the panel must not end a shell — so the thing that owns
+     * it has to outlive the panel too. `lib/sessions.ts` holds the rules.
+     */
+    const sessions = useSessions();
 
     // Add Node dialog
     const [addNodeOpen, setAddNodeOpen] = useState(false);
@@ -263,6 +268,26 @@ export default function Nodes() {
 
     const { config } = useRuntimeConfig();
     const currentUserId = useCurrentUserId();
+    const currentRole = useCurrentRole();
+
+    /*
+     * The client's copy of `nodeManageScope`: the node's owner, and whoever
+     * reaches the whole workspace.
+     *
+     * Deliberately **not** `!isShared`. An organisation admin looking at a
+     * colleague's machine sees the "Shared" badge and may still rename, delete
+     * and reconfigure it — the badge answers "whose is this", this answers "may
+     * I change it", and conflating them would strip an admin of controls the
+     * server would have honoured.
+     *
+     * Nothing here is a security boundary; the routes and `may_configure` are.
+     * This exists so the buttons agree with them, because a control that fails
+     * on click teaches somebody the product is broken rather than that the node
+     * is not theirs.
+     */
+    const canManageNode = useCallback((node: TunnelNode) => (
+        !node.owner_id || node.owner_id === currentUserId || can(currentRole, 'nodes:manage:all')
+    ), [currentUserId, currentRole]);
 
     /*
      * Whether the fleet contains anything the caller does not own. Computed
@@ -393,9 +418,17 @@ export default function Nodes() {
     };
 
     const handleCreateTunnel = (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
-        setSelectedTunnelNode({ ...node });
-        setSelectedTunnelServiceId(serviceId);
-        setSelectedTunnelServiceName(serviceName ?? null);
+        // `open` focuses an existing session rather than rebuilding it, so
+        // clicking SSH on a node that already has a shell brings that shell
+        // back instead of replacing it.
+        sessions.open({
+            kind: 'ssh',
+            nodeId: node.id,
+            serverId: node.server_id,
+            serviceId,
+            nodeName: node.name,
+            serviceName: serviceName ?? null,
+        });
         setCreateTunnelPanelOpen(true);
     };
 
@@ -418,47 +451,33 @@ export default function Nodes() {
 
             const refreshedNode = refreshedNodes[0];
             setNodes((prev) => prev.map((entry) => (entry.id === refreshedNode.id ? refreshedNode : entry)));
-            setFilePanelTabs((prev) => prev.map((entry) => (
-                entry.nodeId === refreshedNode.id
-                    ? {
-                        ...entry,
-                        nodeName: refreshedNode.name,
-                        serverId: refreshedNode.server_id,
-                    }
-                    : entry
-            )));
+            sessions.renameNode(refreshedNode.id, refreshedNode.name);
         } catch (err) {
             console.warn('[client][refresh-stats] failed', err);
         }
     };
 
     const handleOpenFiles = (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
-        setFilePanelTabs((prev) => {
-            const existingTab = prev.find((tab) => tab.nodeId === node.id && tab.serviceId === serviceId);
-            if (existingTab) {
-                setActiveFileTabId(existingTab.id);
-                return prev;
-            }
-
-            const newTab: FilePanelTab = {
-                id: `file-${node.id}-${serviceId}`,
-                nodeId: node.id,
-                nodeName: node.name,
-                serverId: node.server_id,
-                serviceId,
-                serviceName: serviceName ?? null,
-            };
-
-            setActiveFileTabId(newTab.id);
-            return [...prev, newTab];
+        sessions.open({
+            kind: 'sftp',
+            nodeId: node.id,
+            serverId: node.server_id,
+            serviceId,
+            nodeName: node.name,
+            serviceName: serviceName ?? null,
         });
         setFilePanelOpen(true);
     };
 
     const openScreen = async (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
-        const existingTab = rdpPanelTabs.find((tab) => tab.nodeId === node.id && tab.serviceId === serviceId);
-        if (existingTab) {
-            setActiveRdpTabId(existingTab.id);
+        const id = sessionId('rdp', node.id, serviceId);
+        const existing = sessions.sessions.find((session) => session.id === id);
+
+        // Already open: focus it and stop. Looking the destination up again
+        // would be a request for something that cannot have changed, and the
+        // session already carries it.
+        if (existing) {
+            sessions.focus('rdp', id);
             setRdpPanelOpen(true);
             return;
         }
@@ -468,12 +487,12 @@ export default function Nodes() {
         const services = await fetchServicesForKind(node.id, 'rdp');
         const detail = services.find((service) => service.id === serviceId) ?? null;
 
-        const newTab: RdpPanelTab = {
-            id: `rdp-${node.id}-${serviceId}`,
+        sessions.open({
+            kind: 'rdp',
             nodeId: node.id,
-            nodeName: node.name,
             serverId: node.server_id,
             serviceId,
+            nodeName: node.name,
             serviceName: serviceName ?? null,
             // Only when the service record came back in full. A grantee is not
             // told the host and port, so this label is simply absent for them
@@ -481,58 +500,11 @@ export default function Nodes() {
             // address in its own settings either way, which is why this was
             // already allowed to be missing.
             destination: detail?.host ? `${detail.host}:${detail.port ?? ''}` : undefined,
-        };
-
-        setRdpPanelTabs((prev) => (
-            prev.some((tab) => tab.id === newTab.id) ? prev : [...prev, newTab]
-        ));
-        setActiveRdpTabId(newTab.id);
+        });
         setRdpPanelOpen(true);
     };
 
-    const handleCloseRdpTab = (tabId: string) => {
-        setRdpPanelTabs((prev) => {
-            const remainingTabs = prev.filter((tab) => tab.id !== tabId);
 
-            setActiveRdpTabId((currentActiveTabId) => {
-                if (currentActiveTabId !== tabId) {
-                    return currentActiveTabId;
-                }
-
-                const closedTabIndex = prev.findIndex((tab) => tab.id === tabId);
-                const fallbackTab = remainingTabs[Math.max(0, closedTabIndex - 1)] ?? remainingTabs[0] ?? null;
-                return fallbackTab?.id ?? null;
-            });
-
-            if (remainingTabs.length === 0) {
-                setRdpPanelOpen(false);
-            }
-
-            return remainingTabs;
-        });
-    };
-
-    const handleCloseFileTab = (tabId: string) => {
-        setFilePanelTabs((prev) => {
-            const remainingTabs = prev.filter((tab) => tab.id !== tabId);
-
-            setActiveFileTabId((currentActiveTabId) => {
-                if (currentActiveTabId !== tabId) {
-                    return currentActiveTabId;
-                }
-
-                const closedTabIndex = prev.findIndex((tab) => tab.id === tabId);
-                const fallbackTab = remainingTabs[Math.max(0, closedTabIndex - 1)] ?? remainingTabs[0] ?? null;
-                return fallbackTab?.id ?? null;
-            });
-
-            if (remainingTabs.length === 0) {
-                setFilePanelOpen(false);
-            }
-
-            return remainingTabs;
-        });
-    };
 
 
     const handleShare = (node: TunnelNode) => {
@@ -569,8 +541,9 @@ export default function Nodes() {
         const updateName = (entry: TunnelNode) => (entry.id === nodeId ? { ...entry, name: nextName } : entry);
 
         setNodes((prev) => prev.map(updateName));
-        setFilePanelTabs((prev) => prev.map((entry) => (entry.nodeId === nodeId ? { ...entry, nodeName: nextName } : entry)));
-        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
+        // Tabs are labelled from the session, so a rename has to reach them or
+        // it looks like it only half worked.
+        sessions.renameNode(nodeId, nextName);
         setNodeToShare((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
     };
 
@@ -640,22 +613,10 @@ export default function Nodes() {
 
     const removeNodeFromState = (nodeId: string) => {
         setNodes((prev) => prev.filter((entry) => entry.id !== nodeId));
-        setFilePanelTabs((prev) => {
-            const remainingTabs = prev.filter((entry) => entry.nodeId !== nodeId);
-
-            setActiveFileTabId((currentTabId) => {
-                if (!currentTabId) {
-                    return currentTabId;
-                }
-
-                const activeTabStillExists = remainingTabs.some((entry) => entry.id === currentTabId);
-                return activeTabStillExists ? currentTabId : remainingTabs[0]?.id ?? null;
-            });
-
-            setFilePanelOpen(remainingTabs.length > 0);
-            return remainingTabs;
-        });
-        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? null : prev));
+        // Closed rather than disconnected: a deleted node cannot be reconnected
+        // to, so a tab offering the button would offer something that can only
+        // fail.
+        sessions.closeNode(nodeId);
         setNodeToShare((prev) => (prev && prev.id === nodeId ? null : prev));
     };
 
@@ -993,7 +954,6 @@ export default function Nodes() {
         );
 
         setNodes((prev) => prev.map(updateNodeServices));
-        setSelectedTunnelNode((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
         setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
     };
 
@@ -1728,6 +1688,7 @@ export default function Nodes() {
                                  */
                                 isShared={!!node.owner_id && node.owner_id !== currentUserId}
                                 sharedBy={node.owner_name ?? undefined}
+                                canManage={canManageNode(node)}
                                 actionsDisabled={!nodesFresh}
                                 statusPending={!nodesFresh}
                                 onCreateTunnel={guardLive(handleCreateTunnel)}
@@ -2317,34 +2278,37 @@ export default function Nodes() {
                     <FilePanel
                         isOpen={filePanelOpen}
                         onClose={() => setFilePanelOpen(false)}
-                        nodes={nodes}
-                        tabs={filePanelTabs}
-                        activeTabId={activeFileTabId}
-                        onSelectTab={setActiveFileTabId}
-                        onCloseTab={handleCloseFileTab}
+                        sessions={sessions.ofKind('sftp')}
+                        activeId={sessions.activeIds.sftp}
+                        onFocus={(id) => sessions.focus('sftp', id)}
+                        onCloseSession={sessions.close}
+                        onDisconnect={sessions.disconnect}
+                        onReconnect={sessions.reconnect}
                     />
 
                     {/* RDP Panel */}
                     <RdpPanel
                         isOpen={rdpPanelOpen}
                         onClose={() => setRdpPanelOpen(false)}
-                        tabs={rdpPanelTabs}
-                        activeTabId={activeRdpTabId}
-                        onSelectTab={setActiveRdpTabId}
-                        onCloseTab={handleCloseRdpTab}
+                        sessions={sessions.ofKind('rdp')}
+                        activeId={sessions.activeIds.rdp}
+                        onFocus={(id) => sessions.focus('rdp', id)}
+                        onCloseSession={sessions.close}
+                        onDisconnect={sessions.disconnect}
+                        onReconnect={sessions.reconnect}
                     />
 
                     {/* Create Tunnel Panel */}
                     <CreateTunnelPanel
                         isOpen={createTunnelPanelOpen}
-                        onClose={() => {
-                            setCreateTunnelPanelOpen(false);
-                        }}
-                        nodeId={selectedTunnelNode?.id}
-                        serverId={selectedTunnelNode?.server_id}
-                        nodeName={selectedTunnelNode?.name}
-                        serviceId={selectedTunnelServiceId}
-                        serviceName={selectedTunnelServiceName}
+                        onClose={() => setCreateTunnelPanelOpen(false)}
+                        sessions={sessions.ofKind('ssh')}
+                        activeId={sessions.activeIds.ssh}
+                        onFocus={(id) => sessions.focus('ssh', id)}
+                        onCloseSession={sessions.close}
+                        onDisconnect={sessions.disconnect}
+                        onReconnect={sessions.reconnect}
+                        onStatus={sessions.setStatus}
                     />
 
                     {/* Share Node Dialog */}
