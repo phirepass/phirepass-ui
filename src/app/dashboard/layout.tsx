@@ -10,6 +10,8 @@ import { ReactNode } from "react";
 import { getCachedProfile, getCachedSession, setCachedProfile, setCachedSession } from "./profile-cache";
 import { useDemoMode } from "@/components/DemoModeProvider";
 import { clearCachedNodes } from "@/lib/nodesCache";
+import { clearSessionToken } from "@/lib/use-session-token";
+import { invalidateWorkspaces } from "@/lib/workspaces";
 import { SessionProvider, sessionFromProfile, type ProfileResponse, type SessionValue } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -142,6 +144,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         } catch { /* empty */ }
         setCachedProfile(null);
         clearCachedNodes();
+        /*
+         * Sign-out is a client-side navigation, so module-level caches outlive
+         * it — and both of these are about the account that has just left. A
+         * websocket token is a credential; a workspace list is who they work
+         * with. Neither belongs to whoever signs in next on this tab.
+         */
+        clearSessionToken();
+        invalidateWorkspaces();
         toast({
             title: "Logged out",
             description: "You have been successfully logged out",
