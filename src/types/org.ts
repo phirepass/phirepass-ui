@@ -99,5 +99,15 @@ export interface Membership {
     role: Role;
     status: MemberStatus;
     member_count: number;
+    /**
+     * Machines somebody has lent this account *in this workspace*.
+     *
+     * A share never crosses an organisation, so a node shared with you is only
+     * ever visible from the workspace that owns it. An account signing in to its
+     * own personal workspace therefore sees an empty list and no sign that
+     * anything was shared at all — this is what lets the nodes page say where to
+     * look. Zero for a suspended membership, which reaches nothing.
+     */
+    shared_node_count: number;
     joined_at: string;
 }

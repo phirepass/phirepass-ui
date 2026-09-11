@@ -20,6 +20,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
+import { cachedWorkspaces, invalidateWorkspaces, loadWorkspaces, switchWorkspace } from '@/lib/workspaces';
 import { ROLE_STYLES } from '@/components/users/member-display';
 import type { Membership } from '@/types/org';
 import {
@@ -28,40 +29,6 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-/**
- * One fetch per browser session, shared by the two variants below.
- *
- * The toolbar switcher and the mobile one are both mounted on every dashboard
- * page — one of them merely hidden by a media query — so an unshared fetch here
- * is two identical requests on every load. The in-flight promise is held as well
- * as the result, because both mount in the same tick and a result-only cache
- * would still let them both start.
- */
-let cached: Membership[] | null = null;
-let inflight: Promise<Membership[]> | null = null;
-
-function loadWorkspaces(): Promise<Membership[]> {
-    if (cached) return Promise.resolve(cached);
-    if (inflight) return inflight;
-
-    inflight = fetch('/api/org/workspaces', { credentials: 'include' })
-        .then(async (res) => {
-            if (!res.ok) throw new Error('Failed to load workspaces');
-            const body = await res.json() as { workspaces?: Membership[] };
-            cached = body.workspaces ?? [];
-            return cached;
-        })
-        .finally(() => {
-            inflight = null;
-        });
-
-    return inflight;
-}
-
-function invalidateWorkspaces() {
-    cached = null;
-}
 
 /** "Personal" or a member count — what tells two similarly named workspaces apart. */
 function describe(entry: Membership): string {
@@ -88,7 +55,7 @@ interface WorkspaceSwitcherProps {
 }
 
 export function WorkspaceSwitcher({ currentOrgId, variant = 'toolbar', onSwitch }: WorkspaceSwitcherProps) {
-    const [workspaces, setWorkspaces] = useState<Membership[]>(cached ?? []);
+    const [workspaces, setWorkspaces] = useState<Membership[]>(cachedWorkspaces() ?? []);
     const [pendingId, setPendingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -119,33 +86,8 @@ export function WorkspaceSwitcher({ currentOrgId, variant = 'toolbar', onSwitch 
         setPendingId(entry.org.id);
 
         try {
-            const res = await fetch('/api/org/workspaces', {
-                method: 'PATCH',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ org_id: entry.org.id }),
-            });
-
-            if (!res.ok) {
-                const body = await res.json().catch(() => null) as { error?: string } | null;
-                throw new Error(body?.error || 'Could not switch workspace');
-            }
-
-            invalidateWorkspaces();
             onSwitch?.();
-
-            /**
-             * A full load of the default page, not a client-side refresh.
-             *
-             * Every list, count and permission on screen belongs to the
-             * workspace being left, and there is no store to invalidate
-             * centrally — pages fetch in their own effects, so `router.refresh()`
-             * would leave a mounted list showing the old organisation's nodes.
-             * Landing on `/dashboard/nodes` also avoids the sharper version of
-             * the same problem: staying on a detail route for a node the new
-             * workspace cannot see.
-             */
-            window.location.assign('/dashboard/nodes');
+            await switchWorkspace(entry.org.id);
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Could not switch workspace');
             setPendingId(null);

@@ -84,3 +84,40 @@ export function unionShareServices(
 
     return kinds;
 }
+
+/**
+ * A node's per-kind service counts, narrowed to what a share opens.
+ *
+ * The companion to [`unionShareServices`], and it takes that function's answer
+ * directly: `null` — no live share, or one that named nothing and therefore
+ * named everything — passes the counts through untouched, and a set keeps only
+ * the kinds it names.
+ *
+ * It exists because the node list and the service picker were answering
+ * different questions about the same node. `/api/nodes` reported every service
+ * the machine ran, so a node lent for its file browser still showed an SSH tile;
+ * `/api/nodes/services` narrowed correctly, returned nothing, and the picker
+ * opened empty. One of the two had to move, and it is this one — offering a
+ * session the next request would refuse is the worse half of the pair.
+ *
+ * The names line up without translation: `SHAREABLE_SERVICES` are the same
+ * uppercase `ServiceKind` variant names the counts are keyed by.
+ */
+export function narrowShareServices(
+    services: Readonly<Record<string, number>>,
+    permitted: ReadonlySet<ShareableService> | null,
+): Record<string, number> {
+    if (permitted === null) {
+        return { ...services };
+    }
+
+    const visible: Record<string, number> = {};
+
+    for (const [kind, count] of Object.entries(services)) {
+        if (permitted.has(kind as ShareableService)) {
+            visible[kind] = count;
+        }
+    }
+
+    return visible;
+}

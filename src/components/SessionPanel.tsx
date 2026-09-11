@@ -24,12 +24,21 @@
  *   there fits to a zero-height box and comes back the wrong size.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { Maximize2, Minimize2, PlugZap, Unplug, X } from 'lucide-react';
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import {
+    FolderOpen,
+    Maximize2,
+    Minimize2,
+    MonitorPlay,
+    PlugZap,
+    Terminal,
+    Unplug,
+    X,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { Session, SessionStatus } from '@/lib/sessions';
+import type { Session, SessionKind, SessionStatus } from '@/lib/sessions';
 
 /** How long the slide-in runs. Matches the panels it replaced. */
 const PANEL_TRANSITION_MS = 500;
@@ -39,6 +48,20 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
     connected: 'connected',
     disconnected: 'disconnected',
     error: 'error',
+};
+
+/**
+ * What a tab is, at a glance.
+ *
+ * The strip holds every kind at once now, so the label alone no longer says
+ * which of three things a tab is — two tabs on the same machine would read
+ * identically. The icon is the same one the node card's action carries, so the
+ * button that opened a session and the tab it produced look like each other.
+ */
+const KIND_ICON: Record<SessionKind, ComponentType<{ className?: string }>> = {
+    ssh: Terminal,
+    sftp: FolderOpen,
+    rdp: MonitorPlay,
 };
 
 const STATUS_TONE: Record<SessionStatus, string> = {
@@ -219,8 +242,14 @@ export function SessionPanel({
                     {sessions.length > 0 && (
                         <div className="flex items-center gap-1 px-2 py-2 border-b border-hairline bg-background overflow-x-auto shrink-0">
                             {sessions.map((session) => {
-                                const label = session.serviceName?.trim() || session.nodeName || session.nodeId;
+                                // The machine first, then what is open on it.
+                                // One strip holds every kind now, so "SSH" on
+                                // its own no longer identifies a tab — two
+                                // machines would both show it.
+                                const service = session.serviceName?.trim();
+                                const label = session.nodeName || session.nodeId;
                                 const isActive = session.id === activeId;
+                                const KindIcon = KIND_ICON[session.kind];
 
                                 return (
                                     <div
@@ -232,6 +261,7 @@ export function SessionPanel({
                                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50',
                                         )}
                                         onClick={() => onFocus(session.id)}
+                                        title={service ? `${label} · ${service}` : label}
                                     >
                                         {/* The tab says whether its session is
                                             live, so a background one that
@@ -247,14 +277,20 @@ export function SessionPanel({
                                             )}
                                             aria-hidden="true"
                                         />
+                                        <KindIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                         <span className="font-mono text-xs whitespace-nowrap">{label}</span>
+                                        {service && (
+                                            <span className="text-[11px] whitespace-nowrap text-muted-foreground/80">
+                                                {service}
+                                            </span>
+                                        )}
                                         <button
                                             className="opacity-100 mouse:opacity-0 mouse:group-hover:opacity-100 transition-opacity hover:text-destructive"
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 onCloseSession(session.id);
                                             }}
-                                            aria-label={`Close session ${label}`}
+                                            aria-label={`Close session ${service ? `${label} ${service}` : label}`}
                                         >
                                             <X className="w-3 h-3" />
                                         </button>

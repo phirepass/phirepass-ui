@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 
 import { query } from './db';
 import { AuthzError, type Session } from './authz';
+import { LIVE_SHARE } from './scope';
 import { canActOnMember, canGrantRole, isRole, type Role } from '@/lib/rbac';
 import type { MemberStatus, Membership, OrgMember, OrgSummary, Organization } from '@/types/org';
 
@@ -605,7 +606,27 @@ export async function listMemberships(userId: string): Promise<Membership[]> {
     const result = await query(
         `SELECT o.id, o.name, o.slug, o.personal, o.created_at,
                 m.role, m.status, m.joined_at,
-                (SELECT count(*)::int FROM organization_members c WHERE c.org_id = o.id) AS member_count
+                (SELECT count(*)::int FROM organization_members c WHERE c.org_id = o.id) AS member_count,
+                -- How many machines somebody has lent this account *here*.
+                --
+                -- A share never crosses an organisation (see scope.ts), so a
+                -- node shared with you is only ever visible from the workspace
+                -- that owns it — and an account that signs in to its own
+                -- personal workspace therefore sees an empty list with no hint
+                -- that anything was shared at all. This is the hint. It is
+                -- counted per workspace because that is the question being
+                -- asked: not "does anyone share with me" but "where".
+                --
+                -- n.user_id <> $1 because an organisation-wide share reaches
+                -- its own node's owner too, and nobody was lent their own machine.
+                (SELECT count(*)::int
+                   FROM node_shares s
+                   JOIN nodes n ON n.id = s.node_id
+                  WHERE s.org_id = o.id
+                    AND n.org_id = o.id
+                    AND n.user_id <> $1
+                    AND ${LIVE_SHARE}
+                    AND (s.audience = 'org' OR s.grantee_id = $1)) AS shared_node_count
          FROM organization_members m
          JOIN organizations o ON o.id = m.org_id
          WHERE m.user_id = $1
@@ -623,6 +644,7 @@ export async function listMemberships(userId: string): Promise<Membership[]> {
         status: string;
         joined_at: string;
         member_count: number;
+        shared_node_count: number;
     }[]).map((row) => {
         // Same reading as `readMembership`: a role or status this build does not
         // know is a database written by a newer one, and guessing either way is
@@ -645,6 +667,9 @@ export async function listMemberships(userId: string): Promise<Membership[]> {
             role: row.role,
             status: row.status as MemberStatus,
             member_count: row.member_count,
+            // A suspended membership reaches nothing, so advertising shares in
+            // it would offer a workspace that answers 403 on arrival.
+            shared_node_count: row.status === 'active' ? row.shared_node_count : 0,
             joined_at: row.joined_at,
         };
     });

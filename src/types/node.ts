@@ -140,8 +140,23 @@ export interface TunnelNode {
     // since_last_heartbeat_secs: number; // unused by frontend
     stats: NodeStats;
     info?: NodeInfo | null;
-    /** Count of configured services per kind, e.g. `{ SSH: 1, HTTP: 2 }`. */
+    /**
+     * Count of configured services per kind, e.g. `{ SSH: 1, HTTP: 2 }`.
+     *
+     * For a node reached through a share this is **narrowed to what the share
+     * opens** — a machine lent for its file browser reports only `SFTP`, and the
+     * card therefore offers only that. It used to report everything the node
+     * ran, so the card offered a shell whose picker `/api/nodes/services` had
+     * already, correctly, emptied.
+     */
     services: Record<string, number>;
+    /**
+     * Whether this session may configure the node, as opposed to merely use it.
+     *
+     * Optional so nodes restored from an older local cache still typecheck;
+     * treat absent as unknown and fall back to the owner check.
+     */
+    can_manage?: boolean;
     /**
     * Uptime monitors that run their checks from this node. Optional so nodes
     * restored from an older local cache still typecheck; treat absent as

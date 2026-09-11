@@ -237,16 +237,20 @@ export function sessionsOfKind(sessions: readonly Session[], kind: SessionKind):
  * thing has, and the reason this is a function rather than "just take the last":
  * closing a middle tab and being thrown to the far end is disorienting.
  *
- * `null` when nothing of that kind is left.
+ * Across every kind, not within one. There is a single strip now, holding a
+ * shell, a file browser and a desktop side by side in the order they were
+ * opened, so the tab to the left of an SFTP tab is genuinely whatever is there —
+ * and closing the last SFTP session must land on its neighbour rather than on
+ * nothing.
+ *
+ * `null` when no tab is left at all.
  */
 export function nextActiveId(
     sessions: readonly Session[],
-    kind: SessionKind,
     closedId: string,
 ): string | null {
-    const ofKind = sessionsOfKind(sessions, kind);
-    const index = ofKind.findIndex((session) => session.id === closedId);
-    const remaining = ofKind.filter((session) => session.id !== closedId);
+    const index = sessions.findIndex((session) => session.id === closedId);
+    const remaining = sessions.filter((session) => session.id !== closedId);
 
     if (remaining.length === 0) {
         return null;

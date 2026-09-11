@@ -5,12 +5,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DashboardStats } from '@/components/DashboardStats';
 import { PageHeader } from '@/components/PageHeader';
 import { NodeCard } from '@/components/NodeCard';
-import { FilePanel } from '@/components/FilePanel';
-import { RdpPanel } from '@/components/RDPPanel';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
 import { ShareNodeDialog } from '@/components/ShareNodeDialog';
-import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
+import { SharedElsewhereNotice } from '@/components/SharedElsewhereNotice';
+import { SessionDock } from '@/components/SessionDock';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
 import { NodeStats, TunnelNode } from '@/types/node';
 import { Search, Filter, Grid, List, CheckSquare, Plus, Users, CheckCircle2, Copy, Check } from 'lucide-react';
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useRuntimeConfig } from '@/components/RuntimeConfigProvider';
-import { useCurrentUserId, useCurrentRole } from '@/lib/session';
+import { useCurrentUserId, useCurrentRole, useCurrentOrg } from '@/lib/session';
 import { useSessions } from '@/lib/use-sessions';
 import { sessionId } from '@/lib/sessions';
 import { can } from '@/lib/rbac';
@@ -34,7 +33,7 @@ import { useDemoMode } from '@/components/DemoModeProvider';
 import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
-import { getCachedNodes, setCachedNodes } from '@/lib/nodesCache';
+import { clearCachedNodes, getCachedNodes, readCachedEnvelope, setCachedNodes } from '@/lib/nodesCache';
 import { removeService, saveService } from '@/lib/service-mutations';
 import {
     Pagination,
@@ -47,6 +46,9 @@ import {
 } from '@/components/ui/pagination';
 
 const NODES_PER_PAGE = 6;
+
+/** A stable empty list, so "show nothing" is not a new array on every render. */
+const EMPTY_NODES: TunnelNode[] = [];
 
 const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsis')[] => {
     const range: (number | 'ellipsis')[] = [];
@@ -65,7 +67,21 @@ const getPaginationRange = (page: number, pageCount: number): (number | 'ellipsi
 
 export default function Nodes() {
     const isDemo = useDemoMode();
-    const [initialCachedNodes] = useState(() => getCachedNodes());
+    const currentOrg = useCurrentOrg();
+    const orgId = currentOrg?.id ?? null;
+    /*
+     * The envelope the first paint was seeded from, kept so the organisation it
+     * named can be checked once the profile answers.
+     *
+     * `/api/profile` has not replied on the first render, so the cache cannot be
+     * matched against anything yet and is accepted on trust — that one paint is
+     * the reason the cache exists. What follows is the check it was missing: a
+     * workspace switch is a full page load, and the machines of the workspace
+     * being left must not be on screen for even a moment under the one being
+     * entered.
+     */
+    const [initialEnvelope] = useState(() => readCachedEnvelope());
+    const [initialCachedNodes] = useState(() => getCachedNodes(null));
     const [nodes, setNodes] = useState<TunnelNode[]>(() => initialCachedNodes ?? []);
     const [loading, setLoading] = useState(() => initialCachedNodes === null);
     const [error, setError] = useState<string | null>(null);
@@ -87,6 +103,47 @@ export default function Nodes() {
     // until the first real response confirms current state.
     const [nodesFresh, setNodesFresh] = useState(initialCachedNodes === null);
     const hasLoadedNodesOnceRef = useRef(initialCachedNodes !== null);
+    /*
+     * `orgId` through a ref, because the poll's effect runs once and then every
+     * fifteen seconds from the same closure. Reading the organisation out of
+     * that closure would write the cache under the `null` the profile had not
+     * yet replaced, which is an envelope no later render can match.
+     */
+    const orgIdRef = useRef<string | null>(orgId);
+    useEffect(() => {
+        orgIdRef.current = orgId;
+    }, [orgId]);
+
+    /*
+     * Drop a seed that turns out to belong to another workspace.
+     *
+     * The cache is read before `/api/profile` answers, so the first paint is on
+     * trust; this is the check that trust was missing. `nodesFresh` is the guard
+     * that makes it safe to run late: it is false exactly while the list on
+     * screen is still the cached one, so a live response that has already
+     * replaced it with the right answer is never thrown away.
+     */
+    const [seedOrgId] = useState(() => initialEnvelope?.orgId ?? null);
+
+    /*
+     * True while the only thing on screen is a cached list we have since learned
+     * belongs to another workspace.
+     *
+     * Derived rather than stored, because it is a fact about two values the
+     * component already has — and because reacting to it with `setNodes([])`
+     * would be a state update whose only input is other state. `nodesFresh` is
+     * the half that makes it safe: it goes true the moment a live `/api/nodes`
+     * response replaces the list with the right answer, and this stops applying.
+     */
+    const seedIsForeign = !nodesFresh && orgId !== null && seedOrgId !== orgId;
+
+    useEffect(() => {
+        // The stored copy is the external system here, and it is the one thing
+        // that would otherwise survive the reload and seed the next one too.
+        if (seedIsForeign) {
+            clearCachedNodes();
+        }
+    }, [seedIsForeign]);
 
     // Fetch nodes from same-origin API
     useEffect(() => {
@@ -108,20 +165,23 @@ export default function Nodes() {
                     return;
                 }
 
-                // Merge by id so nodes missing from the response (e.g. dropped due to
-                // malformed stats) aren't removed from the UI.
-                setNodes((prevNodes) => {
-                    const nextById = new Map(nextNodes.map((node) => [node.id, node]));
-                    const merged = prevNodes.map((node) => nextById.get(node.id) ?? node);
-                    const prevIds = new Set(prevNodes.map((node) => node.id));
-                    for (const node of nextNodes) {
-                        if (!prevIds.has(node.id)) {
-                            merged.push(node);
-                        }
-                    }
-                    setCachedNodes(merged);
-                    return merged;
-                });
+                /*
+                 * The response replaces the list. It does not merge into it.
+                 *
+                 * This used to union the two, to tolerate a node dropping out of
+                 * a poll over a malformed stats payload — but a 200 from
+                 * `/api/nodes` is the authoritative answer to "what may I see",
+                 * and the reasons a node leaves it are the ones that matter
+                 * most: a share was revoked, a share expired, or this is a
+                 * different workspace. Keeping the row meant an un-shared
+                 * machine stayed on the grantee's board forever, and was written
+                 * back to the cache on every poll so it survived reloads too.
+                 * A *failed* poll still leaves the list alone — that is the
+                 * `catch` below, and it is the tolerance the merge was reaching
+                 * for.
+                 */
+                setNodes(nextNodes);
+                setCachedNodes(orgIdRef.current, nextNodes);
                 setError(null);
                 setNodesFresh(true);
                 hasLoadedNodesOnceRef.current = true;
@@ -158,14 +218,15 @@ export default function Nodes() {
         };
     }, []);
 
-    // File panel state
-    const [filePanelOpen, setFilePanelOpen] = useState(false);
-
-    // RDP panel state
-    const [rdpPanelOpen, setRdpPanelOpen] = useState(false);
-
-    // Create tunnel panel state
-    const [createTunnelPanelOpen, setCreateTunnelPanelOpen] = useState(false);
+    /*
+     * Whether the session dock is on screen — one flag, for one panel.
+     *
+     * It was three, one per panel, and two of them true at once meant two
+     * full-screen overlays stacked with the last-rendered one winning. Opening a
+     * file browser while a shell was open therefore focused a tab nobody could
+     * see. Closing it still ends nothing: the dock never unmounts.
+     */
+    const [dockOpen, setDockOpen] = useState(false);
 
     /*
      * Every live session, for all three protocols, in one list.
@@ -285,21 +346,38 @@ export default function Nodes() {
      * on click teaches somebody the product is broken rather than that the node
      * is not theirs.
      */
+    /*
+     * The server's answer first, the owner check only as a fallback.
+     *
+     * `can_manage` is `nodeManageScope` evaluated against this session, which is
+     * the same predicate every write route applies — so the card stops offering
+     * a rename that would answer 403. The fallback is for a node restored from a
+     * cache written before the field existed.
+     */
     const canManageNode = useCallback((node: TunnelNode) => (
-        !node.owner_id || node.owner_id === currentUserId || can(currentRole, 'nodes:manage:all')
+        node.can_manage ?? (
+            !node.owner_id || node.owner_id === currentUserId || can(currentRole, 'nodes:manage:all')
+        )
     ), [currentUserId, currentRole]);
+
+    /*
+     * The seed of another workspace is not shown at all, rather than shown and
+     * then corrected. A machine belonging to a team you have just left is the
+     * one thing that must not flash up under the team you have just joined.
+     */
+    const visibleNodes = seedIsForeign ? EMPTY_NODES : nodes;
 
     /*
      * Whether the fleet contains anything the caller does not own. Computed
      * before the filter runs, so choosing "Shared with me" and finding nothing
      * does not make the control that got you there disappear.
      */
-    const hasSharedNodes = nodes.some(
+    const hasSharedNodes = visibleNodes.some(
         (node) => node.owner_id && node.owner_id !== currentUserId,
     );
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const filteredNodes = nodes
+    const filteredNodes = visibleNodes
         .filter(node => !!node.stats)
         .filter((node) => {
             /*
@@ -429,7 +507,7 @@ export default function Nodes() {
             nodeName: node.name,
             serviceName: serviceName ?? null,
         });
-        setCreateTunnelPanelOpen(true);
+        setDockOpen(true);
     };
 
     const handleRefreshStats = async (node: TunnelNode) => {
@@ -466,7 +544,7 @@ export default function Nodes() {
             nodeName: node.name,
             serviceName: serviceName ?? null,
         });
-        setFilePanelOpen(true);
+        setDockOpen(true);
     };
 
     const openScreen = async (node: TunnelNode, serviceId: string, serviceName?: string | null) => {
@@ -477,14 +555,14 @@ export default function Nodes() {
         // would be a request for something that cannot have changed, and the
         // session already carries it.
         if (existing) {
-            sessions.focus('rdp', id);
-            setRdpPanelOpen(true);
+            sessions.focus(id);
+            setDockOpen(true);
             return;
         }
 
         // Only for the CredSSP service principal — the agent dials the host in
         // its own settings regardless, so a failed lookup is not fatal.
-        const services = await fetchServicesForKind(node.id, 'rdp');
+        const services = await fetchServicesOrEmpty(node.id, 'rdp');
         const detail = services.find((service) => service.id === serviceId) ?? null;
 
         sessions.open({
@@ -501,7 +579,7 @@ export default function Nodes() {
             // already allowed to be missing.
             destination: detail?.host ? `${detail.host}:${detail.port ?? ''}` : undefined,
         });
-        setRdpPanelOpen(true);
+        setDockOpen(true);
     };
 
 
@@ -647,17 +725,45 @@ export default function Nodes() {
         scheme?: 'http' | 'https' | null;
     };
 
+    /**
+     * A node's services of one kind, as the picker and the edit dialogs read them.
+     *
+     * **Throws rather than answering `[]`.** It used to swallow every failure
+     * into an empty list, which meant the one answer the route gives most often
+     * to a node that is no longer reachable — a correct 404, for a revoked
+     * share, an expired one, or a row left over from another workspace — arrived
+     * at the dialog as "there are none configured". An empty dialog with no
+     * explanation was the visible half of three separate bugs.
+     */
     const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'rdp'): Promise<ServiceDetail[]> => {
+        const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
+            credentials: 'include',
+        });
+
+        if (res.status === 404) {
+            // The route answers 404 rather than 403 for a node this session may
+            // not reach, and says so here in the words that are actually true
+            // from the outside: it was there, and now it is not yours.
+            throw new Error('This node is no longer available to you. Refresh the list.');
+        }
+
+        if (!res.ok) {
+            throw new Error(`Could not load this node\u2019s services (${res.status}).`);
+        }
+
+        const data = await res.json() as { services?: ServiceDetail[] };
+        return data.services ?? [];
+    };
+
+    /** The same lookup where a failure is not worth interrupting for — the edit dialogs. */
+    const fetchServicesOrEmpty = async (
+        nodeId: string,
+        kind: 'ssh' | 'sftp' | 'http' | 'rdp',
+    ): Promise<ServiceDetail[]> => {
         try {
-            const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                return [];
-            }
-            const data = await res.json() as { services?: ServiceDetail[] };
-            return data.services ?? [];
-        } catch {
+            return await fetchServicesForKind(nodeId, kind);
+        } catch (e) {
+            console.warn('[client][services] lookup failed', e);
             return [];
         }
     };
@@ -670,7 +776,7 @@ export default function Nodes() {
         setEnableSshLoadingDetails(true);
         setEnableSshDialogOpen(true);
 
-        const services = await fetchServicesForKind(node.id, 'ssh');
+        const services = await fetchServicesOrEmpty(node.id, 'ssh');
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableSshName(detail?.name ?? '');
         setEnableSshHost(detail?.host || '0.0.0.0');
@@ -688,7 +794,7 @@ export default function Nodes() {
         setEnableSftpLoadingDetails(true);
         setEnableSftpDialogOpen(true);
 
-        const services = await fetchServicesForKind(node.id, 'sftp');
+        const services = await fetchServicesOrEmpty(node.id, 'sftp');
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableSftpName(detail?.name ?? '');
         setEnableSftpHost(detail?.host || '0.0.0.0');
@@ -706,7 +812,7 @@ export default function Nodes() {
         setEnableHttpProxyLoadingDetails(true);
         setEnableHttpProxyDialogOpen(true);
 
-        const services = await fetchServicesForKind(node.id, 'http');
+        const services = await fetchServicesOrEmpty(node.id, 'http');
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableHttpProxyName(detail?.name ?? '');
         setEnableHttpProxyHost(detail?.host || '0.0.0.0');
@@ -757,7 +863,7 @@ export default function Nodes() {
         setEnableRdpLoadingDetails(true);
         setEnableRdpDialogOpen(true);
 
-        const services = await fetchServicesForKind(node.id, 'rdp');
+        const services = await fetchServicesOrEmpty(node.id, 'rdp');
         const detail = services.find((s) => s.id === serviceId) ?? null;
         setEnableRdpName(detail?.name ?? '');
         setEnableRdpHost(detail?.host || '0.0.0.0');
@@ -1590,7 +1696,7 @@ export default function Nodes() {
             />
 
             {/* Stats Section */}
-            <DashboardStats nodes={nodes} />
+            <DashboardStats nodes={visibleNodes} />
 
             {/* Loading State */}
             {loading && (
@@ -1611,7 +1717,7 @@ export default function Nodes() {
             {!loading && !error && (
                 <>
                     {/* Monitoring Alerts */}
-                    <MonitoringAlerts nodes={nodes} />
+                    <MonitoringAlerts nodes={visibleNodes} />
 
                     {/* Actions Bar */}
                     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -1660,6 +1766,17 @@ export default function Nodes() {
 
                     {/* Bulk Actions */}
                     {/* BulkActionsBar removed */}
+
+                    {/*
+                      * Above the list, not inside its empty state.
+                      *
+                      * An account with machines of its own has a list that is
+                      * never empty, and the "Shared with me" chip is hidden when
+                      * nothing is shared *here* — so an empty-state-only notice
+                      * would be unreachable for exactly the person it is for.
+                      * It renders nothing when there is nothing to say.
+                      */}
+                    <SharedElsewhereNotice currentOrgId={orgId} className="mb-4" />
 
                     {/* Nodes Grid/List */}
                     <div
@@ -2265,46 +2382,30 @@ export default function Nodes() {
                     </Dialog>
 
                     {filteredNodes.length === 0 && (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>
+                        <div className="py-12 text-center text-muted-foreground">
+                            <p className="text-center">
                                 {ownership === 'shared' && !normalizedQuery
-                                    ? 'Nobody has shared a node with you yet.'
+                                    // "Nobody has shared a node with you yet" was
+                                    // the old text, and for the account this
+                                    // feature exists for it was simply untrue:
+                                    // the share is real, it is in the workspace
+                                    // that owns the machine, and this page could
+                                    // not see it. The notice below says where.
+                                    ? 'Nothing has been shared with you in this workspace.'
                                     : 'No nodes found matching your search.'}
                             </p>
                         </div>
                     )}
 
-                    {/* File Panel */}
-                    <FilePanel
-                        isOpen={filePanelOpen}
-                        onClose={() => setFilePanelOpen(false)}
-                        sessions={sessions.ofKind('sftp')}
-                        activeId={sessions.activeIds.sftp}
-                        onFocus={(id) => sessions.focus('sftp', id)}
-                        onCloseSession={sessions.close}
-                        onDisconnect={sessions.disconnect}
-                        onReconnect={sessions.reconnect}
-                    />
-
-                    {/* RDP Panel */}
-                    <RdpPanel
-                        isOpen={rdpPanelOpen}
-                        onClose={() => setRdpPanelOpen(false)}
-                        sessions={sessions.ofKind('rdp')}
-                        activeId={sessions.activeIds.rdp}
-                        onFocus={(id) => sessions.focus('rdp', id)}
-                        onCloseSession={sessions.close}
-                        onDisconnect={sessions.disconnect}
-                        onReconnect={sessions.reconnect}
-                    />
-
-                    {/* Create Tunnel Panel */}
-                    <CreateTunnelPanel
-                        isOpen={createTunnelPanelOpen}
-                        onClose={() => setCreateTunnelPanelOpen(false)}
-                        sessions={sessions.ofKind('ssh')}
-                        activeId={sessions.activeIds.ssh}
-                        onFocus={(id) => sessions.focus('ssh', id)}
+                    {/* Every open connection, shell, file browser and desktop
+                        alike, on one strip in one panel. Three overlays is what
+                        made a tab opened behind another one invisible. */}
+                    <SessionDock
+                        isOpen={dockOpen}
+                        onClose={() => setDockOpen(false)}
+                        sessions={sessions.sessions}
+                        activeId={sessions.activeId}
+                        onFocus={sessions.focus}
                         onCloseSession={sessions.close}
                         onDisconnect={sessions.disconnect}
                         onReconnect={sessions.reconnect}

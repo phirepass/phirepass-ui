@@ -329,12 +329,32 @@ export function NodeCard({
         kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP';
         loading: boolean;
         instances: ListedService[];
+        /**
+         * Why the list is empty, when it is empty for a reason.
+         *
+         * "Nothing configured" and "the server would not tell you" are different
+         * answers and the dialog used to give the first for both — a node whose
+         * share had been revoked, or one left over from another workspace,
+         * opened a dialog that simply read as blank. The lookup throws now, and
+         * this is what it throws into.
+         */
+        error: string | null;
     } | null>(null);
 
     const runOrPickInstance = async (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => {
-        setServiceInstancePicker({ kind, loading: true, instances: [] });
-        const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http' | 'rdp')) ?? [];
-        setServiceInstancePicker({ kind, loading: false, instances });
+        setServiceInstancePicker({ kind, loading: true, instances: [], error: null });
+
+        try {
+            const instances = (await onListServices?.(kind.toLowerCase() as 'ssh' | 'sftp' | 'http' | 'rdp')) ?? [];
+            setServiceInstancePicker({ kind, loading: false, instances, error: null });
+        } catch (e) {
+            setServiceInstancePicker({
+                kind,
+                loading: false,
+                instances: [],
+                error: e instanceof Error ? e.message : 'Could not load this node\u2019s services.',
+            });
+        }
     };
 
     const selectServiceInstance = (action: () => void) => {
@@ -345,7 +365,7 @@ export function NodeCard({
     // Only one HTTP proxy is allowed per node; SSH/SFTP have no such limit.
     const httpLimitReached = serviceInstancePicker?.kind === 'HTTP'
         && !serviceInstancePicker.loading
-        && serviceInstancePicker.instances.length >= 1;
+        && (serviceInstancePicker.instances.length >= 1 || serviceInstancePicker.error !== null);
 
     const serviceInstanceLabel = (kind: 'SSH' | 'SFTP' | 'HTTP' | 'RDP') => (
         kind === 'SSH' ? 'SSH session' : kind === 'SFTP' ? 'SFTP session' : kind === 'RDP' ? 'RDP screen' : 'HTTP service'
@@ -959,9 +979,17 @@ export function NodeCard({
                         {serviceInstancePicker?.loading ? (
                             <p className="text-sm text-muted-foreground">Loading...</p>
                         ) : null}
-                        {serviceInstancePicker && !serviceInstancePicker.loading && serviceInstancePicker.instances.length === 0 ? (
+                        {serviceInstancePicker && !serviceInstancePicker.loading && serviceInstancePicker.error ? (
+                            <p className="text-sm text-destructive">{serviceInstancePicker.error}</p>
+                        ) : null}
+                        {serviceInstancePicker && !serviceInstancePicker.loading && !serviceInstancePicker.error && serviceInstancePicker.instances.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
-                                No {serviceInstanceLabel(serviceInstancePicker.kind)} configured yet.
+                                {canManage
+                                    ? `No ${serviceInstanceLabel(serviceInstancePicker.kind)} configured yet.`
+                                    // A grantee is not being shown an empty list
+                                    // of their own services — they are being shown
+                                    // that this one was not lent to them.
+                                    : `This node was not shared with you for ${serviceInstanceLabel(serviceInstancePicker.kind)}.`}
                             </p>
                         ) : null}
                         {!serviceInstancePicker?.loading && serviceInstancePicker?.instances.map((instance) => {

@@ -5,9 +5,12 @@ import {
     nodeScope,
     requireSession,
     scopeAt,
+    type Session,
 } from '@/app/lib/authz';
+import { LIVE_SHARE } from '@/app/lib/scope';
 import { getRedisClient } from '@/app/lib/redis';
 import { query } from '@/app/lib/db';
+import { narrowShareServices, unionShareServices, type ShareableService } from '@/app/lib/share-services';
 import type { NodeStatus } from '@/types/node';
 
 type NodeFilesystem = {
@@ -215,6 +218,115 @@ function normalizeFilesystems(value: unknown): NodeFilesystem[] {
  * so the dashboard could mark a service public; public access is gone — every
  * proxied request is authenticated — so there is nothing left to distinguish.
  */
+/**
+ * How a session reaches one node.
+ *
+ * `MANAGES` is the owner, or somebody who administers the organisation that
+ * owns it: nothing is withheld from them. `null` is a share that named no
+ * services, which means every one — including any added to the node later. A set
+ * is a share that named some.
+ *
+ * The three cases are the dashboard's copy of `Reach` in
+ * `phirepass-rs/server/src/access.rs`, and they exist here for one reason: the
+ * card has to offer exactly what the server will allow. Offering more is the bug
+ * this fixes — a node lent for its file browser still showed an SSH tile, and
+ * clicking it opened a picker that `/api/nodes/services` had already, correctly,
+ * emptied.
+ */
+const MANAGES = Symbol('manages');
+type Reach = typeof MANAGES | ReadonlySet<ShareableService> | null;
+
+/**
+ * Which of the listed nodes this session manages, and what its shares open on
+ * the rest.
+ *
+ * Two statements, both scoped by the predicates that already exist, and neither
+ * of them a `WHERE user_id = $1` written by hand. Nodes absent from both answers
+ * are unreachable-except-by-share-that-does-not-exist, which the first query
+ * could not have returned in the first place — they resolve to `null`, "no
+ * narrowing", which is what an unclaimed node a session owns has always been.
+ */
+async function resolveReach(
+    session: Session,
+    nodeIds: readonly string[],
+): Promise<Map<string, Reach>> {
+    const reach = new Map<string, Reach>();
+
+    if (nodeIds.length === 0) {
+        return reach;
+    }
+
+    const manageable = scopeAt(nodeManageScope(session, 'n'), 1);
+    const managed = await query(
+        `SELECT n.id FROM nodes n WHERE n.id = ANY($1::uuid[]) AND ${manageable.sql}`,
+        [nodeIds, ...manageable.params],
+    );
+
+    for (const row of managed.rows as { id: string }[]) {
+        reach.set(row.id, MANAGES);
+    }
+
+    // Grouped before it is unioned, because the union is per node: two live
+    // shares on one machine widen each other, and two shares on two machines
+    // have nothing to do with each other.
+    const byNode = new Map<string, { services: string[] | null }[]>();
+
+    /*
+     * Non-fatal, for the same reason the monitor counts above are: `node_shares`
+     * arrives with a startup migration, and a database that has not run it yet
+     * must still be able to list nodes. Failing here would mean an empty
+     * dashboard rather than one without narrowing — and without narrowing is
+     * exactly what this list did until now, so it is a safe place to land.
+     */
+    try {
+        const shared = await query(
+            `SELECT s.node_id, s.services
+               FROM node_shares s
+              WHERE s.node_id = ANY($1::uuid[])
+                AND s.org_id = $2
+                AND ${LIVE_SHARE}
+                AND (s.audience = 'org' OR s.grantee_id = $3)`,
+            [nodeIds, session.orgId, session.userId],
+        );
+
+        for (const row of shared.rows as { node_id: string; services: string[] | null }[]) {
+            const rows = byNode.get(row.node_id) ?? [];
+            rows.push({ services: row.services });
+            byNode.set(row.node_id, rows);
+        }
+    } catch (error) {
+        console.warn('[nodes] share scopes unavailable:', error);
+    }
+
+    for (const id of nodeIds) {
+        if (reach.get(id) === MANAGES) {
+            continue;
+        }
+
+        reach.set(id, unionShareServices(byNode.get(id) ?? []));
+    }
+
+    return reach;
+}
+
+/**
+ * The service counts to publish for one node, given how this session reaches it.
+ *
+ * Whoever may configure a node is told everything; everyone else is narrowed by
+ * `narrowShareServices`, which is the rule itself and lives with the rest of the
+ * share vocabulary in `share-services.ts` so it can be tested without a request.
+ */
+function visibleServices(
+    services: Record<string, number>,
+    reach: Reach | undefined,
+): Record<string, number> {
+    if (reach === MANAGES || reach === undefined) {
+        return services;
+    }
+
+    return narrowShareServices(services, reach);
+}
+
 function normalizeServices(value: unknown): Record<string, number> {
     const counts: Record<string, number> = {};
 
@@ -551,6 +663,14 @@ export async function GET(req: Request) {
 
         const nodesFromDb = result.rows as UserNodeRow[];
 
+        // What each listed node is reachable *as*: configurable, or only usable
+        // through a share. Two cheap follow-ups rather than a wider first query,
+        // for the same reason `/api/nodes/services` asks twice — "may I see
+        // this" and "may I change it" are different questions with different
+        // answers, and folding them into one predicate loses the difference.
+        const listedIds = nodesFromDb.map((node) => node.id);
+        const reach = await resolveReach(session, listedIds);
+
         // One grouped query rather than a count per card. Monitors with a null
         // node_id run from the server fleet rather than an agent, so they belong
         // to no node and are excluded.
@@ -608,7 +728,11 @@ export async function GET(req: Request) {
                     : 'offline';
             const isOnline = status === 'online';
             const settings = normalizeSettings(node.settings);
-            const services = normalizeServices(settings.services ?? payload?.services);
+            const permitted = reach.get(node.id);
+            const services = visibleServices(
+                normalizeServices(settings.services ?? payload?.services),
+                permitted,
+            );
 
             return {
                 id: node.id,
@@ -631,6 +755,13 @@ export async function GET(req: Request) {
                 stats,
                 info: payload?.info ?? null,
                 services,
+                // Whether this session may configure the node, not merely use
+                // it. On the row rather than inferred from `owner_id`, because
+                // an organisation administrator manages a colleague's machine
+                // and a grantee manages nothing — neither is visible from the
+                // owner alone. It is also what lets the card tell "these are
+                // the services you were lent" from "this node has none".
+                can_manage: permitted === MANAGES,
                 monitor_count: monitorCountsAvailable ? monitorCountByNode.get(node.id) ?? 0 : undefined,
             };
         });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { unionShareServices } from './share-services.ts';
+import { narrowShareServices, unionShareServices, type ShareableService } from './share-services.ts';
 
 /**
  * Which services a share opens, as the dashboard reads them.
@@ -86,4 +86,67 @@ test('stored names are matched regardless of case or surrounding space', () => {
     assert.ok(kinds);
     assert.ok(kinds.has('SSH'));
     assert.ok(kinds.has('HTTP'));
+});
+
+/**
+ * What a shared node offers on its card.
+ *
+ * The other half of the rule above, and the reason the picker used to open
+ * empty: the node list published every service the machine ran while the picker
+ * published only what the share opened, so a node lent for one service showed
+ * four tiles and three of them led to a blank dialog. These are the cases where
+ * the two now have to agree.
+ */
+
+test('a share that named nothing opens every service', () => {
+    const counts = { SSH: 1, SFTP: 1, HTTP: 2 };
+
+    assert.deepEqual(narrowShareServices(counts, null), counts);
+});
+
+test('a share that named one service offers only that one', () => {
+    const permitted = new Set<ShareableService>(['SFTP']);
+
+    assert.deepEqual(
+        narrowShareServices({ SSH: 1, SFTP: 1, HTTP: 2 }, permitted),
+        { SFTP: 1 },
+    );
+});
+
+test('a service the node does not run is not invented by naming it', () => {
+    const permitted = new Set<ShareableService>(['SSH', 'RDP']);
+
+    assert.deepEqual(narrowShareServices({ SSH: 2 }, permitted), { SSH: 2 });
+});
+
+/**
+ * A share whose every named service is one this build does not recognise
+ * permits nothing — see `unionShareServices`. It must therefore offer nothing,
+ * rather than falling back to everything.
+ */
+test('a share that permits nothing offers nothing', () => {
+    assert.deepEqual(
+        narrowShareServices({ SSH: 1, HTTP: 1 }, new Set<ShareableService>()),
+        {},
+    );
+});
+
+test('narrowing never mutates the counts it was given', () => {
+    const counts = { SSH: 1, SFTP: 1 };
+    narrowShareServices(counts, new Set<ShareableService>(['SSH']));
+
+    assert.deepEqual(counts, { SSH: 1, SFTP: 1 });
+});
+
+/** The two halves, run together the way the route runs them. */
+test('two live shares union before they narrow', () => {
+    const permitted = unionShareServices([
+        { services: ['SSH'] },
+        { services: ['SFTP'] },
+    ]);
+
+    assert.deepEqual(
+        narrowShareServices({ SSH: 1, SFTP: 1, RDP: 1 }, permitted),
+        { SSH: 1, SFTP: 1 },
+    );
 });

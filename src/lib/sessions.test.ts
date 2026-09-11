@@ -7,6 +7,7 @@ import {
     nextActiveId,
     openSession,
     reconnectSession,
+    renameNodeSessions,
     sessionId,
     sessionsOfKind,
     setSessionStatus,
@@ -168,23 +169,38 @@ test('focus falls to the tab on the left, then to the first', () => {
     sessions = openSession(sessions, req({ serviceId: 'c' }));
 
     const middle = sessionId('ssh', 'node-1', 'b');
-    assert.equal(nextActiveId(sessions, 'ssh', middle), sessionId('ssh', 'node-1', 'a'));
+    assert.equal(nextActiveId(sessions, middle), sessionId('ssh', 'node-1', 'a'));
 
     const first = sessionId('ssh', 'node-1', 'a');
-    assert.equal(nextActiveId(sessions, 'ssh', first), sessionId('ssh', 'node-1', 'b'));
+    assert.equal(nextActiveId(sessions, first), sessionId('ssh', 'node-1', 'b'));
 });
 
-test('closing the only tab of a kind leaves nothing focused', () => {
+test('closing the only tab leaves nothing focused', () => {
     const sessions = openSession([], req());
 
-    assert.equal(nextActiveId(sessions, 'ssh', sessions[0].id), null);
+    assert.equal(nextActiveId(sessions, sessions[0].id), null);
 });
 
-test('focus stays within a kind', () => {
+/**
+ * There is one strip now, holding every kind, so the tab to the left of a file
+ * browser is genuinely whatever was opened before it. This used to answer `null`
+ * — the strips were per kind — which is what left the dock focused on nothing
+ * while other sessions were still running.
+ */
+test('focus crosses kinds, because the strip does', () => {
     let sessions = openSession([], req({ kind: 'ssh', serviceId: 'a' }));
     sessions = openSession(sessions, req({ kind: 'sftp', serviceId: 'b' }));
+    sessions = openSession(sessions, req({ kind: 'rdp', serviceId: 'c' }));
 
-    assert.equal(nextActiveId(sessions, 'ssh', sessionId('ssh', 'node-1', 'a')), null);
+    assert.equal(
+        nextActiveId(sessions, sessionId('sftp', 'node-1', 'b')),
+        sessionId('ssh', 'node-1', 'a'),
+    );
+
+    assert.equal(
+        nextActiveId(sessions, sessionId('ssh', 'node-1', 'a')),
+        sessionId('sftp', 'node-1', 'b'),
+    );
 });
 
 /**
@@ -198,4 +214,116 @@ test('what stays mounted depends on the session, never on what is visible', () =
     assert.equal(shouldMount({ ...live, status: 'connected' }), true);
     assert.equal(shouldMount({ ...live, status: 'error' }), true);
     assert.equal(shouldMount({ ...live, status: 'disconnected' }), false);
+});
+
+/**
+ * Many tabs, one browser session.
+ *
+ * These are the Supervisor's cases, and they are all one claim said five ways:
+ * **a session ends when its tab's ✕ is pressed, and at no other moment.** Not
+ * when the panel closes, not when another tab is focused, not when a different
+ * session drops, not when the same service is opened again from the node list.
+ *
+ * They are written against `generation` and `status` rather than against a
+ * rendered tree deliberately. `generation` *is* the connection: it keys the
+ * widget element, so an unchanged generation means the same element, the same
+ * socket and the same scrollback. A test that asserted on markup would pass
+ * while the socket underneath was quietly replaced.
+ */
+
+/** Every kind at once, as the dock holds them. */
+function threeKinds(): Session[] {
+    let sessions = openSession([], req({ kind: 'ssh', nodeId: 'node-1', serviceId: 'shell' }));
+    sessions = openSession(sessions, req({ kind: 'sftp', nodeId: 'node-2', serviceId: 'files' }));
+    sessions = openSession(sessions, req({ kind: 'rdp', nodeId: 'node-3', serviceId: 'screen' }));
+    return sessions;
+}
+
+/** What a tab has to keep for its connection to have survived. */
+function fingerprint(sessions: readonly Session[]) {
+    return sessions.map((session) => `${session.id}@${session.generation}:${session.status}`);
+}
+
+test('a shell, a file browser and a desktop are three live tabs at once', () => {
+    const sessions = threeKinds();
+
+    assert.equal(sessions.length, 3);
+    assert.deepEqual(sessions.map((session) => session.kind), ['ssh', 'sftp', 'rdp']);
+    assert.ok(sessions.every(shouldMount), 'every open tab keeps its widget mounted');
+});
+
+test('focusing a tab is not a fact about any session', () => {
+    const before = threeKinds();
+
+    // Focus lives in the hook, not in the list — which is the point: there is
+    // no function here that a tab switch could call, so switching tabs cannot
+    // touch a connection even by mistake.
+    assert.deepEqual(fingerprint(before), fingerprint([...before]));
+    assert.ok(before.every(shouldMount));
+});
+
+test('one session dropping leaves the other tabs exactly as they were', () => {
+    const before = threeKinds();
+    const after = setSessionStatus(before, before[1].id, 'error', 'the agent went away');
+
+    assert.equal(after.length, 3, 'a drop never removes a tab');
+    assert.equal(after[1].status, 'error');
+    assert.deepEqual(
+        fingerprint([after[0], after[2]]),
+        fingerprint([before[0], before[2]]),
+        'the untouched tabs keep their generation and their status',
+    );
+});
+
+test('reconnecting one tab remounts only that one', () => {
+    const before = disconnectSession(threeKinds(), threeKinds()[2].id);
+    const after = reconnectSession(before, before[2].id);
+
+    assert.equal(after[2].generation, 1, 'the reconnected tab gets a new element');
+    assert.equal(after[0].generation, 0);
+    assert.equal(after[1].generation, 0);
+});
+
+test('closing one tab ends that session and no other', () => {
+    const before = threeKinds();
+    const closed = closeSession(before, before[1].id);
+
+    assert.deepEqual(closed.map((session) => session.id), [before[0].id, before[2].id]);
+    assert.deepEqual(
+        fingerprint(closed),
+        fingerprint([before[0], before[2]]),
+        'the survivors keep their connections',
+    );
+});
+
+test('reopening a service from the node list keeps the tab that is already running', () => {
+    const before = setSessionStatus(threeKinds(), sessionId('ssh', 'node-1', 'shell'), 'connected');
+    const after = openSession(before, req({ kind: 'ssh', nodeId: 'node-1', serviceId: 'shell' }));
+
+    assert.equal(after.length, 3, 'never a second session against the same service');
+    assert.deepEqual(
+        fingerprint(after),
+        fingerprint(before),
+        'the shell that was running is the shell that comes back',
+    );
+});
+
+test('nothing but close and disconnect can end a session', () => {
+    const before = threeKinds();
+
+    // Everything a panel does while tabs are open, in one pass. None of it may
+    // change how many sessions there are, or remount one that was not asked to
+    // reconnect. This is "closing the panel does not end a session", asserted as
+    // the absence of any path that could.
+    let after = renameNodeSessions(before, 'node-1', 'renamed');
+    after = setSessionStatus(after, before[0].id, 'connected');
+    after = openSession(after, req({ kind: 'sftp', nodeId: 'node-2', serviceId: 'files' }));
+
+    assert.equal(after.length, 3);
+    assert.deepEqual(
+        after.map((session) => session.generation),
+        [0, 0, 0],
+        'no widget was replaced, so no socket was dropped',
+    );
+    assert.ok(after.every(shouldMount));
 });

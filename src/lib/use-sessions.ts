@@ -8,10 +8,10 @@
  * testable without a browser. If a rule is being decided in this file, it is in
  * the wrong file.
  *
- * One instance, held by the nodes page, and read by all three panels. That is
- * the whole point: the terminal, the file browser and the remote desktop are
- * three views of one list, so "what is open" cannot disagree between them the
- * way it did when each kept its own.
+ * One instance, held by the nodes page, and read by the dock. That is the whole
+ * point: the terminal, the file browser and the remote desktop are three views
+ * of one list, so "what is open" cannot disagree between them the way it did
+ * when each kept its own.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -35,18 +35,26 @@ import {
 
 export interface SessionsApi {
     sessions: Session[];
-    /** The focused tab per kind. Independent, because the panels are. */
-    activeIds: Record<SessionKind, string | null>;
+    /**
+     * The focused tab. One, not one per kind.
+     *
+     * The panels used to be three overlays with three strips, so "which tab"
+     * was three answers — and opening a file browser while a shell was open
+     * focused a tab in a panel painted underneath the one on screen, which read
+     * as the tab never having appeared. There is one strip now, so there is one
+     * answer.
+     */
+    activeId: string | null;
     /** Open a service, or focus it if it is already open. Returns its id. */
     open: (request: SessionRequest) => string;
-    focus: (kind: SessionKind, id: string) => void;
+    focus: (id: string) => void;
     /** The tab's ✕: end the session and drop the tab. */
     close: (id: string) => void;
     /** End the session, keep the tab so it can be reconnected. */
     disconnect: (id: string) => void;
     reconnect: (id: string) => void;
     setStatus: (id: string, status: SessionStatus, error?: string | null) => void;
-    /** The sessions of one kind, for the panel that shows them. */
+    /** The sessions of one kind, for the body that renders them. */
     ofKind: (kind: SessionKind) => Session[];
     /** Whether any session for this node and service is live, for the node card. */
     isLive: (kind: SessionKind, nodeId: string, serviceId: string) => boolean;
@@ -56,44 +64,40 @@ export interface SessionsApi {
     closeNode: (nodeId: string) => void;
 }
 
-const NO_ACTIVE: Record<SessionKind, string | null> = { ssh: null, sftp: null, rdp: null };
-
 export function useSessions(): SessionsApi {
     const [sessions, setSessions] = useState<Session[]>([]);
-    const [activeIds, setActiveIds] = useState<Record<SessionKind, string | null>>(NO_ACTIVE);
+    const [activeId, setActiveId] = useState<string | null>(null);
 
     const open = useCallback((request: SessionRequest) => {
         const id = sessionId(request.kind, request.nodeId, request.serviceId);
         setSessions((current) => openSession(current, request));
-        setActiveIds((current) => ({ ...current, [request.kind]: id }));
+        setActiveId(id);
         return id;
     }, []);
 
-    const focus = useCallback((kind: SessionKind, id: string) => {
-        setActiveIds((current) => ({ ...current, [kind]: id }));
+    const focus = useCallback((id: string) => {
+        setActiveId(id);
     }, []);
 
     const close = useCallback((id: string) => {
+        /*
+         * Focus is decided from the list as it is now, outside the updater.
+         *
+         * "The tab to the left" is a fact about the order *before* the removal,
+         * and computing it here rather than inside `setSessions` keeps this
+         * function free of a state setter called from another setter's updater —
+         * which React runs twice in development and is not a place for effects.
+         */
         setSessions((current) => {
-            const closing = current.find((session) => session.id === id);
-            if (!closing) {
+            if (!current.some((session) => session.id === id)) {
                 return current;
             }
 
-            /*
-             * The next focus is computed from the list as it was, because "the
-             * tab to the left" is a fact about the order before the removal.
-             * Doing it after would have to reconstruct that, and would get the
-             * first-tab case wrong.
-             */
-            const nextId = nextActiveId(current, closing.kind, id);
-            setActiveIds((active) => (active[closing.kind] === id
-                ? { ...active, [closing.kind]: nextId }
-                : active));
-
             return closeSession(current, id);
         });
-    }, []);
+
+        setActiveId((current) => (current === id ? nextActiveId(sessions, id) : current));
+    }, [sessions]);
 
     const disconnect = useCallback((id: string) => {
         setSessions((current) => disconnectSession(current, id));
@@ -122,33 +126,28 @@ export function useSessions(): SessionsApi {
     }, []);
 
     const closeNode = useCallback((nodeId: string) => {
-        setSessions((current) => {
-            // Focus is dropped for any kind whose focused tab belonged to the
-            // node, rather than moved: the node is gone, so there is no
-            // neighbouring tab on it to fall to.
-            const going = new Set(current.filter((s) => s.nodeId === nodeId).map((s) => s.id));
-            setActiveIds((active) => {
-                const next = { ...active };
-                (Object.keys(next) as SessionKind[]).forEach((kind) => {
-                    if (next[kind] && going.has(next[kind]!)) {
-                        next[kind] = closeNodeSessions(current, nodeId)
-                            .find((s) => s.kind === kind)?.id ?? null;
-                    }
-                });
-                return next;
-            });
+        setSessions((current) => closeNodeSessions(current, nodeId));
 
-            return closeNodeSessions(current, nodeId);
+        // Focus moves to whatever is left rather than to a neighbour: the node
+        // is gone, so the tab that was focused has no neighbour on it to fall
+        // to. The remaining list is the honest answer.
+        setActiveId((current) => {
+            const focused = sessions.find((session) => session.id === current);
+            if (!focused || focused.nodeId !== nodeId) {
+                return current;
+            }
+
+            return closeNodeSessions(sessions, nodeId)[0]?.id ?? null;
         });
-    }, []);
+    }, [sessions]);
 
     return useMemo(
         () => ({
-            sessions, activeIds, open, focus, close, disconnect, reconnect,
+            sessions, activeId, open, focus, close, disconnect, reconnect,
             setStatus, ofKind, isLive, renameNode, closeNode,
         }),
         [
-            sessions, activeIds, open, focus, close, disconnect, reconnect,
+            sessions, activeId, open, focus, close, disconnect, reconnect,
             setStatus, ofKind, isLive, renameNode, closeNode,
         ],
     );

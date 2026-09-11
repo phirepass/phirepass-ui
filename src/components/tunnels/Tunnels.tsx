@@ -4,7 +4,7 @@ import { TcpTunnelCard } from '@/components/TcpTunnelCard';
 import { SshTunnelCard } from '@/components/SSHTunnelCard';
 import { TerminalPanel } from '@/components/TerminalPanel';
 import { SftpPanel } from '@/components/SFTPPanel';
-import { CreateTunnelPanel } from '@/components/CreateTunnelPanel';
+import { SessionDock } from '@/components/SessionDock';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -443,11 +443,11 @@ const Tunnels = () => {
                 </TabsContent>
             </Tabs>
 
-            {/* Create Tunnel Panel */}
+            {/* Session dock */}
             {/* No sessions of its own: this page is the pre-App-Router leftover
-                (see the repo's CLAUDE.md) and opens no services, so the panel
+                (see the repo's CLAUDE.md) and opens no services, so the dock
                 renders its empty state. */}
-            <CreateTunnelPanel
+            <SessionDock
                 isOpen={showCreateDialog}
                 onClose={() => setShowCreateDialog(false)}
                 sessions={[]}
