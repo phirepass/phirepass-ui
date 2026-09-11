@@ -197,12 +197,14 @@ export function SessionDock({
                             activeId={activeId}
                             token={token}
                             onReconnect={onReconnect}
+                            onStatus={onStatus}
                         />
                         <RdpSessions
                             sessions={rdp}
                             activeId={activeId}
                             token={token}
                             onReconnect={onReconnect}
+                            onStatus={onStatus}
                             widgetRefs={widgetRefs}
                         />
                     </>

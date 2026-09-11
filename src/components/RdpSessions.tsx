@@ -21,7 +21,8 @@ import { defineCustomElements } from 'phirepass-widgets/loader';
 import type { PhirepassRdpElement } from '@/types/custom-elements';
 
 import { SessionOverlay, SessionSlot } from './SessionPanel';
-import { shouldMount, type Session } from '@/lib/sessions';
+import { useWidgetConnectionState } from '@/hooks/use-widget-connection';
+import { shouldMount, type Session, type SessionStatus } from '@/lib/sessions';
 
 interface RdpSessionsProps {
     /** The `rdp` sessions, in open order. */
@@ -30,6 +31,7 @@ interface RdpSessionsProps {
     activeId: string | null;
     token: string;
     onReconnect: (id: string) => void;
+    onStatus: (id: string, status: SessionStatus, error?: string | null) => void;
     /**
      * The dock's registry of live widgets, keyed by session id.
      *
@@ -40,10 +42,12 @@ interface RdpSessionsProps {
     widgetRefs: RefObject<Map<string, PhirepassRdpElement>>;
 }
 
-export function RdpSessions({ sessions, activeId, token, onReconnect, widgetRefs }: RdpSessionsProps) {
+export function RdpSessions({ sessions, activeId, token, onReconnect, onStatus, widgetRefs }: RdpSessionsProps) {
     useEffect(() => {
         void defineCustomElements();
     }, []);
+
+    useWidgetConnectionState(sessions, 'phirepass-rdp', token, onStatus);
 
     return (
         <>
@@ -68,18 +72,10 @@ export function RdpSessions({ sessions, activeId, token, onReconnect, widgetRefs
                                 service-id={session.serviceId}
                                 destination={session.destination}
                                 token={token}
-                                style={{ display: 'block', width: '100%', height: '100%' }}
                             />
                         </div>
                     )}
-                    {/*
-                      * Like SFTP, the desktop widget reports no connection
-                      * state, so the overlay is only for the states the dock's
-                      * own controls produce.
-                      */}
-                    {session.status !== 'connecting' && (
-                        <SessionOverlay session={session} onReconnect={onReconnect} />
-                    )}
+                    <SessionOverlay session={session} onReconnect={onReconnect} />
                 </SessionSlot>
             ))}
         </>

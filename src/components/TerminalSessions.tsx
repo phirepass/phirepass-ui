@@ -8,8 +8,7 @@
  * and why closing the panel behaved differently here than in the file browser.
  * All of that now lives in `lib/sessions.ts`; the frame lives in `SessionPanel`
  * and the single dock that mounts it is `SessionDock`. What is left is the part
- * that is actually about terminals: mounting `<phirepass-terminal>` and
- * translating its connection events.
+ * that is actually about terminals: mounting `<phirepass-terminal>`.
  *
  * It renders slots and nothing else — no overlay, no header, no tab strip and no
  * token fetch. Those were three copies before, one per panel, and three copies
@@ -20,10 +19,8 @@ import { useEffect } from 'react';
 import { defineCustomElements } from 'phirepass-widgets/loader';
 
 import { SessionOverlay, SessionSlot } from './SessionPanel';
+import { useWidgetConnectionState } from '@/hooks/use-widget-connection';
 import { shouldMount, type Session, type SessionStatus } from '@/lib/sessions';
-
-/** What the widget reports. Narrower than our own status: it never says "connecting". */
-type TerminalConnectionState = 'connected' | 'disconnected' | 'error';
 
 interface TerminalSessionsProps {
     /** The `ssh` sessions, in open order. */
@@ -33,29 +30,6 @@ interface TerminalSessionsProps {
     token: string;
     onReconnect: (id: string) => void;
     onStatus: (id: string, status: SessionStatus, error?: string | null) => void;
-}
-
-function readConnectionErrorMessage(value: unknown): string | null {
-    if (!value) {
-        return null;
-    }
-
-    if (typeof value === 'string') {
-        return value;
-    }
-
-    if (value instanceof Error) {
-        return value.message;
-    }
-
-    if (typeof value === 'object' && 'message' in value) {
-        const message = (value as { message?: unknown }).message;
-        if (typeof message === 'string') {
-            return message;
-        }
-    }
-
-    return null;
 }
 
 export function TerminalSessions({
@@ -69,49 +43,7 @@ export function TerminalSessions({
         void defineCustomElements();
     }, []);
 
-    /*
-     * Listeners are attached per mounted widget and re-attached whenever the set
-     * of mounted widgets changes — which includes a reconnect, since that
-     * replaces the element.
-     */
-    const mountKey = sessions
-        .filter(shouldMount)
-        .map((session) => `${session.id}@${session.generation}`)
-        .join('|');
-
-    useEffect(() => {
-        if (!token) {
-            return;
-        }
-
-        const detach: (() => void)[] = [];
-
-        sessions.filter(shouldMount).forEach((session) => {
-            const host = document.querySelector<HTMLElement>(
-                `[data-session="${session.id}"] phirepass-terminal`,
-            );
-
-            if (!host) {
-                return;
-            }
-
-            const handle = (event: Event) => {
-                const detail = (event as CustomEvent<[TerminalConnectionState, unknown?]>).detail ?? [];
-                const [state, cause] = detail;
-                if (!state) {
-                    return;
-                }
-
-                onStatus(session.id, state, state === 'error' ? readConnectionErrorMessage(cause) : null);
-            };
-
-            host.addEventListener('connectionStateChanged', handle);
-            detach.push(() => host.removeEventListener('connectionStateChanged', handle));
-        });
-
-        return () => detach.forEach((off) => off());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mountKey, token, onStatus]);
+    useWidgetConnectionState(sessions, 'phirepass-terminal', token, onStatus);
 
     return (
         <>
@@ -123,12 +55,23 @@ export function TerminalSessions({
                         // this wrapper because the generated JSX types for a
                         // custom element do not carry React's own props.
                         <div key={`${session.id}@${session.generation}`} className="h-full w-full">
+                            {/*
+                              * No inline style. The widget's own `:host` is a
+                              * full-size **column flex** container, and the
+                              * `display: block` that used to be set here beat
+                              * it — at which point the `flex: 1` on the element
+                              * holding xterm meant nothing, that element fell
+                              * back to `height: auto`, and the session sized
+                              * itself to its own content: xterm's default 24
+                              * rows, in a panel with room for three times that.
+                              * The fit then measured the auto-sized box, agreed
+                              * with itself, and never grew.
+                              */}
                             <phirepass-terminal
                                 node-id={session.nodeId}
                                 server-id={session.serverId ?? undefined}
                                 service-id={session.serviceId}
                                 token={token}
-                                style={{ display: 'block', width: '100%', height: '100%' }}
                             />
                         </div>
                     )}

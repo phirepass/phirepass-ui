@@ -13,7 +13,8 @@ import { useEffect } from 'react';
 import { defineCustomElements } from 'phirepass-widgets/loader';
 
 import { SessionOverlay, SessionSlot } from './SessionPanel';
-import { shouldMount, type Session } from '@/lib/sessions';
+import { useWidgetConnectionState } from '@/hooks/use-widget-connection';
+import { shouldMount, type Session, type SessionStatus } from '@/lib/sessions';
 
 interface FileSessionsProps {
     /** The `sftp` sessions, in open order. */
@@ -22,12 +23,15 @@ interface FileSessionsProps {
     activeId: string | null;
     token: string;
     onReconnect: (id: string) => void;
+    onStatus: (id: string, status: SessionStatus, error?: string | null) => void;
 }
 
-export function FileSessions({ sessions, activeId, token, onReconnect }: FileSessionsProps) {
+export function FileSessions({ sessions, activeId, token, onReconnect, onStatus }: FileSessionsProps) {
     useEffect(() => {
         void defineCustomElements();
     }, []);
+
+    useWidgetConnectionState(sessions, 'phirepass-sftp-client', token, onStatus);
 
     return (
         <>
@@ -45,20 +49,10 @@ export function FileSessions({ sessions, activeId, token, onReconnect }: FileSes
                                 server-id={session.serverId ?? undefined}
                                 service-id={session.serviceId}
                                 token={token}
-                                style={{ display: 'block', width: '100%', height: '100%' }}
                             />
                         </div>
                     )}
-                    {/*
-                      * The SFTP widget reports no connection state, so a
-                      * session here is only ever `connecting` until somebody
-                      * disconnects it. The overlay is still rendered, for the
-                      * disconnected and error states that `disconnect` and
-                      * `reconnect` produce.
-                      */}
-                    {session.status !== 'connecting' && (
-                        <SessionOverlay session={session} onReconnect={onReconnect} />
-                    )}
+                    <SessionOverlay session={session} onReconnect={onReconnect} />
                 </SessionSlot>
             ))}
         </>
