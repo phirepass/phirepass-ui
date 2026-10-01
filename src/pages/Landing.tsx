@@ -20,7 +20,6 @@ import {
     ArrowRight,
     CheckCircle2,
     Monitor,
-    Building2,
     GraduationCap,
     Headphones,
     Lock,
@@ -46,20 +45,16 @@ import {
 import { PhirepassLogo } from "@/components/PhirepassLogo";
 import { LegalLinks } from "@/components/LegalLinks";
 
-// Every icon within a section gets its own hue, so no two cards in a grid read
-// as the same category. Green stays the brand colour and leads each section.
-// `success` and `accent` share a hue, so they are never used in one section.
 /** One shell for every section, matching the dashboard's own container. */
 const SECTION_SHELL = "container mx-auto px-4";
 
-const colorStyles = {
-    accent: { bg: "bg-accent/20", text: "text-accent" },
-    info: { bg: "bg-info/20", text: "text-info" },
-    warning: { bg: "bg-warning/20", text: "text-warning" },
-    success: { bg: "bg-success/20", text: "text-success" },
-    violet: { bg: "bg-violet/20", text: "text-violet" },
-    destructive: { bg: "bg-destructive/20", text: "text-destructive" },
-} as const;
+/** A grouped panel: one rounded container whose cells are split by 1px
+ *  hairlines (the gap shows the panel's fill through), instead of a grid of
+ *  separately bordered cards. Cells need an opaque fill for the lines to read. */
+const GROUP_PANEL = "grid grid-cols-1 gap-px rounded-2xl border border-hairline bg-hairline overflow-hidden";
+const GROUP_CELL = "bg-card p-6 sm:p-8";
+/** One restrained icon treatment for the whole page — the brand colour only. */
+const ICON_CHIP = "w-10 h-10 rounded-xl bg-accent/12 flex items-center justify-center mb-5";
 
 const productShots = [
     {
@@ -142,59 +137,64 @@ const Landing = () => {
     const capabilities = [
         {
             icon: Terminal,
-            color: "accent",
-            title: "Full SSH terminal in the browser",
+            title: "SSH terminal",
             description:
-                "A real xterm.js terminal backed by a real SSH session — PTY allocation, window resize, paste, the works. The agent opens the SSH connection locally via a pure-Rust SSH implementation and streams it back over the relay.",
+                "A real xterm.js terminal on a real SSH session — PTY, resize, paste. The agent opens it locally and streams it over the relay.",
         },
         {
             icon: FolderSync,
-            color: "info",
-            title: "Visual SFTP file browser",
+            title: "SFTP file browser",
             description:
-                "Browse, upload, and download files over the same tunnel. Transfers are chunked in both directions, so large files and slow links don't block the connection.",
+                "Browse, upload, and download over the same tunnel. Chunked both ways, so big files and slow links don't stall it.",
         },
         {
             icon: Globe,
-            color: "violet",
-            title: "Reach internal HTTP services",
+            title: "Internal web services",
             description:
-                "Open a dashboard, admin panel, or internal API running on a node directly in your browser — streamed through the relay, with no extra reverse proxy and no public DNS record pointing at it.",
+                "Open a dashboard, admin panel, or internal API on a node in your browser — no reverse proxy, no public DNS record.",
+        },
+        {
+            icon: MonitorPlay,
+            title: "Remote desktop",
+            description:
+                "Reach a Windows machine's desktop over RDP, rendered in the browser. Nothing to install on the viewing side.",
         },
         {
             icon: Server,
-            color: "warning",
-            title: "One dashboard, every node",
+            title: "Every node, one view",
             description:
-                "See every connected node, its last-seen heartbeat, and its status in one place. Revoke a node's access instantly — it can't reconnect without re-enrolling.",
+                "Each node's heartbeat, status, CPU, and memory in one place. Revoke a node and it can't reconnect without re-enrolling.",
         },
-    ] as const;
+        {
+            icon: Home,
+            title: "Home Assistant add-on",
+            description:
+                "Running Home Assistant? Install the agent as an add-on and reach that box like any other node.",
+        },
+    ];
 
     // Monitoring gets its own section rather than a fifth capability card: the
     // others answer "reach the machine", this one answers "is it healthy".
     const monitoringPoints = [
         {
             icon: MapPin,
-            color: "accent",
             title: "Pick where the check runs from",
             description:
                 "External, from our server fleet, for anything with a public address. Internal, on an agent you already installed, for everything else — nothing has to be published to be watched, and there is nothing extra to deploy. Same monitor, same history, either way.",
         },
         {
             icon: Activity,
-            color: "info",
             title: "Checks that know the difference",
             description:
                 "Every check tests the status code, an optional keyword in the response body, and how long the answer took. A slow but correct response is marked degraded, not down — so a red monitor still means something at 3am.",
         },
         {
             icon: History,
-            color: "violet",
             title: "Thirty days of honest history",
             description:
                 "Uptime across 24 hours, 7 days, and 30 days, a daily bar strip, average latency, and a timeline of every incident. Checks that reached no verdict are shown as gaps and left out of the percentage — never quietly counted as uptime.",
         },
-    ] as const;
+    ];
 
     const monitoringFacts = [
         "Internal & external targets",
@@ -210,29 +210,25 @@ const Landing = () => {
     const securityPoints = [
         {
             icon: Wifi,
-            color: "accent",
             title: "Outbound-only, always",
             description: "The agent makes a single outbound WebSocket connection and holds it open. Nothing listens for inbound traffic on the machine it runs on.",
         },
         {
             icon: KeyRound,
-            color: "warning",
             title: "One-time bootstrap token",
             description: "A scoped Personal Access Token registers the node exactly once. After that, the token is never used again.",
         },
         {
             icon: Fingerprint,
-            color: "info",
             title: "Ed25519 node identity",
             description: "Each agent generates its own keypair on first run. The private key never leaves the device; the public key becomes its permanent identity.",
         },
         {
             icon: Shield,
-            color: "violet",
             title: "Short-lived session tokens",
             description: "Every reconnect goes through a fresh challenge-sign-verify exchange and gets a JWT that expires in minutes, not days.",
         },
-    ] as const;
+    ];
 
     const targetMarkets = [
         {
@@ -262,17 +258,6 @@ const Landing = () => {
         },
     ];
 
-    const features = [
-        "Browser-based SSH terminal",
-        "Visual SFTP file browser",
-        "Browser access to internal HTTP services",
-        "Uptime monitoring, internal and external",
-        "Internal checks run on your own agent",
-        "Outbound-only agent — works behind NAT/CG-NAT",
-        "Ed25519 node identity + short-lived JWTs",
-        "Home Assistant add-on available",
-    ];
-
     return (
         <div className="min-h-screen bg-background relative overflow-hidden">
             {/* Background effects */}
@@ -289,9 +274,13 @@ const Landing = () => {
                         {/* Copy */}
                         <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in lg:max-w-xl lg:justify-self-end">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-accent/30 bg-accent/10 backdrop-blur-sm mb-8">
-                                <Wifi className="w-4 h-4 text-accent" />
-                                <span className="text-sm text-accent font-medium">
-                                    Remote Access + Uptime Monitoring • No Open Ports
+                                <Wifi className="w-4 h-4 text-accent shrink-0" />
+                                {/* Kept to one line: wrapped, the pill turns lumpy and the
+                                    icon floats between lines. Phones drop the last clause —
+                                    the copy below already says it. */}
+                                <span className="text-sm text-accent font-medium whitespace-nowrap">
+                                    Remote Access + Uptime Monitoring
+                                    <span className="hidden sm:inline"> • No Open Ports</span>
                                 </span>
                             </div>
 
@@ -315,21 +304,21 @@ const Landing = () => {
                             </p>
 
                             {/* CTA Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-4 mb-10">
+                            <div className="flex flex-col sm:flex-row gap-3">
                                 <Button
                                     variant="glow"
                                     size="lg"
-                                    className="text-lg px-8 py-6 group"
+                                    className="h-12 px-7 text-base group"
                                     onClick={() => router.push("/login")}
                                 >
                                     <Terminal className="w-5 h-5 mr-2" />
-                                    Get Started
+                                    Get started
                                     <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
                                 </Button>
                                 <Button
                                     variant="outline"
                                     size="lg"
-                                    className="text-lg px-8 py-6 border-hairline hover:border-accent/50 hover:bg-accent/5"
+                                    className="h-12 px-7 text-base border-hairline hover:border-accent/50 hover:bg-accent/5"
                                     onClick={() =>
                                         document
                                             .getElementById("how-it-works")
@@ -337,23 +326,8 @@ const Landing = () => {
                                     }
                                 >
                                     <Network className="w-5 h-5 mr-2" />
-                                    See How It Works
+                                    See how it works
                                 </Button>
-                            </div>
-
-                            {/* Quick features */}
-                            <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                                {[
-                                    "Browser-Based",
-                                    "Uptime Monitoring",
-                                    "Outbound-Only Agent",
-                                    "Zero-Install for Clients",
-                                ].map((item) => (
-                                    <div key={item} className="flex items-center gap-2">
-                                        <CheckCircle2 className="w-4 h-4 text-accent" />
-                                        <span>{item}</span>
-                                    </div>
-                                ))}
                             </div>
                         </div>
 
@@ -470,20 +444,30 @@ const Landing = () => {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* A rail rather than four floating icons: the path is the point,
+                        so the steps sit on one line that the traffic travels along. */}
+                    <ol className="relative grid grid-cols-1 lg:grid-cols-4 gap-10 lg:gap-8 max-w-6xl mx-auto">
+                        <div
+                            aria-hidden="true"
+                            className="hidden lg:block absolute top-6 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-hairline via-accent/50 to-hairline"
+                        />
                         {architectureSteps.map((step, index) => (
-                            <div key={step.title} className="relative flex flex-col items-center text-center">
-                                <div className="w-16 h-16 rounded-2xl bg-accent/20 flex items-center justify-center mb-4">
-                                    <step.icon className="w-8 h-8 text-accent" />
+                            <li key={step.title} className="relative flex lg:flex-col items-start lg:items-center gap-5 lg:gap-0 lg:text-center">
+                                <div className="relative w-12 h-12 rounded-full border border-hairline-strong bg-card flex items-center justify-center shrink-0 lg:mb-5">
+                                    <step.icon className="w-5 h-5 text-accent" />
                                 </div>
-                                <h3 className="font-bold text-lg text-foreground mb-2">{step.title}</h3>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
-                                {index < architectureSteps.length - 1 && (
-                                    <ArrowRight className="hidden lg:block w-5 h-5 text-accent/50 absolute -right-3 top-6" />
-                                )}
-                            </div>
+                                <div>
+                                    <p className="font-mono text-xs text-muted-foreground mb-1">
+                                        {String(index + 1).padStart(2, "0")}
+                                    </p>
+                                    <h3 className="font-semibold text-lg text-foreground mb-2">{step.title}</h3>
+                                    <p className="text-sm text-muted-foreground leading-relaxed lg:max-w-60 lg:mx-auto">
+                                        {step.description}
+                                    </p>
+                                </div>
+                            </li>
                         ))}
-                    </div>
+                    </ol>
                 </section>
 
                 {/* Product carousel */}
@@ -496,7 +480,7 @@ const Landing = () => {
                                 See it <span className="text-accent">in action</span>
                             </h2>
                             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                                One dashboard for every node, with a real terminal and file browser one click away
+                                One dashboard for every node, with a real terminal and file browser one click away.
                             </p>
                         </div>
 
@@ -556,22 +540,18 @@ const Landing = () => {
                             <span className="text-accent">reach a machine</span>
                         </h2>
                         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                            Terminal, files, and internal web services — all through the same secure tunnel
+                            Terminal, files, desktops, and internal web services — all through the same tunnel
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {capabilities.map((cap, index) => (
-                            <div
-                                key={cap.title}
-                                className="group p-8 rounded-2xl border border-hairline bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all duration-300"
-                                style={{ animationDelay: `${index * 100}ms` }}
-                            >
-                                <div className={`w-14 h-14 rounded-xl ${colorStyles[cap.color].bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                                    <cap.icon className={`w-7 h-7 ${colorStyles[cap.color].text}`} />
+                    <div className={`${GROUP_PANEL} sm:grid-cols-2 lg:grid-cols-3`}>
+                        {capabilities.map((cap) => (
+                            <div key={cap.title} className={GROUP_CELL}>
+                                <div className={ICON_CHIP}>
+                                    <cap.icon className="w-5 h-5 text-accent" />
                                 </div>
-                                <h3 className="font-bold text-xl text-foreground mb-3">{cap.title}</h3>
-                                <p className="text-muted-foreground leading-relaxed">{cap.description}</p>
+                                <h3 className="font-semibold text-lg text-foreground mb-2">{cap.title}</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{cap.description}</p>
                             </div>
                         ))}
                     </div>
@@ -673,8 +653,8 @@ const Landing = () => {
                         <div className="flex flex-col gap-8">
                             {monitoringPoints.map((point) => (
                                 <div key={point.title} className="flex gap-5">
-                                    <div className={`w-12 h-12 rounded-xl ${colorStyles[point.color].bg} flex items-center justify-center shrink-0`}>
-                                        <point.icon className={`w-6 h-6 ${colorStyles[point.color].text}`} />
+                                    <div className="w-10 h-10 rounded-xl bg-accent/12 flex items-center justify-center shrink-0">
+                                        <point.icon className="w-5 h-5 text-accent" />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-lg text-foreground mb-2">{point.title}</h3>
@@ -709,13 +689,12 @@ const Landing = () => {
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className={`${GROUP_PANEL} sm:grid-cols-2 lg:grid-cols-4`}>
                             {securityPoints.map((point) => (
-                                <div
-                                    key={point.title}
-                                    className="p-6 rounded-xl border border-hairline bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all"
-                                >
-                                    <point.icon className={`w-8 h-8 ${colorStyles[point.color].text} mb-4`} />
+                                <div key={point.title} className={GROUP_CELL}>
+                                    <div className={ICON_CHIP}>
+                                        <point.icon className="w-5 h-5 text-accent" />
+                                    </div>
                                     <h3 className="font-semibold text-foreground mb-2">{point.title}</h3>
                                     <p className="text-sm text-muted-foreground leading-relaxed">{point.description}</p>
                                 </div>
@@ -728,77 +707,26 @@ const Landing = () => {
                 <section className={`${SECTION_SHELL} py-24`}>
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">
-                            Built for <span className="text-accent">Your Team</span>
+                            Built for <span className="text-accent">your team</span>
                         </h2>
                         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                            Any team that manages private infrastructure and can't open inbound ports
+                            Any team that manages private infrastructure and can&apos;t open inbound ports
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {/* An inset list, not a fifth grid of cards: these are short
+                        answers to "is this for me?", read top to bottom. */}
+                    <ul className="max-w-3xl mx-auto rounded-2xl border border-hairline bg-card divide-y divide-hairline overflow-hidden">
                         {targetMarkets.map((market) => (
-                            <div
-                                key={market.title}
-                                className="p-6 rounded-xl border border-hairline bg-card/30 hover:bg-card/50 hover:border-accent/30 transition-all text-center"
-                            >
-                                <market.icon className="w-8 h-8 text-accent mx-auto mb-4" />
-                                <h3 className="font-semibold text-foreground mb-2">{market.title}</h3>
-                                <p className="text-xs text-muted-foreground">{market.description}</p>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                {/* Feature summary */}
-                <section className="py-24 bg-secondary/20">
-                    <div className={SECTION_SHELL}>
-                        <div className="grid md:grid-cols-2 gap-12 items-start">
-                            <div>
-                                <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                                    Everything You Need,<br />
-                                    <span className="text-accent">Nothing You Don't</span>
-                                </h2>
-                                <p className="text-muted-foreground text-lg mb-8">
-                                    Phirepass is purpose-built for reaching private machines.
-                                    No bloated features, no complex identity management —
-                                    just fast, secure access to SSH, SFTP, and local HTTP
-                                    services, and uptime monitoring for the services on them.
-                                </p>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {features.map((feature) => (
-                                        <div key={feature} className="flex items-center gap-3">
-                                            <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
-                                            <span className="text-foreground text-sm">{feature}</span>
-                                        </div>
-                                    ))}
+                            <li key={market.title} className="flex items-start sm:items-center gap-4 px-5 sm:px-6 py-4">
+                                <market.icon className="w-5 h-5 text-accent shrink-0 mt-0.5 sm:mt-0" />
+                                <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4 min-w-0 flex-1">
+                                    <h3 className="font-medium text-foreground sm:w-52 shrink-0">{market.title}</h3>
+                                    <p className="text-sm text-muted-foreground">{market.description}</p>
                                 </div>
-                            </div>
-
-                            {/* Offset so the tiles start below the heading on two-column
-                                layouts, level with the paragraph rather than the title.
-                                auto-rows-fr keeps every tile the same height now that
-                                they size to their content rather than to a square. */}
-                            <div className="grid grid-cols-2 auto-rows-fr gap-3 md:mt-24">
-                                {[
-                                    { icon: Terminal, label: "SSH Terminal", desc: "Full xterm.js", color: "accent" },
-                                    { icon: FolderSync, label: "SFTP Browser", desc: "Chunked transfer", color: "info" },
-                                    { icon: Globe, label: "HTTP Proxy", desc: "Internal dashboards", color: "violet" },
-                                    { icon: Building2, label: "Node Dashboard", desc: "One view, every node", color: "warning" },
-                                    { icon: Activity, label: "Uptime Monitor", desc: "Internal & external", color: "success" },
-                                    { icon: MonitorPlay, label: "RDP Desktop", desc: "Windows, in-browser", color: "destructive" },
-                                ].map((item) => (
-                                    <div key={item.label} className="min-h-32 rounded-xl border border-hairline bg-card/50 p-5 flex flex-col items-center justify-center gap-3 hover:border-accent/50 transition-colors">
-                                        <item.icon className={`w-8 h-8 ${colorStyles[item.color as keyof typeof colorStyles].text}`} />
-                                        <div className="text-center">
-                                            <span className="text-sm font-medium block leading-tight">{item.label}</span>
-                                            <span className="text-xs text-muted-foreground">{item.desc}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                            </li>
+                        ))}
+                    </ul>
                 </section>
 
                 {/* CTA */}
@@ -838,7 +766,7 @@ const Landing = () => {
                                         className="group h-14 px-9 text-base font-semibold"
                                         onClick={() => router.push("/login")}
                                     >
-                                        Get Started
+                                        Get started
                                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                                     </Button>
                                     <Button
@@ -852,7 +780,7 @@ const Landing = () => {
                                         }
                                     >
                                         <Network className="mr-2 h-5 w-5 text-accent" />
-                                        See How It Works
+                                        See how it works
                                     </Button>
                                 </div>
 
