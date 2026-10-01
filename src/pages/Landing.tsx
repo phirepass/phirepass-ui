@@ -111,6 +111,13 @@ const Landing = () => {
         return () => clearInterval(interval);
     }, [carouselApi]);
 
+    const accessKinds = [
+        { icon: Terminal, label: "SSH", detail: "Terminal in the browser" },
+        { icon: FolderSync, label: "SFTP", detail: "File browser" },
+        { icon: MonitorPlay, label: "RDP", detail: "Remote desktop" },
+        { icon: Globe, label: "HTTP", detail: "Internal web apps" },
+    ];
+
     const architectureSteps = [
         {
             icon: Monitor,
@@ -329,6 +336,20 @@ const Landing = () => {
                                     See how it works
                                 </Button>
                             </div>
+
+                            {/* The four ways in, named once and up front — the
+                                paragraph above says "access", this says what kind. */}
+                            <ul className="mt-8 flex flex-wrap justify-center lg:justify-start gap-2" aria-label="Supported connections">
+                                {accessKinds.map((kind) => (
+                                    <li
+                                        key={kind.label}
+                                        className="flex items-center gap-2 rounded-full border border-hairline bg-card/60 px-3 py-1.5 text-sm"
+                                    >
+                                        <kind.icon className="w-4 h-4 text-accent" />
+                                        <span className="font-medium text-foreground" title={kind.detail}>{kind.label}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
 
                         {/* Illustration: a session and a monitor, side by side, drawn from
@@ -480,7 +501,7 @@ const Landing = () => {
                                 See it <span className="text-accent">in action</span>
                             </h2>
                             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                                One dashboard for every node, with a real terminal and file browser one click away.
+                                One dashboard for every node, with a terminal, a file browser and a remote desktop one click away.
                             </p>
                         </div>
 

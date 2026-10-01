@@ -15,6 +15,7 @@ import { defineCustomElements } from 'phirepass-widgets/loader';
 import { SessionOverlay, SessionSlot } from './SessionPanel';
 import { useWidgetConnectionState } from '@/hooks/use-widget-connection';
 import { shouldMount, type Session, type SessionStatus } from '@/lib/sessions';
+import type { ChannelFactory } from 'phirepass-widgets';
 
 interface FileSessionsProps {
     /** The `sftp` sessions, in open order. */
@@ -22,11 +23,13 @@ interface FileSessionsProps {
     /** The focused tab across every kind — an id that may well not be one of ours. */
     activeId: string | null;
     token: string;
+    /** Demo mode's stand-in for the server; absent for a real session. */
+    channelFactory?: ChannelFactory;
     onReconnect: (id: string) => void;
     onStatus: (id: string, status: SessionStatus, error?: string | null) => void;
 }
 
-export function FileSessions({ sessions, activeId, token, onReconnect, onStatus }: FileSessionsProps) {
+export function FileSessions({ sessions, activeId, token, channelFactory, onReconnect, onStatus }: FileSessionsProps) {
     useEffect(() => {
         void defineCustomElements();
     }, []);
@@ -44,6 +47,12 @@ export function FileSessions({ sessions, activeId, token, onReconnect, onStatus 
                         // custom element do not carry React's own props.
                         <div key={`${session.id}@${session.generation}`} className="h-full w-full">
                             <phirepass-sftp-client
+                                // Set before the widget connects: the ref runs on
+                                // insertion, and the widget only reads it once its
+                                // lazily loaded module has started.
+                                ref={(element) => {
+                                    if (element) element.channelFactory = channelFactory;
+                                }}
                                 hide-header
                                 node-id={session.nodeId}
                                 server-id={session.serverId ?? undefined}

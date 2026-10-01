@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <!-- Placeholder for the demo remote desktop. Replace with a screenshot of a
+       real RDP session (same path, or update DEMO_DESKTOP_IMAGE). -->
+  <defs>
+    <radialGradient id="bloom" cx="0.55" cy="0.55" r="0.75">
+      <stop offset="0" stop-color="#5aa7ff"/>
+      <stop offset="0.35" stop-color="#1f5fbf"/>
+      <stop offset="0.7" stop-color="#0d2a66"/>
+      <stop offset="1" stop-color="#071533"/>
+    </radialGradient>
+    <radialGradient id="petal" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#bfe0ff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bloom)"/>
+  <ellipse cx="1060" cy="600" rx="520" ry="300" fill="url(#petal)" opacity="0.55"/>
+  <ellipse cx="1180" cy="520" rx="300" ry="170" fill="url(#petal)" opacity="0.45" transform="rotate(-24 1180 520)"/>
+
+  <!-- Desktop icons -->
+  <g fill="#fff" font-size="15" text-anchor="middle">
+    <g transform="translate(60 40)">
+      <rect x="12" y="6" width="56" height="44" rx="6" fill="#dbeafe"/>
+      <rect x="18" y="12" width="44" height="28" rx="3" fill="#3b82f6"/>
+      <text x="40" y="76">This PC</text>
+    </g>
+    <g transform="translate(60 150)">
+      <path d="M22 14h36l-4 40H26z" fill="#e5e7eb"/>
+      <rect x="18" y="8" width="44" height="8" rx="3" fill="#cbd5e1"/>
+      <text x="40" y="76">Recycle Bin</text>
+    </g>
+    <g transform="translate(60 260)">
+      <path d="M12 14h22l6 6h28v34H12z" fill="#fbbf24"/>
+      <text x="40" y="76">Lab Tools</text>
+    </g>
+    <g transform="translate(60 370)">
+      <rect x="16" y="6" width="48" height="50" rx="4" fill="#f8fafc"/>
+      <rect x="24" y="16" width="32" height="3" fill="#94a3b8"/>
+      <rect x="24" y="24" width="32" height="3" fill="#94a3b8"/>
+      <rect x="24" y="32" width="22" height="3" fill="#94a3b8"/>
+      <text x="40" y="76">Lab rules.txt</text>
+    </g>
+  </g>
+
+  <!-- A file explorer window -->
+  <g filter="url(#shadow)">
+    <rect x="520" y="170" width="880" height="560" rx="10" fill="#f3f4f6"/>
+    <rect x="520" y="170" width="880" height="44" rx="10" fill="#ffffff"/>
+    <rect x="520" y="200" width="880" height="14" fill="#ffffff"/>
+    <text x="548" y="198" font-size="15" fill="#111827">Documents</text>
+    <g fill="#374151" font-size="16">
+      <text x="1290" y="198">—</text>
+      <rect x="1330" y="186" width="14" height="14" fill="none" stroke="#374151" stroke-width="1.5"/>
+      <text x="1368" y="199">✕</text>
+    </g>
+    <rect x="520" y="214" width="880" height="44" fill="#ffffff"/>
+    <rect x="640" y="224" width="520" height="26" rx="5" fill="#f3f4f6"/>
+    <text x="656" y="242" font-size="13" fill="#4b5563">This PC  ›  Local Disk (C:)  ›  Users  ›  labadmin  ›  Documents</text>
+    <rect x="1176" y="224" width="200" height="26" rx="5" fill="#f3f4f6"/>
+    <text x="1190" y="242" font-size="13" fill="#9ca3af">Search Documents</text>
+
+    <rect x="520" y="258" width="200" height="472" fill="#f9fafb"/>
+    <g font-size="14" fill="#1f2937">
+      <rect x="530" y="272" width="180" height="30" rx="5" fill="#e0e7ff"/>
+      <text x="556" y="292">Documents</text>
+      <text x="556" y="330">Desktop</text>
+      <text x="556" y="364">Downloads</text>
+      <text x="556" y="398">Pictures</text>
+      <text x="556" y="446">This PC</text>
+      <text x="556" y="480">Network</text>
+    </g>
+
+    <g font-size="13" fill="#6b7280">
+      <text x="748" y="292">Name</text>
+      <text x="1050" y="292">Date modified</text>
+      <text x="1230" y="292">Type</text>
+      <text x="1330" y="292">Size</text>
+    </g>
+    <line x1="740" y1="304" x2="1388" y2="304" stroke="#e5e7eb"/>
+    <g font-size="14" fill="#111827">
+      <rect x="766" y="318" width="16" height="20" rx="2" fill="#2563eb"/>
+      <text x="794" y="334">Thesis draft v7.docx</text>
+      <text x="1050" y="334" fill="#4b5563">29/09/2026 17:12</text>
+      <text x="1230" y="334" fill="#4b5563">Document</text>
+      <text x="1330" y="334" fill="#4b5563">1,830 KB</text>
+
+      <rect x="766" y="356" width="16" height="20" rx="2" fill="#16a34a"/>
+      <text x="794" y="372">Results Q3.xlsx</text>
+      <text x="1050" y="372" fill="#4b5563">22/09/2026 10:41</text>
+      <text x="1230" y="372" fill="#4b5563">Worksheet</text>
+      <text x="1330" y="372" fill="#4b5563">412 KB</text>
+
+      <rect x="766" y="394" width="16" height="20" rx="2" fill="#94a3b8"/>
+      <text x="794" y="410">notes.txt</text>
+      <text x="1050" y="410" fill="#4b5563">30/09/2026 08:03</text>
+      <text x="1230" y="410" fill="#4b5563">Text Document</text>
+      <text x="1330" y="410" fill="#4b5563">1 KB</text>
+    </g>
+    <text x="740" y="716" font-size="12" fill="#6b7280">3 items</text>
+  </g>
+
+  <!-- Taskbar -->
+  <rect x="0" y="1032" width="1920" height="48" fill="#0b1220" fill-opacity="0.82"/>
+  <g transform="translate(780 1040)">
+    <rect x="0" y="0" width="32" height="32" rx="6" fill="#ffffff" fill-opacity="0.1"/>
+    <g fill="#60a5fa">
+      <rect x="7" y="7" width="8" height="8" rx="1"/><rect x="17" y="7" width="8" height="8" rx="1"/>
+      <rect x="7" y="17" width="8" height="8" rx="1"/><rect x="17" y="17" width="8" height="8" rx="1"/>
+    </g>
+    <rect x="48" y="4" width="200" height="24" rx="12" fill="#ffffff" fill-opacity="0.1"/>
+    <text x="70" y="21" font-size="13" fill="#cbd5e1">Search</text>
+    <rect x="264" y="0" width="32" height="32" rx="6" fill="#ffffff" fill-opacity="0.18"/>
+    <path d="M270 9h8l3 3h9v13h-20z" fill="#fbbf24"/>
+    <rect x="304" y="0" width="32" height="32" rx="6" fill="#ffffff" fill-opacity="0.06"/>
+    <circle cx="320" cy="16" r="9" fill="#22c55e"/>
+    <rect x="344" y="0" width="32" height="32" rx="6" fill="#ffffff" fill-opacity="0.06"/>
+    <rect x="351" y="8" width="18" height="16" rx="2" fill="#0f172a" stroke="#94a3b8"/>
+    <text x="354" y="20" font-size="9" fill="#94a3b8" font-family="monospace">&gt;_</text>
+  </g>
+  <g fill="#e5e7eb" font-size="13" text-anchor="end">
+    <text x="1896" y="1052">10:42</text>
+    <text x="1896" y="1070">01/10/2026</text>
+  </g>
+</svg>

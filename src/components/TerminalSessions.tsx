@@ -21,6 +21,7 @@ import { defineCustomElements } from 'phirepass-widgets/loader';
 import { SessionOverlay, SessionSlot } from './SessionPanel';
 import { useWidgetConnectionState } from '@/hooks/use-widget-connection';
 import { shouldMount, type Session, type SessionStatus } from '@/lib/sessions';
+import type { ChannelFactory } from 'phirepass-widgets';
 
 interface TerminalSessionsProps {
     /** The `ssh` sessions, in open order. */
@@ -28,6 +29,8 @@ interface TerminalSessionsProps {
     /** The focused tab across every kind — an id that may well not be one of ours. */
     activeId: string | null;
     token: string;
+    /** Demo mode's stand-in for the server; absent for a real session. */
+    channelFactory?: ChannelFactory;
     onReconnect: (id: string) => void;
     onStatus: (id: string, status: SessionStatus, error?: string | null) => void;
 }
@@ -36,6 +39,7 @@ export function TerminalSessions({
     sessions,
     activeId,
     token,
+    channelFactory,
     onReconnect,
     onStatus,
 }: TerminalSessionsProps) {
@@ -68,6 +72,12 @@ export function TerminalSessions({
                               * with itself, and never grew.
                               */}
                             <phirepass-terminal
+                                // Set before the widget connects: the ref runs on
+                                // insertion, and the widget only reads it once its
+                                // lazily loaded module has started.
+                                ref={(element) => {
+                                    if (element) element.channelFactory = channelFactory;
+                                }}
                                 node-id={session.nodeId}
                                 server-id={session.serverId ?? undefined}
                                 service-id={session.serviceId}

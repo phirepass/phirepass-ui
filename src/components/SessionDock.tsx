@@ -24,7 +24,8 @@
  * Supervisor asked for, and it is enforced by there being no other path.
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChannelFactory } from 'phirepass-widgets';
 import { FolderOpen, Keyboard, Monitor, Scan, Terminal } from 'lucide-react';
 
 import { SessionPanel } from './SessionPanel';
@@ -33,6 +34,7 @@ import { FileSessions } from './FileSessions';
 import { RdpSessions } from './RdpSessions';
 import { Button } from './ui/button';
 import { useSessionToken } from '@/lib/use-session-token';
+import { useDemoMode } from '@/components/DemoModeProvider';
 import { sessionsOfKind, type Session, type SessionKind, type SessionStatus } from '@/lib/sessions';
 import type { PhirepassRdpElement } from '@/types/custom-elements';
 
@@ -42,6 +44,9 @@ const KIND_TITLE: Record<SessionKind, string> = {
     sftp: 'Files',
     rdp: 'Remote desktop',
 };
+
+/** What a demo desktop shows. Replace with a screenshot of a real session. */
+const DEMO_DESKTOP_IMAGE = '/demo/rdp-desktop.svg';
 
 const KIND_FALLBACK_SERVICE: Record<SessionKind, string> = {
     ssh: 'SSH',
@@ -80,7 +85,32 @@ export function SessionDock({
      * account rather than the session — so opening a shell and a file browser
      * asked twice for two interchangeable answers.
      */
-    const { token, loading, error, retry } = useSessionToken(sessions.length > 0);
+    const isDemo = useDemoMode();
+    const live = useSessionToken(sessions.length > 0 && !isDemo);
+
+    /*
+     * Demo mode answers the widgets itself, so there is no token to ask for —
+     * the demo API refuses that request, which is what used to end every demo
+     * session on an error. The fake channel is loaded on demand, like the rest
+     * of the demo, so nobody who is not presenting downloads it.
+     */
+    const [demoFactory, setDemoFactory] = useState<ChannelFactory | null>(null);
+    useEffect(() => {
+        if (!isDemo || demoFactory) return;
+        let alive = true;
+        void import('@/lib/demo/channel').then(({ demoChannelFactory }) => {
+            if (alive) setDemoFactory(() => demoChannelFactory);
+        });
+        return () => { alive = false; };
+    }, [isDemo, demoFactory]);
+
+    const channelFactory = isDemo ? demoFactory ?? undefined : undefined;
+    // Any non-empty string: the widgets refuse to start without one, and the
+    // fake channel never reads it.
+    const token = isDemo ? (demoFactory ? 'demo' : null) : live.token;
+    const loading = isDemo ? sessions.length > 0 && !demoFactory : live.loading;
+    const error = isDemo ? null : live.error;
+    const retry = live.retry;
 
     const widgetRefs = useRef(new Map<string, PhirepassRdpElement>());
 
@@ -189,6 +219,7 @@ export function SessionDock({
                             sessions={ssh}
                             activeId={activeId}
                             token={token}
+                            channelFactory={channelFactory}
                             onReconnect={onReconnect}
                             onStatus={onStatus}
                         />
@@ -196,6 +227,7 @@ export function SessionDock({
                             sessions={sftp}
                             activeId={activeId}
                             token={token}
+                            channelFactory={channelFactory}
                             onReconnect={onReconnect}
                             onStatus={onStatus}
                         />
@@ -206,6 +238,7 @@ export function SessionDock({
                             onReconnect={onReconnect}
                             onStatus={onStatus}
                             widgetRefs={widgetRefs}
+                            demoImage={isDemo ? DEMO_DESKTOP_IMAGE : undefined}
                         />
                     </>
                 )}

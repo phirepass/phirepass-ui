@@ -1,9 +1,11 @@
 import type { CSSProperties, Ref } from 'react';
+import type { ChannelFactory } from 'phirepass-widgets';
 
 declare module 'react' {
     namespace JSX {
         interface IntrinsicElements {
             'phirepass-terminal': {
+                ref?: Ref<ChannelHostElement>;
                 'node-id'?: string;
                 'server-id'?: string;
                 'service-id'?: string;
@@ -13,6 +15,7 @@ declare module 'react' {
                 'aria-hidden'?: boolean | 'true' | 'false';
             };
             'phirepass-sftp-client': {
+                ref?: Ref<ChannelHostElement>;
                 'node-id'?: string;
                 'server-id'?: string;
                 'service-id'?: string;
@@ -62,4 +65,12 @@ export interface PhirepassRdpElement extends HTMLElement {
     focusDesktop(): Promise<void>;
     sendCtrlAltDel(): Promise<boolean>;
     sendMetaKey(): Promise<boolean>;
+}
+
+/**
+ * The terminal and the file browser, as elements: `channelFactory` is a
+ * property, never an attribute, so the session panels set it through a ref.
+ */
+export interface ChannelHostElement extends HTMLElement {
+    channelFactory?: ChannelFactory;
 }

@@ -11,7 +11,7 @@ const TITLE = "Phirepass — Remote Access & Uptime Monitoring";
 // differentiator (internal checks) inside the visible window rather than past
 // the truncation point.
 const DESCRIPTION =
-    "Browser-based SSH, SFTP and internal web access to any machine behind NAT — plus uptime monitoring for the private services public monitors can't reach.";
+    "Browser-based SSH, SFTP, RDP and internal web access to any machine behind NAT — plus uptime monitoring for the private services public monitors can't reach.";
 
 export const viewport: Viewport = {
     // Matches the manifest's theme_color, so the installed app's chrome and the
