@@ -114,7 +114,7 @@ const LOCATIONS = {
     },
 } satisfies Record<string, PublicIpLocation>;
 
-export type DemoServiceKind = 'SSH' | 'SFTP' | 'HTTP' | 'RDP';
+export type DemoServiceKind = 'SSH' | 'SFTP' | 'HTTP' | 'RDP' | 'FETCH' | 'TORRENT';
 
 export interface DemoServiceSpec {
     id: string;
@@ -158,6 +158,8 @@ export interface DemoNodeSpec {
     enrolled_days_ago: number;
     disks: DemoDiskSpec[];
     services: DemoServiceSpec[];
+    /** Remote Fetch summary for the card (F3); only nodes with a FETCH service. */
+    downloads?: { running: number; percent: number | null };
 }
 
 const GB = 1024 ** 3;
@@ -191,6 +193,7 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
             { id: 'svc-fra-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'deploy', scheme: null },
             { id: 'svc-fra-sftp', name: 'files', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'deploy', scheme: null },
             { id: 'svc-fra-http', name: 'Grafana', kind: 'HTTP', host: '127.0.0.1', port: 3000, username: null, scheme: 'http' },
+            { id: 'svc-fra-fetch', name: null, kind: 'FETCH', host: '', port: 0, username: null, scheme: null },
         ],
     },
     {
@@ -336,7 +339,10 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
         services: [
             { id: 'svc-nas-sftp', name: 'shares', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
             { id: 'svc-nas-http', name: 'DSM', kind: 'HTTP', host: '127.0.0.1', port: 5001, username: null, scheme: 'https' },
+            { id: 'svc-nas-fetch', name: null, kind: 'FETCH', host: '', port: 0, username: null, scheme: null },
+            { id: 'svc-nas-torrent', name: null, kind: 'TORRENT', host: '', port: 0, username: null, scheme: null },
         ],
+        downloads: { running: 2, percent: 54 },
     },
     {
         id: DEMO_NODE_IDS.winLab,
@@ -393,6 +399,7 @@ export const DEMO_NODE_SPECS: DemoNodeSpec[] = [
         services: [
             { id: 'svc-oslo-ssh', name: 'shell', kind: 'SSH', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
             { id: 'svc-oslo-sftp', name: 'restic repo', kind: 'SFTP', host: '0.0.0.0', port: 22, username: 'backup', scheme: null },
+            { id: 'svc-oslo-fetch', name: null, kind: 'FETCH', host: '', port: 0, username: null, scheme: null },
         ],
     },
 ];

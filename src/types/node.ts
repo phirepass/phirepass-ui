@@ -163,6 +163,18 @@ export interface TunnelNode {
     * unknown rather than zero.
     */
     monitor_count?: number;
+    /**
+    * Remote Fetch downloads this node is working on (screen F3), from the
+    * `downloads` table. Absent when the table cannot be read, when nothing is
+    * running, or when this session was not lent Downloads on the node.
+    * `percent` is null while any running download has no known size.
+    */
+    downloads?: { running: number; percent: number | null };
+    /**
+    * The organisation's ceiling over the Downloads/Torrents switches (L2).
+    * Absent from an older cache; read as allowed.
+    */
+    download_policy?: 'allowed' | 'links_only' | 'blocked';
 }
 
 /**

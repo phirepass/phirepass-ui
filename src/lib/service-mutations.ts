@@ -1,4 +1,5 @@
 import initChannel, { Channel } from 'phirepass-channel';
+import { applySteps, switchSteps, type DownloadSwitch, type SwitchState } from '@/lib/download-switches';
 
 /**
  * Service create/update/delete run over the WebSocket channel rather than an
@@ -13,7 +14,7 @@ import initChannel, { Channel } from 'phirepass-channel';
 
 const MUTATION_TIMEOUT_MS = 35_000;
 
-export type ServiceKindName = 'ssh' | 'sftp' | 'http' | 'rdp';
+export type ServiceKindName = 'ssh' | 'sftp' | 'http' | 'rdp' | 'fetch' | 'torrent';
 
 export interface MutationTarget {
     id: string;
@@ -178,4 +179,38 @@ export async function removeService(
             channel.delete_service(nodeId, serviceId, null);
         },
     });
+}
+
+/**
+ * Flips the Downloads or Torrents switch (screen F) and returns the switches as
+ * they now stand.
+ *
+ * A switch is a `FETCH`/`TORRENT` service with nothing to dial, so on is a
+ * create with port 0 and off is a delete of whatever ids that kind has, which
+ * `serviceIdsOf` looks up (the agent's live list when online). Steps run in
+ * the order `switchSteps` gives, so Torrents go before Downloads. A step that
+ * fails stops the rest and throws; the switches then read from the node again.
+ */
+export async function setDownloadSwitch(
+    endpoint: string,
+    node: MutationTarget,
+    state: SwitchState,
+    kind: DownloadSwitch,
+    on: boolean,
+    serviceIdsOf: (kind: DownloadSwitch) => Promise<string[]>,
+): Promise<SwitchState> {
+    const steps = switchSteps(state, kind, on);
+    let current = state;
+    for (const step of steps) {
+        const name = step.kind === 'FETCH' ? 'fetch' : 'torrent';
+        if (step.op === 'create') {
+            await saveService(endpoint, node, { kind: name, name: null, host: '', port: 0 });
+        } else {
+            for (const id of await serviceIdsOf(step.kind)) {
+                await removeService(endpoint, node, id, name);
+            }
+        }
+        current = applySteps(current, [step]);
+    }
+    return current;
 }

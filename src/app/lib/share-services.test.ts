@@ -150,3 +150,35 @@ test('two live shares union before they narrow', () => {
         { SSH: 1, SFTP: 1 },
     );
 });
+
+test('downloads can be lent without a shell', () => {
+    // Remote Fetch: `ServiceMask` gives FETCH and TORRENT their own bits, so a
+    // share can name Downloads alone.
+    const kinds = unionShareServices([{ services: ['FETCH'] }]);
+
+    assert.ok(kinds);
+    assert.ok(kinds.has('FETCH'));
+    assert.ok(!kinds.has('SSH'));
+    assert.ok(!kinds.has('SFTP'));
+});
+
+test('torrents are a service of their own, not implied by downloads', () => {
+    // A torrent shows the node's address to public peers; lending links must
+    // not lend that too.
+    const linksOnly = unionShareServices([{ services: ['FETCH'] }]);
+    assert.ok(linksOnly);
+    assert.ok(!linksOnly.has('TORRENT'));
+
+    const both = unionShareServices([{ services: ['fetch', ' torrent '] }]);
+    assert.ok(both);
+    assert.ok(both.has('FETCH'));
+    assert.ok(both.has('TORRENT'));
+});
+
+test('the download switches narrow like any other service', () => {
+    const counts = { SSH: 1, SFTP: 1, FETCH: 1, TORRENT: 1 };
+    assert.deepEqual(
+        narrowShareServices(counts, new Set<ShareableService>(['SFTP', 'FETCH'])),
+        { SFTP: 1, FETCH: 1 },
+    );
+});

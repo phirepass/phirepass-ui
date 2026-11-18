@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
-import webpush, { type PushSubscription as WebPushSubscription } from 'web-push';
+import * as webpush from 'web-push';
+import type { PushSubscription as WebPushSubscription } from 'web-push';
 
 import { query } from '@/app/lib/db';
 

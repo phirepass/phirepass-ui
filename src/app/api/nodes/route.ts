@@ -704,6 +704,54 @@ export async function GET(req: Request) {
             monitorCountsAvailable = false;
         }
 
+        // Running downloads per node (screen F3), read the same tolerant way:
+        // a database the dashboard has not migrated yet lists nodes without
+        // them. Running means the person still wants it and it has not
+        // finished; numbers are as fresh as the server's 5-second flush.
+        let downloadsByNode = new Map<string, { running: number; percent: number | null }>();
+        try {
+            const nodeIds = nodesFromDb.map((node) => node.id);
+            const rows = nodeIds.length === 0
+                ? { rows: [] as { node_id: string; running: number; percent: number | null }[] }
+                : await query(
+                    `SELECT node_id,
+                            count(*)::int AS running,
+                            CASE WHEN bool_and(total_bytes IS NOT NULL AND total_bytes > 0)
+                                 THEN (100.0 * sum(done_bytes) / sum(total_bytes))::float8
+                            END AS percent
+                       FROM downloads
+                      WHERE node_id = ANY($1::uuid[])
+                        AND wanted = 'running'
+                        AND state IN ('Queued', 'Scheduled', 'Resolving', 'FetchingMetadata',
+                                      'Downloading', 'Verifying', 'Paused', 'Retrying')
+                      GROUP BY node_id`,
+                    [nodeIds]
+                );
+            downloadsByNode = new Map(
+                (rows.rows as { node_id: string; running: number; percent: number | null }[])
+                    .map((row) => [row.node_id, { running: row.running, percent: row.percent }])
+            );
+        } catch (error) {
+            console.warn('[nodes] download counts unavailable:', error);
+        }
+
+        // The organisation's download policy per node (L2), read as tolerantly.
+        let policyByNode = new Map<string, string>();
+        try {
+            const nodeIds = nodesFromDb.map((node) => node.id);
+            const rows = nodeIds.length === 0
+                ? { rows: [] as { node_id: string; policy: string }[] }
+                : await query(
+                    'SELECT node_id, policy FROM node_download_policy WHERE node_id = ANY($1::uuid[])',
+                    [nodeIds]
+                );
+            policyByNode = new Map(
+                (rows.rows as { node_id: string; policy: string }[]).map((row) => [row.node_id, row.policy])
+            );
+        } catch (error) {
+            console.warn('[nodes] download policies unavailable:', error);
+        }
+
         const statsById = await getNodeStats(redis, nodesFromDb);
 
         const mergedNodes = nodesFromDb.map((node) => {
@@ -763,6 +811,10 @@ export async function GET(req: Request) {
                 // the services you were lent" from "this node has none".
                 can_manage: permitted === MANAGES,
                 monitor_count: monitorCountsAvailable ? monitorCountByNode.get(node.id) ?? 0 : undefined,
+                // Only for someone who could make this node download: a share
+                // that left Downloads out does not show what others fetch.
+                downloads: (services.FETCH ?? 0) > 0 ? downloadsByNode.get(node.id) : undefined,
+                download_policy: (policyByNode.get(node.id) ?? 'allowed') as 'allowed' | 'links_only' | 'blocked',
             };
         });
 

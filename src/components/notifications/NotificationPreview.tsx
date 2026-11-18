@@ -61,6 +61,14 @@ const PREVIEW_COPY: Record<NotificationEventId, PreviewCopy> = {
         title: 'HTTP check passed',
         body: 'checkout-api answered 200 in 0.4s.',
     },
+    'download.completed': {
+        title: 'Download finished',
+        body: 'ubuntu-24.04.iso finished on synology.',
+    },
+    'download.stuck': {
+        title: 'Download stuck',
+        body: 'ubuntu-24.04.iso on synology has been retrying for a day: the server answered 503',
+    },
 };
 
 /**

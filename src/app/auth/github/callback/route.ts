@@ -12,6 +12,7 @@ import { ensurePersonalOrg } from "@/app/lib/authz";
 import { claimInvitations } from "@/app/lib/org";
 import { invitePath, PENDING_INVITATION_COOKIE, readCookie } from "@/app/lib/invitation-link";
 import { isMfaEnabled } from "@/app/lib/mfa";
+import { clearServiceReturnCookie, safeServiceUrl, SERVICE_RETURN_COOKIE } from "@/app/lib/service-return";
 import { IS_MFA_ENABLED } from "@/lib/mfa-feature";
 import { UserInfo } from "@/app/lib/types";
 import { empty_response, json_response } from "@/app/lib/framework";
@@ -187,13 +188,21 @@ export async function GET(req: Request) {
          * where they want to be, so /invite/[token] gets to say it, land them in
          * that workspace, and leave the notice that says so.
          */
-        const pending = readCookie(req.headers.get("cookie"), PENDING_INVITATION_COOKIE);
-        const destination = new URL(pending ? invitePath(pending) : "/dashboard/nodes", requestUrl.origin);
+        const cookieHeader = req.headers.get("cookie");
+        const pending = readCookie(cookieHeader, PENDING_INVITATION_COOKIE);
+        const service = safeServiceUrl(readCookie(cookieHeader, SERVICE_RETURN_COOKIE));
+        const destination = new URL(
+            // The service first: it is what this sign-in was started to reach.
+            // `claimInvitations` has already granted any invitation by address.
+            service ?? (pending ? invitePath(pending) : "/dashboard/nodes"),
+            requestUrl.origin,
+        );
         const authCookie = buildAuthCookie(token, maxAge, cookieDomain);
 
         const headers = new Headers();
         headers.set("Location", destination.toString());
         headers.append("Set-Cookie", authCookie);
+        headers.append("Set-Cookie", clearServiceReturnCookie());
         // headers.append("Set-Cookie", ghCookie);
 
         return empty_response(302, headers);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Activity, Server, type LucideIcon } from 'lucide-react';
+import { Activity, Download, Server, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,7 @@ import { CATEGORY_STYLES, EVENT_STYLES } from './notification-display';
 const CATEGORY_ICONS: Record<NotificationCategory, LucideIcon> = {
     nodes: Server,
     monitors: Activity,
+    downloads: Download,
 };
 
 

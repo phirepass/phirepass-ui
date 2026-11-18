@@ -82,10 +82,14 @@ CREATE TABLE IF NOT EXISTS nodes (
     revoked       boolean     NOT NULL DEFAULT false
 );
 
+-- Keyed on (node_id, challenge): a node may hold several outstanding
+-- challenges, and the server inserts with ON CONFLICT (node_id, challenge).
+-- 008-auth-challenge-key repairs a table created here with the old key.
 CREATE TABLE IF NOT EXISTS auth_challenges (
-    node_id       uuid        PRIMARY KEY REFERENCES nodes(id) ON DELETE CASCADE,
+    node_id       uuid        NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     challenge     text        NOT NULL,
-    expires_at    timestamptz NOT NULL
+    expires_at    timestamptz NOT NULL,
+    PRIMARY KEY (node_id, challenge)
 );
 
 -- Expired challenges are already refused on read; this only reclaims the rows.

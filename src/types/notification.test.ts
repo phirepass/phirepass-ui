@@ -155,3 +155,16 @@ test('the degraded event is not described as slowness alone', () => {
         `"${degraded.description}" describes only the latency case`,
     );
 });
+
+/**
+ * The download events ship on, in both catalogues (this one and
+ * `common/src/notifications.rs`): one notice per download somebody started.
+ */
+test('the download events ship on', () => {
+    for (const id of ['download.completed', 'download.stuck']) {
+        const event = NOTIFICATION_EVENTS.find((e) => e.id === id);
+        assert.ok(event, `${id} is in the catalogue`);
+        assert.equal(event.defaultEnabled, true, `${id} should default on`);
+        assert.equal(event.category, 'downloads');
+    }
+});

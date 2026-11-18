@@ -372,6 +372,7 @@ function toTunnelNode(node: DemoNodeSpec, nowMs: number, monitorCounts: Map<stri
             : null,
         services: summarizeServices(node.services),
         monitor_count: monitorCounts.get(node.id) ?? 0,
+        downloads: node.downloads,
     };
 }
 

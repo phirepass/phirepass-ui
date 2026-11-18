@@ -68,9 +68,15 @@ export default function PipelinesPage() {
     // current time, and reading it during render would give the server one
     // answer and the browser another.
     useEffect(() => {
-        setNow(Date.now());
-        const timer = setInterval(() => setNow(Date.now()), TICK_MS);
-        return () => clearInterval(timer);
+        const tick = () => setNow(Date.now());
+        // First tick is deferred rather than set in the effect body, so it
+        // doesn't trigger a synchronous cascading render.
+        const first = setTimeout(tick, 0);
+        const timer = setInterval(tick, TICK_MS);
+        return () => {
+            clearTimeout(first);
+            clearInterval(timer);
+        };
     }, []);
 
     const offlineAgentIds = useMemo(

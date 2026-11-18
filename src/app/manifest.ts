@@ -39,6 +39,7 @@ export default function manifest(): MetadataRoute.Manifest {
         shortcuts: [
             { name: "Nodes", url: "/dashboard/nodes" },
             { name: "Monitors", url: "/dashboard/monitors" },
+            { name: "Downloads", url: "/dashboard/downloads" },
         ],
     };
 }
