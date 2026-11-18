@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-import { describeNode, describeRow, isActive, rowActions, type JobView, type NodeGroup } from './download-display';
+import { describeNode, describeRow, isActive, isPausedSeeding, rowActions, type JobView, type NodeGroup } from './download-display';
 
 export interface RowCommands {
     stop: (id: string) => void;
@@ -114,7 +114,8 @@ function DownloadRow({
                     </Button>
                 ) : null}
                 {actions.resume ? (
-                    <IconAction label="Resume" disabled={!controls} onClick={() => commands.resume(job.download_id)}>
+                    <IconAction label={isPausedSeeding(job) ? 'Resume seeding' : 'Resume'} disabled={!controls}
+                        onClick={() => commands.resume(job.download_id)}>
                         <Play className="h-3.5 w-3.5" />
                     </IconAction>
                 ) : null}

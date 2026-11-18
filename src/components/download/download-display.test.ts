@@ -164,3 +164,13 @@ test('a row waiting to be deleted says so until the node says Deleted', () => {
     assert.equal(describeRow(items[0].job, pi, NOW).primary, 'deleting…');
     assert.deepEqual(applyProgress(items, 'n-pi', job({ state: 'Deleted' })), []);
 });
+
+test('a torrent whose seeding was stopped reads as finished, not as a half-way stop', () => {
+    const paused = job({ kind: 'Torrent', state: 'Stopped', seeding_since: NOW - 3_600_000, up_total: 2e9, done_bytes: 784e6, total_bytes: 784e6, finished_at: NOW - 60_000 });
+    assert.deepEqual(describeRow(paused, pi, NOW), { primary: 'finished · seeding paused', secondary: '2.00 GB uploaded' });
+    assert.equal(summarize([{ nodeId: 'n-pi', job: paused }], () => true, NOW).finishedToday, 1);
+    assert.equal(rowActions(paused).resume, true);
+    // A torrent stopped before it finished, and a link, keep the old line.
+    assert.equal(describeRow(job({ kind: 'Torrent', state: 'Stopped', done_bytes: 40, total_bytes: 100 }), pi, NOW).primary, 'stopped · 40%');
+    assert.equal(describeRow(job({ kind: 'Http', state: 'Stopped', seeding_since: 1, done_bytes: 40, total_bytes: 100 }), pi, NOW).primary, 'stopped · 40%');
+});

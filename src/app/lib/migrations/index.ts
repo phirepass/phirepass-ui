@@ -8,6 +8,7 @@ import { nodeShares } from './005-node-shares';
 import { shareScope } from './006-share-scope';
 import { downloads } from './007-downloads';
 import { authChallengeKey } from './008-auth-challenge-key';
+import { playbackPositions } from './009-playback-positions';
 
 /**
  * Every migration, in the order they are applied.
@@ -18,7 +19,7 @@ import { authChallengeKey } from './008-auth-challenge-key';
  * Order matters in exactly one way: `000-base` creates `users`, and everything
  * after it references that table. Beyond that these are independent.
  *
- * All nine run on **every** boot — see `../migrate.ts` for why that is the
+ * All ten run on **every** boot — see `../migrate.ts` for why that is the
  * design rather than an oversight. Nothing in this repo is applied by hand any
  * more; starting the app against a database is what migrates it.
  */
@@ -32,6 +33,7 @@ export const MIGRATIONS: readonly Migration[] = [
     shareScope,
     downloads,
     authChallengeKey,
+    playbackPositions,
 ];
 
 export type { Migration };

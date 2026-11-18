@@ -34,6 +34,10 @@ export interface JobView {
     retry_reason?: string | null;
     attempt: number;
     next_attempt_at?: number | null;
+    /** Unix ms a torrent started seeding. The agent keeps it through a Stop. */
+    seeding_since?: number | null;
+    /** Bytes a torrent has uploaded, across restarts. */
+    up_total?: number | null;
     /** A Delete is pending: the node has not said Deleted yet. */
     deleting?: boolean;
 }
@@ -76,6 +80,15 @@ const ACTIVE: ReadonlySet<JobState> = new Set([
 
 export function isActive(job: JobView): boolean {
     return ACTIVE.has(job.state);
+}
+
+/**
+ * A finished torrent whose seeding was stopped: its files are whole and Resume
+ * seeds again, so it reads as finished, not as a download stopped half-way.
+ * Same rule as the widget's `isPausedSeeding` (phirepass-downloader/jobs.ts).
+ */
+export function isPausedSeeding(job: JobView): boolean {
+    return job.state === 'Stopped' && job.kind === 'Torrent' && !!job.seeding_since;
 }
 
 const num = (value: number | string | null | undefined): number | null =>
@@ -148,7 +161,7 @@ export function summarize(items: readonly DownloadItem[], online: (nodeId: strin
             if (!online(nodeId)) out.waiting++;
             else if (job.state === 'Retrying') out.retrying++;
             else out.running++;
-        } else if ((job.state === 'Completed' || job.state === 'Seeding') && (job.finished_at ?? 0) >= today) {
+        } else if ((job.state === 'Completed' || job.state === 'Seeding' || isPausedSeeding(job)) && (job.finished_at ?? 0) >= today) {
             out.finishedToday++;
         }
     }
@@ -295,6 +308,12 @@ export function describeRow(job: JobView, node: NodeView, now: number): { primar
         case 'Completed':
             return { primary: 'finished', secondary: job.total_bytes ? formatBytes(job.total_bytes) : sizes };
         case 'Stopped':
+            if (isPausedSeeding(job)) {
+                return {
+                    primary: 'finished · seeding paused',
+                    secondary: job.reason ?? `${formatBytes(job.up_total ?? 0)} uploaded`,
+                };
+            }
             return { primary: p === null ? 'stopped' : `stopped · ${Math.floor(p)}%`, secondary: job.reason ?? sizes };
         case 'Cancelled':
             return { primary: 'cancelled', secondary: job.reason ?? null };
