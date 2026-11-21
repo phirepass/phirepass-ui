@@ -16,7 +16,7 @@
         "start": "next start",
         "lint": "eslint .",
         "test": "node --test 'src/**/*.test.ts'",
-        "postinstall": "node scripts/fix-phirepass-widgets-wasm.mjs"
+        "postinstall": "node scripts/fix-phirepass-widgets-wasm.mjs && node scripts/fix-phirepass-widgets-lazy-import.mjs"
     },
     "dependencies": {
         "@codemirror/commands": "^6.11.1",
