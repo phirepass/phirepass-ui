@@ -398,12 +398,12 @@ export function NodeCard({
     };
 
     return (
-        <div className="@container relative overflow-hidden rounded-xl md:overflow-visible">
+        <div className="@container relative overflow-hidden rounded-lg md:overflow-visible">
             {/* Main Card */}
             <div
                 ref={cardRef}
                 className={cn(
-                    'group gradient-card mac-squircle border rounded-xl p-5 relative h-full flex flex-col',
+                    'group gradient-card mac-squircle border rounded-lg p-4 relative h-full flex flex-col',
                     'hover:border-hairline-strong hover:shadow-window-raised',
                     'border-hairline',
                     'transition-[box-shadow,border-color] duration-200 ease-mac',
@@ -411,7 +411,7 @@ export function NodeCard({
                 )}
             >
                 {(isConfirmedOffline || isResolving || isIncompatible) && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/45 backdrop-blur-sm">
                         <div className={cn(
                             'flex items-center gap-2 rounded-full border bg-card/90 px-3 py-1.5 text-sm font-medium shadow-sm select-none',
                             isIncompatible
@@ -436,7 +436,7 @@ export function NodeCard({
                     </div>
                 )}
                 {showConnectedLoader && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/45 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/45 backdrop-blur-sm">
                         <div className="flex items-center gap-2 rounded-full border border-primary/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             <span>Connecting...</span>

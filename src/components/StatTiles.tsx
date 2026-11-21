@@ -61,17 +61,17 @@ const COLUMN_CLASSES: Record<NonNullable<StatTilesProps['columns']>, string> = {
  */
 export function StatTiles({ tiles, className, columns = 4 }: StatTilesProps) {
     return (
-        <div className={cn('grid grid-cols-2 gap-4', COLUMN_CLASSES[columns], className)}>
+        <div className={cn('grid grid-cols-2 gap-2.5', COLUMN_CLASSES[columns], className)}>
             {tiles.map((tile) => {
                 const tone = TONE_STYLES[tile.tone ?? 'neutral'];
 
                 const body = (
-                    <div className="gradient-card mac-squircle flex items-center gap-3.5 rounded-xl border border-hairline p-4 transition-[box-shadow,border-color] duration-200 ease-mac hover:border-hairline-strong hover:shadow-window-raised">
-                        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] mac-squircle', tone.well, tone.icon)}>
-                            <tile.icon className="w-5 h-5" />
+                    <div className="gradient-card mac-squircle flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 transition-[box-shadow,border-color] duration-200 ease-mac hover:border-hairline-strong hover:shadow-window-raised">
+                        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md mac-squircle', tone.well, tone.icon)}>
+                            <tile.icon className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[22px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{tile.value}</p>
+                            <p className="truncate text-lg font-semibold leading-tight tracking-[-0.02em] tabular-nums">{tile.value}</p>
                             <p className="truncate text-[12px] text-muted-foreground">
                                 {tile.label}
                             </p>

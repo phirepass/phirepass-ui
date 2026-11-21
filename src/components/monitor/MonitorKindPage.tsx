@@ -116,7 +116,7 @@ export default function MonitorKindPage({ kind }: MonitorKindPageProps) {
     );
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-4 py-4 space-y-4">
             <PageHeader
                 title={MONITOR_KIND_LABELS[kind]}
                 description={MONITOR_KIND_HINTS[kind]}

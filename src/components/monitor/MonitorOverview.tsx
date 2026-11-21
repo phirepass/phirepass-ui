@@ -39,7 +39,7 @@ export default function MonitorOverview() {
     );
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-4 py-4 space-y-4">
             <PageHeader
                 title="Monitors"
                 description="Watch HTTP endpoints from your own agents — including services nothing outside your network can reach"

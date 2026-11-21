@@ -689,7 +689,7 @@ export default function NotificationsPage() {
     };
 
     return (
-        <div className="container mx-auto space-y-6 px-4 py-6">
+        <div className="container mx-auto space-y-4 px-4 py-4">
             <PageHeader
                 title="Notifications"
                 description="Two ways an alert can reach you, and which alerts are worth interrupting you for"

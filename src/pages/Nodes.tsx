@@ -1683,7 +1683,7 @@ export default function Nodes() {
     };
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-4 py-4 space-y-4">
             <PageHeader
                 title="Nodes"
                 description="Manage your connected servers and infrastructure"

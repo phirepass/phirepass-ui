@@ -254,7 +254,7 @@ const PatTokens = () => {
     );
 
     return (
-        <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="container mx-auto px-4 py-4 space-y-4">
             <PageHeader
                 title="Personal Access Tokens"
                 description="Bootstrap credentials that let an agent enrol a node with a server"

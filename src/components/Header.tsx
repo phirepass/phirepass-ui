@@ -135,10 +135,10 @@ export function Header({ user, onLogout }: HeaderProps) {
     return (
         <>
             <header className="sticky top-0 z-40 border-b border-hairline bg-[image:var(--fill-toolbar)] mac-material pt-[env(safe-area-inset-top)]">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <PhirepassLogo className="w-8 h-8" />
-                        <Link href="/" className="text-xl font-semibold tracking-tight">
+                <div className="container mx-auto px-4 h-12 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <PhirepassLogo className="w-6 h-6 shrink-0" />
+                        <Link href="/" className="text-base font-semibold tracking-tight">
                             <span className="text-gradient">Phire</span>
                             <span className="text-foreground">pass</span>
                         </Link>
@@ -165,14 +165,14 @@ export function Header({ user, onLogout }: HeaderProps) {
                                         href={item.href}
                                         aria-current={active ? 'page' : undefined}
                                         className={cn(
-                                            'relative flex h-9 items-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium tracking-[-0.01em] mac-squircle transition-[background-image,background-color,box-shadow,color] duration-150 ease-mac',
+                                            'relative flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[13px] font-medium tracking-[-0.01em] mac-squircle transition-[background-image,background-color,box-shadow,color] duration-150 ease-mac',
                                             'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
                                             active
                                                 ? 'border-hairline bg-[image:var(--fill-control)] text-foreground shadow-control [&_svg]:text-accent'
                                                 : 'border-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
                                         )}
                                     >
-                                        <item.icon className="h-4 w-4" />
+                                        <item.icon className="h-3.5 w-3.5" />
                                         {item.label}
                                         {item.devOnly ? (
                                             <span className="rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
@@ -183,23 +183,23 @@ export function Header({ user, onLogout }: HeaderProps) {
                                 );
                             })}
                         </nav>
-                        <div className="mx-3 h-6 w-px bg-hairline" />
+                        <div className="mx-2 h-5 w-px bg-hairline" />
                         <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-2.5 rounded-[9px] px-1.5 py-1 mac-squircle transition-colors duration-150 ease-mac hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
+                                <button className="flex items-center gap-2 rounded-[6px] px-1.5 py-0.5 mac-squircle transition-colors duration-150 ease-mac hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
                                     {user?.avatar ? (
                                         <img
                                             src={user.avatar}
                                             alt={displayName}
-                                            className="h-8 w-8 rounded-full object-cover ring-1 ring-hairline"
+                                            className="h-7 w-7 rounded-full object-cover ring-1 ring-hairline"
                                         />
                                     ) : (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent shadow-control">
+                                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent shadow-control">
                                             <span className="text-xs font-bold text-primary-foreground">{getInitials()}</span>
                                         </div>
                                     )}
                                     <div
-                                        className={cn('text-left', identityBlurred && 'blur-sm select-none')}
+                                        className={cn('hidden lg:block text-left max-w-[180px]', identityBlurred && 'blur-sm select-none')}
                                         onPointerDown={(e) => {
                                             const now = Date.now();
                                             if (now - identityClickTimer.current < 400) {
@@ -212,8 +212,8 @@ export function Header({ user, onLogout }: HeaderProps) {
                                             }
                                         }}
                                     >
-                                        <p className="text-[13px] font-medium leading-tight tracking-[-0.01em]">{displayName}</p>
-                                        <p className="text-[11px] leading-tight text-muted-foreground">{displayEmail}</p>
+                                        <p className="truncate text-[13px] font-medium leading-tight tracking-[-0.01em]">{displayName}</p>
+                                        <p className="truncate text-[11px] leading-tight text-muted-foreground">{displayEmail}</p>
                                     </div>
                                 </button>
                             </DropdownMenuTrigger>
@@ -250,7 +250,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="md:hidden h-12 w-12"
+                        className="md:hidden h-10 w-10"
                         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
                         aria-expanded={menuOpen}
                         onClick={() => setMenuOpen(!menuOpen)}
@@ -263,7 +263,7 @@ export function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Overlay/Backdrop */}
             <div
                 className={cn(
-                    "md:hidden fixed inset-0 top-[calc(4rem_+_env(safe-area-inset-top))] bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300",
+                    "md:hidden fixed inset-0 top-[calc(3rem_+_env(safe-area-inset-top))] bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300",
                     menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={() => setMenuOpen(false)}
@@ -272,9 +272,9 @@ export function Header({ user, onLogout }: HeaderProps) {
             {/* Mobile Dropdown */}
             <div
                 className={cn(
-                    'md:hidden fixed left-0 right-0 top-[calc(4rem_+_env(safe-area-inset-top))] z-[60] overflow-y-auto border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material transition-all duration-300 ease-mac',
+                    'md:hidden fixed left-0 right-0 top-[calc(3rem_+_env(safe-area-inset-top))] z-[60] overflow-y-auto border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material transition-all duration-300 ease-mac',
                     menuOpen
-                        ? 'max-h-[calc(100dvh_-_4rem_-_env(safe-area-inset-top))] opacity-100 translate-y-0'
+                        ? 'max-h-[calc(100dvh_-_3rem_-_env(safe-area-inset-top))] opacity-100 translate-y-0'
                         : 'max-h-0 opacity-0 -translate-y-4 pointer-events-none'
                 )}
                 onTouchStart={handleTouchStart}
@@ -297,7 +297,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                             key={item.href}
                             variant="ghost"
                             className={cn(
-                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
                                 isActivePath(item.href) && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath(item.href) ? 'page' : undefined}
@@ -316,7 +316,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                         <Button
                             variant="ghost"
                             className={cn(
-                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
                                 isActivePath('/dashboard/pat-tokens') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
@@ -328,7 +328,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                         <Button
                             variant="ghost"
                             className={cn(
-                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
                                 isActivePath('/dashboard/settings') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath('/dashboard/settings') ? 'page' : undefined}
@@ -340,7 +340,7 @@ export function Header({ user, onLogout }: HeaderProps) {
                         <Button
                             variant="ghost"
                             className={cn(
-                                'w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]',
+                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
                                 isActivePath('/dashboard/notifications') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
                             )}
                             aria-current={isActivePath('/dashboard/notifications') ? 'page' : undefined}
@@ -351,14 +351,14 @@ export function Header({ user, onLogout }: HeaderProps) {
                         </Button>
                         <Button
                             variant="ghost"
-                            className="w-full justify-start h-12 text-base transition-transform duration-150 active:scale-[0.98]"
+                            className="w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]"
                             onClick={() => { setMenuOpen(false); setContactOpen(true); }}
                         >
                             <LifeBuoy className="w-5 h-5 mr-3" />
                             Contact us
                         </Button>
                     </div>
-                    <Button variant="ghost" className="w-full justify-start h-12 text-base text-destructive transition-transform duration-150 active:scale-[0.98]" onClick={onLogout}>
+                    <Button variant="ghost" className="w-full justify-start h-11 text-[15px] text-destructive transition-transform duration-150 active:scale-[0.98]" onClick={onLogout}>
                         <LogOut className="w-5 h-5 mr-3" />
                         Logout
                     </Button>

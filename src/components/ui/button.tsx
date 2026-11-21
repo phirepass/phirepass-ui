@@ -26,9 +26,9 @@ import { cn } from "@/lib/utils";
  * already means "online" on every node card, and a CTA wearing it would compete
  * with status. Emerald is available as `accent` for the rare case that wants it.
  *
- * The size scale is unchanged from before the restyle — the `md:` steps exist
- * to keep touch targets large on phones and tighten them on the desktop, and
- * only the radii moved.
+ * Compact scale: the `md:` steps keep touch targets at 40px+ on phones and
+ * tighten to a 36/32px desktop rhythm, so a toolbar of buttons, inputs and
+ * selects lines up on one height.
  */
 const buttonVariants = cva(
     [
@@ -65,10 +65,10 @@ const buttonVariants = cva(
             size: {
                 // Radii step with the control: the bigger the button, the
                 // rounder it may be — never rounder than the surface holding it.
-                default: "h-10 rounded-md px-4 py-2 md:h-10 md:px-4",
-                sm: "h-10 rounded-[7px] px-4 md:h-9 md:px-3",
-                lg: "h-12 rounded-lg px-8 md:h-11",
-                icon: "h-11 w-11 rounded-md md:h-10 md:w-10",
+                default: "h-10 rounded-md px-4 md:h-9 md:px-3.5",
+                sm: "h-10 rounded-[6px] px-3.5 md:h-8 md:px-2.5 md:text-[13px]",
+                lg: "h-11 rounded-lg px-6 md:h-10",
+                icon: "h-10 w-10 rounded-md md:h-9 md:w-9",
             },
         },
         defaultVariants: {

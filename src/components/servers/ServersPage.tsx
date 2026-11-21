@@ -164,7 +164,7 @@ export default function ServersPage() {
     };
 
     return (
-        <div className="container mx-auto space-y-6 px-4 py-6">
+        <div className="container mx-auto space-y-4 px-4 py-4">
             <PageHeader
                 title="Servers"
                 description="Every relay instance in the fleet, what it is carrying, and where it runs"

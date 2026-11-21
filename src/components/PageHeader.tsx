@@ -24,17 +24,17 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, description, actions, badge, className }: PageHeaderProps) {
     return (
-        <div className={cn('flex flex-col md:flex-row md:items-center md:justify-between gap-4', className)}>
+        <div className={cn('flex flex-col md:flex-row md:items-center md:justify-between gap-3', className)}>
             <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                    <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.024em] text-foreground">{title}</h1>
+                <div className="flex items-center gap-2.5">
+                    <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground">{title}</h1>
                     {badge}
                 </div>
                 {description ? (
-                    <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
+                    <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
                 ) : null}
             </div>
-            {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+            {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
         </div>
     );
 }

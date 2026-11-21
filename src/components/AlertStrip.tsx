@@ -17,20 +17,17 @@ export interface AlertEntry {
     tag?: string;
 }
 
-const LEVEL_STYLES: Record<AlertLevel, { panel: string; well: string; icon: string }> = {
+const LEVEL_STYLES: Record<AlertLevel, { panel: string; icon: string }> = {
     error: {
         panel: 'bg-destructive/10 border-destructive/30',
-        well: 'bg-destructive/20',
         icon: 'text-destructive',
     },
     warning: {
         panel: 'bg-warning/10 border-warning/30',
-        well: 'bg-warning/20',
         icon: 'text-warning',
     },
     info: {
         panel: 'bg-primary/10 border-primary/30',
-        well: 'bg-primary/20',
         icon: 'text-primary',
     },
 };
@@ -96,7 +93,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
     }
 
     return (
-        <div className={cn('space-y-2 max-h-[300px] overflow-y-auto', className)}>
+        <div className={cn('space-y-1.5 max-h-[240px] overflow-y-auto', className)}>
             {visible.map((alert) => {
                 const styles = LEVEL_STYLES[alert.level];
                 const Icon = LEVEL_ICONS[alert.level];
@@ -104,27 +101,22 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                 return (
                     <div
                         key={alert.id}
-                        className={cn('mac-squircle flex items-start gap-3 rounded-xl border p-3 shadow-[inset_0_1px_0_0_var(--specular)] transition-all', styles.panel)}
+                        className={cn('mac-squircle flex items-center gap-2.5 rounded-lg border px-3 py-1.5 transition-all', styles.panel)}
                     >
-                        <div
-                            className={cn(
-                                'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                                styles.well
-                            )}
-                        >
-                            <Icon className={cn('w-4 h-4', styles.icon)} />
-                        </div>
+                        <Icon className={cn('w-4 h-4 flex-shrink-0', styles.icon)} />
 
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
+                        {/* One line on desktop: title, tag and message read as a single
+                            sentence, so a stack of alerts costs ~36px each. */}
+                        <div className="flex-1 min-w-0 sm:flex sm:items-center sm:gap-2">
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
                                 <h4 className="font-medium text-sm">{alert.title}</h4>
                                 {alert.tag ? (
-                                    <span className="rounded-[5px] border border-hairline bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                                    <span className="rounded-[5px] border border-hairline bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted-foreground">
                                         {alert.tag}
                                     </span>
                                 ) : null}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5 first-letter:uppercase">{alert.message}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 sm:mt-0 sm:truncate first-letter:uppercase">{alert.message}</p>
                         </div>
 
                         <Button

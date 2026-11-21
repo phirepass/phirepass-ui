@@ -99,7 +99,7 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="container mx-auto space-y-6 px-4 py-6">
+        <div className="container mx-auto space-y-4 px-4 py-4">
             <PageHeader
                 title="Settings"
                 description={

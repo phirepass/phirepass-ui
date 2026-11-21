@@ -139,7 +139,7 @@ const ApiKeys = () => {
   const activeKeys = keys.filter(k => k.status === 'active');
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-4 py-4 space-y-4">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
