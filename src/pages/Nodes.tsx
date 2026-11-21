@@ -34,8 +34,7 @@ import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
 import initChannel, { Channel } from 'phirepass-channel';
 import { toast } from 'sonner';
 import { clearCachedNodes, getCachedNodes, readCachedEnvelope, setCachedNodes } from '@/lib/nodesCache';
-import { removeService, saveService, setDownloadSwitch } from '@/lib/service-mutations';
-import { switchState, type DownloadSwitch } from '@/lib/download-switches';
+import { removeService, saveService } from '@/lib/service-mutations';
 import {
     Pagination,
     PaginationContent,
@@ -736,7 +735,7 @@ export default function Nodes() {
      * at the dialog as "there are none configured". An empty dialog with no
      * explanation was the visible half of three separate bugs.
      */
-    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'rdp' | 'fetch' | 'torrent'): Promise<ServiceDetail[]> => {
+    const fetchServicesForKind = async (nodeId: string, kind: 'ssh' | 'sftp' | 'http' | 'rdp'): Promise<ServiceDetail[]> => {
         const res = await fetch(`/api/nodes/services?id=${encodeURIComponent(nodeId)}&kind=${kind}`, {
             credentials: 'include',
         });
@@ -1062,30 +1061,6 @@ export default function Nodes() {
 
         setNodes((prev) => prev.map(updateNodeServices));
         setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
-    };
-
-    /**
-     * Downloads/Torrents switches (screen F). The card asks K6/K7 first; this
-     * runs the service changes and mirrors the result into the list, the same
-     * way the other services do after a save.
-     */
-    const handleSetDownloadSwitch = async (node: TunnelNode, kind: DownloadSwitch, on: boolean) => {
-        try {
-            const next = await setDownloadSwitch(
-                buildWsEndpoint(),
-                node,
-                switchState(node.services),
-                kind,
-                on,
-                async (which) => (await fetchServicesForKind(node.id, which === 'FETCH' ? 'fetch' : 'torrent'))
-                    .map((service) => service.id),
-            );
-            updateServiceInNode(node.id, 'FETCH', next.downloads);
-            updateServiceInNode(node.id, 'TORRENT', next.torrents);
-        } catch (err) {
-            // The list polls, so the switches settle back to what the node has.
-            toast.error(err instanceof Error ? err.message : 'The node did not accept the change.');
-        }
     };
 
     const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SSH', isEnabled);
@@ -1853,14 +1828,6 @@ export default function Nodes() {
                                 onEnableHttpProxy={guardLive(() => openEnableHttpProxyDialog(node))}
                                 onDisableHttpProxy={guardLive((serviceId: string) => openDisableHttpProxyDialog(node, serviceId))}
                                 onEditHttpProxy={guardLive((serviceId: string) => void openEditHttpProxyDialog(node, serviceId))}
-                                // Not `guardLive`: the card awaits this to show "Waiting for the node".
-                                onSetDownloadSwitch={async (kind: DownloadSwitch, on: boolean) => {
-                                    if (isDemo) {
-                                        toast.info('Not available in the demo', { description: DEMO_LIVE_ACTION_MESSAGE });
-                                        return;
-                                    }
-                                    await handleSetDownloadSwitch(node, kind, on);
-                                }}
                                 onListServices={(kind) => fetchServicesForKind(node.id, kind).then(
                                     (services) => services.map((s) => ({ id: s.id, name: s.name }))
                                 )}

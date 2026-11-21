@@ -58,18 +58,16 @@ export const NOTIFICATION_CHANNEL_DESCRIPTIONS: Record<NotificationChannel, stri
 };
 
 /** One group of related events. See the note above for what earns a place. */
-export type NotificationCategory = 'nodes' | 'monitors' | 'downloads';
+export type NotificationCategory = 'nodes' | 'monitors';
 
 export const NOTIFICATION_CATEGORY_LABELS: Record<NotificationCategory, string> = {
     nodes: 'Nodes',
     monitors: 'Monitors',
-    downloads: 'Downloads',
 };
 
 export const NOTIFICATION_CATEGORY_DESCRIPTIONS: Record<NotificationCategory, string> = {
     nodes: 'Agents disconnecting from server, and coming back to it.',
     monitors: 'Uptime checks failing, degrading, and coming right again.',
-    downloads: 'Downloads you started on a node finishing, or failing to.',
 };
 
 /**
@@ -82,7 +80,7 @@ export const NOTIFICATION_CATEGORY_DESCRIPTIONS: Record<NotificationCategory, st
  * disappear from the settings page while every type still checks. The test file
  * beside this one is what closes that.
  */
-export const NOTIFICATION_CATEGORY_ORDER: NotificationCategory[] = ['nodes', 'monitors', 'downloads'];
+export const NOTIFICATION_CATEGORY_ORDER: NotificationCategory[] = ['nodes', 'monitors'];
 
 export type NotificationEventId =
     | 'node.offline'
@@ -90,9 +88,7 @@ export type NotificationEventId =
     | 'monitor.down'
     | 'monitor.degraded'
     | 'monitor.up'
-    | 'monitor.success'
-    | 'download.completed'
-    | 'download.stuck';
+    | 'monitor.success';
 
 export interface NotificationEventDefinition {
     id: NotificationEventId;
@@ -174,20 +170,6 @@ export const NOTIFICATION_EVENTS: NotificationEventDefinition[] = [
         defaultEnabled: false,
         noisy: true,
     },
-    {
-        id: 'download.stuck',
-        category: 'downloads',
-        label: 'Download stuck',
-        description: 'A download you started has been retrying for a day without getting anywhere. Once per download.',
-        defaultEnabled: true,
-    },
-    {
-        id: 'download.completed',
-        category: 'downloads',
-        label: 'Download finished',
-        description: 'A download you started has finished on its node. Once per download.',
-        defaultEnabled: true,
-    },
 ];
 
 /**
@@ -212,8 +194,6 @@ export const EVENT_SEVERITY: Record<NotificationEventId, 'alert' | 'warn' | 'def
     'monitor.degraded': 'warn',
     'monitor.up': 'default',
     'monitor.success': 'default',
-    'download.completed': 'default',
-    'download.stuck': 'warn',
 };
 
 /** The asset each one resolves to, matching `NOTIFICATION_ICONS` in sw.js. */

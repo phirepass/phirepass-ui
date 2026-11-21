@@ -76,24 +76,10 @@ function scopeKey(share: NodeShare): string {
     return `${share.id}:${(share.services ?? []).join(',')}:${share.expires_at ?? ''}`;
 }
 
-/**
- * How a service kind reads in this dialog. The four session kinds keep their
- * protocol name, which is what the cards show; the two Remote Fetch switches
- * are not protocols, so they get the names the node settings use.
- */
-const SERVICE_LABELS: Partial<Record<ShareableService, string>> = {
-    FETCH: 'Downloads',
-    TORRENT: 'Torrents',
-};
-
-function serviceLabel(service: ShareableService): string {
-    return SERVICE_LABELS[service] ?? service;
-}
-
 /** What a share opens, in the fewest words that are still true. */
 function servicesLabel(services: ShareableService[]): string {
     if (!services || services.length === 0) return 'Every service';
-    return services.map(serviceLabel).join(', ');
+    return services.join(', ');
 }
 
 /**
@@ -235,24 +221,10 @@ function ShareScope({
                         )}
                         aria-pressed={chosen.includes(service)}
                     >
-                        {serviceLabel(service)}
+                        {service}
                     </button>
                 ))}
             </div>
-
-            {/* F2: an untouched share is "every service", and that includes the
-                download switches the owner turns on later. Said here because a
-                person ticking boxes would not guess it. */}
-            {services.length === 0 ? (
-                <p className="text-[11px] leading-snug text-muted-foreground">
-                    Every service also covers Downloads and Torrents if they are turned on later.
-                </p>
-            ) : chosen.includes('FETCH') ? (
-                <p className="text-[11px] leading-snug text-muted-foreground">
-                    Downloads lets them make this node fetch links into its download folder.
-                    {available.includes('TORRENT') ? '' : ' Torrents are off on this node.'}
-                </p>
-            ) : null}
 
             <div className="flex items-center gap-2">
                 <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

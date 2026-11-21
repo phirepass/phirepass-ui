@@ -1,6 +1,5 @@
 import { parseMonitor, type ParsedMonitor } from '@/app/lib/monitor-input';
 import { DEMO_LIVE_ACTION_MESSAGE } from '@/lib/demo-mode';
-import { demoDownloadPolicies, demoDownloads } from './downloads';
 import type { MonitorKind, MonitorStatus } from '@/types/monitor';
 
 import { WebhookUrlError, defaultLabel, parseUrl } from '@/app/lib/webhook-url';
@@ -446,17 +445,6 @@ export async function demoApiResponse(
         return json(demoTestDelivery(
             channel === 'web.push' || channel === 'webhook' ? channel : 'all',
         ));
-    }
-
-    if (path === '/api/nodes/download-policy') {
-        // Read only in the demo: a policy change would have to reach a server.
-        return request.method === 'GET'
-            ? json({ nodes: demoDownloadPolicies(Date.now()), available: true })
-            : json({ error: DEMO_LIVE_ACTION_MESSAGE }, 503);
-    }
-
-    if (path === '/api/downloads') {
-        return request.method === 'GET' ? json({ downloads: demoDownloads(Date.now()), available: true }) : null;
     }
 
     if (path === '/api/auth/websocket-token') {

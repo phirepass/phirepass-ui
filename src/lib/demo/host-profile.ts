@@ -58,15 +58,13 @@ function profileOf(spec: DemoNodeSpec, serviceId: string | null): HostProfile {
             totalBytes: disk.total_bytes,
             usedFraction: disk.used,
         })),
-        // FETCH/TORRENT are switches with nothing listening; the simulated
-        // host has no process for them.
-        services: spec.services.flatMap((candidate) => (candidate.kind === 'FETCH' || candidate.kind === 'TORRENT' ? [] : [{
+        services: spec.services.map((candidate) => ({
             name: candidate.name ?? candidate.kind,
             kind: candidate.kind,
             host: candidate.host,
             port: candidate.port,
             scheme: candidate.scheme,
-        }])),
+        })),
         agentVersion: spec.version,
     };
 }

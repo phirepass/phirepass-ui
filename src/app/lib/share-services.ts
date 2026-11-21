@@ -23,17 +23,11 @@
  * the share row, the node record and the Rust enum, so nothing has to translate
  * between three spellings of "ssh".
  *
- * `FETCH` and `TORRENT` are the Remote Fetch switches: no session opens on
- * them, but a share names them like any other service, so lending somebody
- * Downloads is a choice separate from lending them a shell. They are separate
- * from each other too, because a torrent shows the node's address to public
- * peers and a link does not.
- *
  * This list is allowed to be *behind* the server's: a name a build does not know
  * is dropped by whoever reads it rather than refused, so a share written by a
  * newer dashboard loses one service on an older reader instead of everything.
  */
-export const SHAREABLE_SERVICES = ['SSH', 'SFTP', 'HTTP', 'RDP', 'FETCH', 'TORRENT'] as const;
+export const SHAREABLE_SERVICES = ['SSH', 'SFTP', 'HTTP', 'RDP'] as const;
 
 export type ShareableService = (typeof SHAREABLE_SERVICES)[number];
 

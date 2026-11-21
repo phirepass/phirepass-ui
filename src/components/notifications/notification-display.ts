@@ -86,7 +86,6 @@ export const CATEGORY_STYLES: Record<NotificationCategory, { icon: string; well:
     // The hue the monitor pages already use for an HTTP check, so the group
     // header is recognisably about the same feature.
     monitors: { icon: 'text-info', well: 'bg-info/10' },
-    downloads: { icon: 'text-success', well: 'bg-success/10' },
 };
 
 /**
@@ -124,8 +123,6 @@ export const EVENT_STYLES: Record<
     // heartbeat. Colouring it like a recovery would put two very different
     // meanings behind the same mark.
     'monitor.success': { icon: CircleDot, tint: 'text-info', dim: 'text-info/45', well: 'bg-info/12' },
-    'download.completed': { icon: CircleCheck, tint: 'text-success', dim: 'text-success/45', well: 'bg-success/12' },
-    'download.stuck': { icon: CircleAlert, tint: 'text-warning', dim: 'text-warning/45', well: 'bg-warning/12' },
 };
 
 export function describeDevice(device: RegisteredDevice): string {

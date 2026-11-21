@@ -13,8 +13,6 @@ import {
 } from './disk-display';
 import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
-import { NodeDownloads } from './NodeDownloads';
-import type { DownloadSwitch } from '@/lib/download-switches';
 import { StatBar } from './StatBar';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
@@ -145,10 +143,6 @@ interface NodeCardProps {
     // Fetches the real list of configured services for a kind (id, name),
     // used to populate the service instance picker with actual identifiable entries.
     onListServices?: (kind: 'ssh' | 'sftp' | 'http' | 'rdp') => Promise<ListedService[]>;
-    /** Flips the Downloads/Torrents switch (screen F); see `NodeDownloads`. */
-    onSetDownloadSwitch?: (kind: DownloadSwitch, on: boolean) => Promise<void>;
-    /** Opens the downloader for this node (screen F3). */
-    onOpenDownloads?: (node: TunnelNode) => void;
     isShared?: boolean;
     sharedBy?: string;
     /**
@@ -208,8 +202,6 @@ export function NodeCard({
     onDisableRdp,
     onEditRdp,
     onListServices,
-    onSetDownloadSwitch,
-    onOpenDownloads,
     isShared = false,
     sharedBy,
     canManage = true,
@@ -969,13 +961,6 @@ export function NodeCard({
                             );
                         })}
                     </div>
-                    <NodeDownloads
-                        node={node}
-                        canManage={canManage}
-                        disabled={actionsDisabled}
-                        onSetSwitch={onSetDownloadSwitch}
-                        onOpen={onOpenDownloads ? () => onOpenDownloads(node) : undefined}
-                    />
                 </div>
             </div>
 
