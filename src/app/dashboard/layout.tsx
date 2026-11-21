@@ -128,8 +128,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div>Loading...</div>
+            <div className="flex min-h-dvh items-center justify-center text-[13px] text-muted-foreground">
+                Loading…
             </div>
         );
     }
@@ -161,8 +161,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     return (
         <SessionProvider value={session}>
-            <div className="flex flex-col min-h-screen">
+            <div className="flex min-h-dvh flex-col">
                 <Header user={user} onLogout={handleLogout} />
+                {/* Everything right of the fixed 14rem sidebar on desktop. */}
+                <div className="flex min-w-0 flex-1 flex-col md:pl-56">
                 {/* Speaks once, if an invitation link is what got us here. */}
                 <InvitationNotice />
                 {/* Offers itself once, and only where there is somewhere to install to. */}
@@ -171,6 +173,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     as a plain spacer so short pages keep the same breathing room the
                     footer used to give them. */}
                 <main className="flex-1">{children}</main>
+                </div>
             </div>
         </SessionProvider>
     );

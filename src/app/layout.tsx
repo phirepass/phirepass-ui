@@ -1,10 +1,27 @@
 import type { Metadata, Viewport } from "next";
 import { ReactNode } from "react";
 import Script from "next/script";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import ClientProviders from "./providers";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import { OG_IMAGE, SITE_URL } from "@/lib/site";
 import "@/index.css";
+
+// Plex is not a variable font on Google Fonts, so the weights are listed: the
+// console uses regular text, medium labels and semibold titles, nothing else.
+const plexSans = IBM_Plex_Sans({
+    subsets: ["latin"],
+    weight: ["400", "500", "600"],
+    variable: "--font-plex-sans",
+    display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+    subsets: ["latin"],
+    weight: ["400", "500"],
+    variable: "--font-plex-mono",
+    display: "swap",
+});
 
 const TITLE = "Phirepass — Remote Access & Uptime Monitoring";
 // Kept under ~160 characters so search results show the whole line, with the
@@ -14,9 +31,8 @@ const DESCRIPTION =
     "Browser-based SSH, SFTP, RDP and internal web access to any machine behind NAT — plus uptime monitoring for the private services public monitors can't reach.";
 
 export const viewport: Viewport = {
-    // Matches the manifest's theme_color, so the installed app's chrome and the
-    // browser address bar are the same near-black.
-    themeColor: "#0b0d12",
+    // The sidebar's slate, so the installed app's chrome continues it.
+    themeColor: "#0a0e14",
     width: "device-width",
     initialScale: 1,
     // `black-translucent` draws the app under the iOS status bar, so the layout
@@ -65,7 +81,7 @@ export default function RootLayout({
     children: ReactNode;
 }) {
     return (
-        <html lang="en">
+        <html lang="en" className={`${plexSans.variable} ${plexMono.variable}`}>
             <head>
                 <Script id="gtm" strategy="afterInteractive">
                     {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

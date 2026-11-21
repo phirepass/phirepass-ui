@@ -163,7 +163,7 @@ export function PipelineEditorPage({ pipeline }: PipelineEditorPageProps) {
 
     return (
         <div
-            className="flex h-[calc(100dvh-3rem-env(safe-area-inset-top))] flex-col overflow-hidden"
+            className="flex h-[calc(100dvh-3rem-env(safe-area-inset-top))] md:h-dvh flex-col overflow-hidden"
             onKeyDown={onKeyDown}
         >
             {/* Toolbar */}

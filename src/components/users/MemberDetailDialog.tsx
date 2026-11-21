@@ -70,7 +70,7 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="rounded-xl border border-hairline bg-card/60 px-3">
+                <div className="rounded-md border border-hairline bg-card px-3">
                     <Row label="Role" value={ROLE_LABELS[member.role]} />
                     {isInvitation ? (
                         <>
@@ -100,7 +100,7 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
                 {/* Removing an account is not free: what it holds stays in the
                     workspace, and somebody has to end up looking after it. */}
                 {member.nodes_count > 0 || member.tokens_count > 0 ? (
-                    <p className="flex items-start gap-3 rounded-xl border border-hairline bg-card/60 px-4 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
+                    <p className="flex items-start gap-3 rounded-md border border-hairline bg-card px-4 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
                         <Network className="mt-0.5 h-4 w-4 shrink-0" />
                         <span>
                             Holds {member.nodes_count} node{member.nodes_count === 1 ? '' : 's'} and{' '}
@@ -112,7 +112,7 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
                 ) : null}
 
                 {!isInvitation && !member.mfa_enabled && member.status === 'active' && member.role !== 'member' ? (
-                    <p className="flex items-start gap-3 rounded-xl border border-warning/35 bg-warning/10 px-4 py-3 text-[12.5px] leading-relaxed text-warning">
+                    <p className="flex items-start gap-3 rounded-md border border-warning/35 bg-warning/10 px-4 py-3 text-[12.5px] leading-relaxed text-warning">
                         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
                         No second factor on an account that reaches every node here.
                     </p>

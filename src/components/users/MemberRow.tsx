@@ -92,7 +92,7 @@ export function MemberRow({
     return (
         <div
             className={cn(
-                'group/row flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.025]',
+                'group/row flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/50',
                 member.status === 'suspended' && 'opacity-60',
                 busy && 'pointer-events-none opacity-50',
             )}
@@ -173,7 +173,7 @@ export function MemberRow({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 shrink-0 rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-secondary/60 hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
+                        className="h-7 w-7 md:h-7 md:w-7 shrink-0 rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-secondary/60 hover:text-foreground focus-visible:opacity-100 group-hover/row:opacity-100 data-[state=open]:opacity-100"
                         aria-label={`Actions for ${isInvitation ? member.email : displayName(member)}`}
                     >
                         <MoreHorizontal className="h-4 w-4" />
@@ -181,7 +181,7 @@ export function MemberRow({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                     align="end"
-                    className="w-56 rounded-xl border-hairline bg-popover/95 p-1.5 shadow-xl backdrop-blur"
+                    className="w-56 p-1"
                 >
                     <DropdownMenuItem onClick={() => onOpen(member)}>Details</DropdownMenuItem>
 

@@ -32,7 +32,7 @@ export function InstallBanner() {
     return (
         <div
             className={cn(
-                'fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material',
+                'fixed inset-x-0 bottom-0 md:left-56 z-40 border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material',
                 'px-4 pb-[calc(0.75rem_+_env(safe-area-inset-bottom))] pt-3',
                 // A phone gets a band across the bottom, where the thumb is.
                 // A desktop gets a card in the corner: there is no thumb to

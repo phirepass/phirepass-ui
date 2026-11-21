@@ -89,26 +89,6 @@ export function MonitorKindPanel({ summary, onAdd }: MonitorKindPanelProps) {
 
     return (
         <section className="gradient-card mac-squircle relative flex flex-col overflow-hidden rounded-xl border border-hairline">
-            {/* ── watermark ────────────────────────────────────────────
-                The kind's own icon, oversized, as the panel's ground. It is
-                what makes three otherwise-identical cards tell themselves
-                apart at a glance and from across a room.
-
-                Decorative only: `aria-hidden` because the heading already
-                names the kind, `pointer-events-none` so it never eats a hover
-                meant for the strip beneath it, and low enough in opacity that
-                it changes no text's contrast — it tints the card rather than
-                competing with anything on it. Bled off the top-right corner so
-                its silhouette reads as a shape rather than a stamped logo. */}
-            <Icon
-                aria-hidden
-                className={cn(
-                    'pointer-events-none absolute -bottom-12 -right-12 h-72 w-72 opacity-[0.09]',
-                    styles.text,
-                )}
-                strokeWidth={0.75}
-            />
-
             {/* Everything else rides above it. */}
             <div className="relative flex items-start gap-3 p-5 pb-4">
                 <span className={cn('shrink-0 rounded-xl border p-3', styles.chip)}>

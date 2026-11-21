@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Menu, X, LogOut, User, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, Workflow, LucideIcon } from 'lucide-react';
+import {
+    Menu, X, LogOut, Settings, Shield, KeyRound, Activity, Server, Users, LifeBuoy, Bell, Workflow,
+    ChevronsUpDown, LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDevSurfaceVisible } from '@/hooks/use-dev-surface';
 import { useDemoMode } from '@/components/DemoModeProvider';
@@ -15,6 +18,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -48,19 +52,79 @@ type NavItem = {
     demoUnsafe?: boolean;
 };
 
-const NAV_ITEMS: NavItem[] = [
-    { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
-    { href: '/dashboard/monitors', label: 'Monitors', icon: Activity },
-    // Nothing runs these yet — see the notice on the page itself.
-    { href: '/dashboard/pipelines', label: 'Pipelines', icon: Workflow, devOnly: true },
-    // Administrative surfaces. Dev-only until RBAC can restrict them to the
-    // roles that should see them at all — see src/lib/rbac.ts.
-    { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },
-    // Members is shipped: the roles it shows are enforced. It needs `users:read`,
-    // so a plain member never sees it, and it closes during a demo because there
-    // is no members fixture.
-    { href: '/dashboard/users', label: 'Members', icon: Users, permission: 'users:read', demoUnsafe: true },
+type NavGroup = { label: string; items: NavItem[] };
+
+/**
+ * Grouped by what the pages are about: the machines and checks you run, then
+ * the people in the workspace, then your own account. The account group sits
+ * at the foot of the sidebar, next to the identity it belongs to.
+ */
+const NAV_GROUPS: NavGroup[] = [
+    {
+        label: 'Infrastructure',
+        items: [
+            { href: '/dashboard/nodes', label: 'Nodes', icon: Shield },
+            { href: '/dashboard/monitors', label: 'Monitors', icon: Activity },
+            // Nothing runs these yet — see the notice on the page itself.
+            { href: '/dashboard/pipelines', label: 'Pipelines', icon: Workflow, devOnly: true },
+            { href: '/dashboard/servers', label: 'Servers', icon: Server, devOnly: true },
+        ],
+    },
+    {
+        label: 'Workspace',
+        items: [
+            // Needs `users:read`, so a plain member never sees it, and it closes
+            // during a demo because there is no members fixture.
+            { href: '/dashboard/users', label: 'Members', icon: Users, permission: 'users:read', demoUnsafe: true },
+        ],
+    },
 ];
+
+const ACCOUNT_ITEMS: NavItem[] = [
+    { href: '/dashboard/pat-tokens', label: 'Tokens', icon: KeyRound },
+    { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
+    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+];
+
+function DevTag() {
+    return (
+        <span className="ml-auto rounded-sm border border-warning/40 px-1 font-mono text-[10px] leading-4 text-warning">
+            dev
+        </span>
+    );
+}
+
+/**
+ * One row of the sidebar. The active route is marked with a cobalt rule on
+ * its leading edge and a raised fill — position and colour both, so it does
+ * not rely on hue alone.
+ */
+function NavRow({ item, active, onNavigate, size = 'sm' }: {
+    item: NavItem;
+    active: boolean;
+    onNavigate?: () => void;
+    size?: 'sm' | 'lg';
+}) {
+    return (
+        <Link
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+                'relative flex items-center gap-2.5 rounded-md px-2.5 font-medium transition-colors duration-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                size === 'sm' ? 'h-8 text-[13px]' : 'h-11 text-[15px]',
+                active
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-1.5 before:-left-3 before:w-[3px] before:rounded-r-sm before:bg-accent [&_svg]:text-accent'
+                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground [&_svg]:text-muted-foreground',
+            )}
+        >
+            <item.icon className={size === 'sm' ? 'h-4 w-4 shrink-0' : 'h-5 w-5 shrink-0'} />
+            <span className="truncate">{item.label}</span>
+            {item.devOnly ? <DevTag /> : null}
+        </Link>
+    );
+}
 
 export function Header({ user, onLogout }: HeaderProps) {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -71,306 +135,256 @@ export function Header({ user, onLogout }: HeaderProps) {
     const touchStartY = useRef<number | null>(null);
     const router = useRouter();
     const pathname = usePathname();
-    const isActivePath = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
+    const isActivePath = (path: string) => pathname === path || !!pathname?.startsWith(`${path}/`);
 
     const devSurfaces = useDevSurfaceVisible();
     const isDemo = useDemoMode();
     const role = useCurrentRole();
     const currentOrg = useCurrentOrg();
 
-    const navItems = NAV_ITEMS.filter((item) => {
+    const visible = (item: NavItem) => {
         if (item.devOnly && !devSurfaces) return false;
         if (item.demoUnsafe && isDemo) return false;
         if (item.permission && !can(role, item.permission)) return false;
         return true;
-    });
+    };
 
-    // Generate initials from name or email
+    const groups = NAV_GROUPS
+        .map((group) => ({ ...group, items: group.items.filter(visible) }))
+        .filter((group) => group.items.length > 0);
+
     const getInitials = () => {
         if (user?.name) {
             return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
         }
-
         if (user?.email) {
             return user.email.slice(0, 2).toUpperCase();
         }
-
         return '??';
     };
 
     const displayName = user?.name || user?.email?.split('@')[0] || 'Guest';
     const displayEmail = user?.email || 'Not logged in';
 
-    // Lock body scroll when menu is open
+    // Lock body scroll while the mobile drawer is open.
     useEffect(() => {
-        if (menuOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
-        }
-        return () => {
-            document.body.style.overflow = '';
-        };
+        document.body.style.overflow = menuOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
     }, [menuOpen]);
 
-    // Handle swipe gesture
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartY.current = e.touches[0].clientY;
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
         if (touchStartY.current === null) return;
-
-        const touchEndY = e.changedTouches[0].clientY;
-        const deltaY = touchStartY.current - touchEndY;
-
-        // If swiped up more than 50px, close the menu
-        if (deltaY > 50) {
+        // A swipe up of more than 50px closes the drawer.
+        if (touchStartY.current - e.changedTouches[0].clientY > 50) {
             setMenuOpen(false);
         }
-
         touchStartY.current = null;
     };
 
+    const avatar = (sizeClass: string) => user?.avatar ? (
+        <img
+            src={user.avatar}
+            alt=""
+            className={cn(sizeClass, 'shrink-0 rounded-full object-cover ring-1 ring-hairline')}
+        />
+    ) : (
+        <div className={cn(sizeClass, 'flex shrink-0 items-center justify-center rounded-full bg-secondary ring-1 ring-hairline')}>
+            <span className="text-[11px] font-semibold text-foreground">{getInitials()}</span>
+        </div>
+    );
+
+    const wordmark = (idSuffix: string) => (
+        <Link href="/" className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <PhirepassLogo className="h-6 w-6 shrink-0" idSuffix={idSuffix} />
+            <span className="text-[15px] font-semibold text-foreground">Phirepass</span>
+        </Link>
+    );
+
     return (
         <>
-            <header className="sticky top-0 z-40 border-b border-hairline bg-[image:var(--fill-toolbar)] mac-material pt-[env(safe-area-inset-top)]">
-                <div className="container mx-auto px-4 h-12 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                        <PhirepassLogo className="w-6 h-6 shrink-0" />
-                        <Link href="/" className="text-base font-semibold tracking-tight">
-                            <span className="text-gradient">Phire</span>
-                            <span className="text-foreground">pass</span>
-                        </Link>
-                        {/* Scope sits beside the product name, the way a
-                            document's location does in a macOS toolbar — it
-                            says which workspace everything to the right of it
-                            belongs to. Renders nothing at all for an account
-                            with one workspace, separator included. */}
-                        <div className="hidden md:block">
-                            <WorkspaceSwitcher currentOrgId={currentOrg?.id ?? null} />
+            {/* Desktop sidebar */}
+            <aside
+                aria-label="Sidebar"
+                className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] md:flex"
+            >
+                <div className="flex h-12 shrink-0 items-center px-4">
+                    {wordmark('-sidebar')}
+                </div>
+
+                {/* Renders nothing for an account with one workspace. */}
+                <div className="px-3 empty:hidden">
+                    <WorkspaceSwitcher currentOrgId={currentOrg?.id ?? null} variant="sidebar" />
+                </div>
+
+                <nav aria-label="Main" className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+                    {groups.map((group) => (
+                        <div key={group.label}>
+                            <p className="mb-1 px-2.5 text-[12px] font-medium text-muted-foreground/80">
+                                {group.label}
+                            </p>
+                            <div className="space-y-px">
+                                {group.items.map((item) => (
+                                    <NavRow key={item.href} item={item} active={isActivePath(item.href)} />
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    ))}
+                </nav>
 
-                    {/* Desktop Nav — the current route is a raised toolbar
-                        item, the way macOS marks selection in a toolbar. */}
-                    <div className="hidden md:flex items-center gap-1">
-                        <nav className="flex items-center gap-1" aria-label="Main">
-                            {navItems.map((item) => {
-                                const active = isActivePath(item.href);
+                <div className="shrink-0 space-y-px border-t border-sidebar-border px-3 py-3">
+                    {ACCOUNT_ITEMS.map((item) => (
+                        <NavRow key={item.href} item={item} active={isActivePath(item.href)} />
+                    ))}
+                    <button
+                        type="button"
+                        onClick={() => setContactOpen(true)}
+                        className="flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-sidebar-foreground/80 transition-colors duration-100 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:text-muted-foreground"
+                    >
+                        <LifeBuoy className="h-4 w-4 shrink-0" />
+                        Contact us
+                    </button>
+                </div>
 
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        aria-current={active ? 'page' : undefined}
-                                        className={cn(
-                                            'relative flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[13px] font-medium tracking-[-0.01em] mac-squircle transition-[background-image,background-color,box-shadow,color] duration-150 ease-mac',
-                                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
-                                            active
-                                                ? 'border-hairline bg-[image:var(--fill-control)] text-foreground shadow-control [&_svg]:text-accent'
-                                                : 'border-transparent text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
-                                        )}
-                                    >
-                                        <item.icon className="h-3.5 w-3.5" />
-                                        {item.label}
-                                        {item.devOnly ? (
-                                            <span className="rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                                dev
-                                            </span>
-                                        ) : null}
-                                    </Link>
-                                );
-                            })}
-                        </nav>
-                        <div className="mx-2 h-5 w-px bg-hairline" />
-                        <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
-                            <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-2 rounded-[6px] px-1.5 py-0.5 mac-squircle transition-colors duration-150 ease-mac hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45">
-                                    {user?.avatar ? (
-                                        <img
-                                            src={user.avatar}
-                                            alt={displayName}
-                                            className="h-7 w-7 rounded-full object-cover ring-1 ring-hairline"
-                                        />
-                                    ) : (
-                                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent shadow-control">
-                                            <span className="text-xs font-bold text-primary-foreground">{getInitials()}</span>
-                                        </div>
-                                    )}
-                                    <div
-                                        className={cn('hidden lg:block text-left max-w-[180px]', identityBlurred && 'blur-sm select-none')}
-                                        onPointerDown={(e) => {
-                                            const now = Date.now();
-                                            if (now - identityClickTimer.current < 400) {
-                                                e.stopPropagation();
-                                                setProfileMenuOpen(false);
-                                                setIdentityBlurred((blurred) => !blurred);
-                                                identityClickTimer.current = 0;
-                                            } else {
-                                                identityClickTimer.current = now;
-                                            }
-                                        }}
-                                    >
-                                        <p className="truncate text-[13px] font-medium leading-tight tracking-[-0.01em]">{displayName}</p>
-                                        <p className="truncate text-[11px] leading-tight text-muted-foreground">{displayEmail}</p>
-                                    </div>
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                {/* Profile is still withdrawn — its route and this
-                                    menu entry are disabled together, so nothing in
-                                    the UI points at a redirect. */}
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/pat-tokens')}>
-                                    <KeyRound className="w-4 h-4 mr-2" />
-                                    Tokens
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    Settings
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
-                                    <Bell className="w-4 h-4 mr-2" />
-                                    Notifications
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setContactOpen(true)}>
-                                    <LifeBuoy className="w-4 h-4 mr-2" />
-                                    Contact us
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={onLogout} className="text-destructive focus:text-destructive">
-                                    <LogOut className="w-4 h-4 mr-2" />
-                                    Logout
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                <div className="shrink-0 border-t border-sidebar-border p-2 pb-[calc(0.5rem_+_env(safe-area-inset-bottom))]">
+                    <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen} modal={false}>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors duration-100 hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                {avatar('h-7 w-7')}
+                                <div
+                                    className={cn('min-w-0 flex-1', identityBlurred && 'blur-sm select-none')}
+                                    onPointerDown={(e) => {
+                                        // Double-click the identity to blur it, for
+                                        // screen sharing; a single click opens the menu.
+                                        const now = Date.now();
+                                        if (now - identityClickTimer.current < 400) {
+                                            e.stopPropagation();
+                                            setProfileMenuOpen(false);
+                                            setIdentityBlurred((blurred) => !blurred);
+                                            identityClickTimer.current = 0;
+                                        } else {
+                                            identityClickTimer.current = now;
+                                        }
+                                    }}
+                                >
+                                    <p className="truncate text-[13px] font-medium leading-tight text-foreground">{displayName}</p>
+                                    <p className="truncate text-[11px] leading-tight text-muted-foreground">{displayEmail}</p>
+                                </div>
+                                <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="top" align="start" className="w-[13rem]">
+                            <DropdownMenuLabel className={cn('truncate text-[12px] font-normal text-muted-foreground', identityBlurred && 'blur-sm')}>
+                                {displayEmail}
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={onLogout}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Log out
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </aside>
 
-                    {/* Mobile Menu */}
+            {/* Mobile top bar */}
+            <header className="sticky top-0 z-40 border-b border-hairline bg-background pt-[env(safe-area-inset-top)] md:hidden">
+                <div className="flex h-12 items-center justify-between gap-3 px-3">
+                    {wordmark('-topbar')}
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="md:hidden h-10 w-10"
+                        className="h-10 w-10"
                         aria-label={menuOpen ? 'Close menu' : 'Open menu'}
                         aria-expanded={menuOpen}
                         onClick={() => setMenuOpen(!menuOpen)}
                     >
-                        {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                     </Button>
                 </div>
             </header>
 
-            {/* Mobile Overlay/Backdrop */}
+            {/* Mobile backdrop */}
             <div
                 className={cn(
-                    "md:hidden fixed inset-0 top-[calc(3rem_+_env(safe-area-inset-top))] bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300",
-                    menuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                    'fixed inset-0 top-[calc(3rem_+_env(safe-area-inset-top))] z-50 bg-black/60 transition-opacity duration-200 md:hidden',
+                    menuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
                 )}
                 onClick={() => setMenuOpen(false)}
             />
 
-            {/* Mobile Dropdown */}
+            {/* Mobile drawer */}
             <div
                 className={cn(
-                    'md:hidden fixed left-0 right-0 top-[calc(3rem_+_env(safe-area-inset-top))] z-[60] overflow-y-auto border-t border-hairline bg-[image:var(--fill-panel)] shadow-panel mac-material transition-all duration-300 ease-mac',
+                    'fixed left-0 right-0 top-[calc(3rem_+_env(safe-area-inset-top))] z-[60] overflow-y-auto border-b border-hairline bg-sidebar shadow-panel transition-[max-height,opacity,transform] duration-200 ease-mac md:hidden',
                     menuOpen
-                        ? 'max-h-[calc(100dvh_-_3rem_-_env(safe-area-inset-top))] opacity-100 translate-y-0'
-                        : 'max-h-0 opacity-0 -translate-y-4 pointer-events-none'
+                        ? 'max-h-[calc(100dvh_-_3rem_-_env(safe-area-inset-top))] translate-y-0 opacity-100'
+                        : 'pointer-events-none max-h-0 -translate-y-2 opacity-0'
                 )}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >
-                <div className="p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] space-y-1">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-muted-foreground">Menu</span>
-                        <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
-                            <X className="w-5 h-5" />
-                        </Button>
+                <div className="space-y-4 px-4 py-3 pb-[calc(1rem_+_env(safe-area-inset-bottom))]">
+                    <div className="flex items-center gap-3 px-1">
+                        {avatar('h-9 w-9')}
+                        <div className="min-w-0">
+                            <p className="truncate text-[14px] font-medium text-foreground">{displayName}</p>
+                            <p className="truncate text-[12px] text-muted-foreground">{displayEmail}</p>
+                        </div>
                     </div>
+
                     <WorkspaceSwitcher
                         currentOrgId={currentOrg?.id ?? null}
                         variant="inline"
                         onSwitch={() => setMenuOpen(false)}
                     />
-                    {navItems.map((item) => (
-                        <Button
-                            key={item.href}
-                            variant="ghost"
-                            className={cn(
-                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath(item.href) && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
-                            )}
-                            aria-current={isActivePath(item.href) ? 'page' : undefined}
-                            onClick={() => { router.push(item.href); setMenuOpen(false); }}
-                        >
-                            <item.icon className="w-5 h-5 mr-3" />
-                            {item.label}
-                            {item.devOnly ? (
-                                <span className="ml-2 rounded border border-warning/40 bg-warning/10 px-1 py-px font-mono text-[10px] uppercase tracking-wide text-warning">
-                                    dev
-                                </span>
-                            ) : null}
-                        </Button>
+
+                    {[...groups, { label: 'Account', items: ACCOUNT_ITEMS }].map((group) => (
+                        <div key={group.label}>
+                            <p className="mb-1 px-2.5 text-[12px] font-medium text-muted-foreground/80">{group.label}</p>
+                            <div className="space-y-px">
+                                {group.items.map((item) => (
+                                    <NavRow
+                                        key={item.href}
+                                        item={item}
+                                        size="lg"
+                                        active={isActivePath(item.href)}
+                                        onNavigate={() => setMenuOpen(false)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     ))}
-                    <div className="my-2 border-t border-hairline pt-2">
-                        <Button
-                            variant="ghost"
-                            className={cn(
-                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/pat-tokens') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
-                            )}
-                            aria-current={isActivePath('/dashboard/pat-tokens') ? 'page' : undefined}
-                            onClick={() => { router.push('/dashboard/pat-tokens'); setMenuOpen(false); }}
-                        >
-                            <KeyRound className="w-5 h-5 mr-3" />
-                            Tokens
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={cn(
-                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/settings') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
-                            )}
-                            aria-current={isActivePath('/dashboard/settings') ? 'page' : undefined}
-                            onClick={() => { router.push('/dashboard/settings'); setMenuOpen(false); }}
-                        >
-                            <Settings className="w-5 h-5 mr-3" />
-                            Settings
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={cn(
-                                'w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]',
-                                isActivePath('/dashboard/notifications') && 'border-l-2 border-accent rounded-l-none bg-white/[0.07] text-foreground'
-                            )}
-                            aria-current={isActivePath('/dashboard/notifications') ? 'page' : undefined}
-                            onClick={() => { router.push('/dashboard/notifications'); setMenuOpen(false); }}
-                        >
-                            <Bell className="w-5 h-5 mr-3" />
-                            Notifications
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start h-11 text-[15px] transition-transform duration-150 active:scale-[0.98]"
+
+                    <div className="space-y-px border-t border-hairline pt-3">
+                        <button
+                            type="button"
+                            className="flex h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-[15px] font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
                             onClick={() => { setMenuOpen(false); setContactOpen(true); }}
                         >
-                            <LifeBuoy className="w-5 h-5 mr-3" />
+                            <LifeBuoy className="h-5 w-5 text-muted-foreground" />
                             Contact us
-                        </Button>
+                        </button>
+                        <button
+                            type="button"
+                            className="flex h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-[15px] font-medium text-destructive hover:bg-destructive/10"
+                            onClick={onLogout}
+                        >
+                            <LogOut className="h-5 w-5" />
+                            Log out
+                        </button>
                     </div>
-                    <Button variant="ghost" className="w-full justify-start h-11 text-[15px] text-destructive transition-transform duration-150 active:scale-[0.98]" onClick={onLogout}>
-                        <LogOut className="w-5 h-5 mr-3" />
-                        Logout
-                    </Button>
                 </div>
             </div>
 
-            {/* Rendered outside both menus so closing either one does not unmount
-                the open dialog. */}
-            <ContactSupportDialog
-                open={contactOpen}
-                onOpenChange={setContactOpen}
-            />
+            {/* Outside both menus so closing either one does not unmount the dialog. */}
+            <ContactSupportDialog open={contactOpen} onOpenChange={setContactOpen} />
         </>
     );
 }

@@ -1,7 +1,6 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { TunnelNode } from '@/types/node';
-import { LocationStrip } from './LocationStrip';
 import { LocationDetails } from './LocationDetails';
 import { LanFingerprintDetails } from './LanFingerprintDetails';
 import { DiskDetails } from './DiskDetails';
@@ -11,41 +10,33 @@ import {
     displayedFilesystem,
     percentUsed,
 } from './disk-display';
-import { coordinateLabel, flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
+import { flagFromCountryCode, hasCoordinates, locationLabel } from '@/lib/geo';
 import { StatusIndicator } from './StatusIndicator';
-import { StatBar } from './StatBar';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
-import { Input } from './ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
-    Globe,
-    Lock,
-    Terminal,
+    ChevronRight,
+    Container as ContainerIcon,
+    Eye,
+    EyeOff,
     FolderOpen,
+    Globe,
+    Info,
+    Lock,
+    Loader2,
     MonitorPlay,
-    Clock,
-    Activity,
-    Cpu,
-    Users,
-    Share2,
     MoreVertical,
     Pencil,
-    Trash2,
     Plus,
-    Loader2,
-    Gauge,
-    HardDrive,
-    Network,
-    Router,
-    Container as ContainerIcon
+    Terminal,
+    Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuItem,
     DropdownMenuTrigger,
@@ -93,26 +84,10 @@ type ListedService = { id: string; name: string | null };
  * muted — colour is what tells you a service actually exists.
  */
 const SERVICE_TINTS = {
-    SSH: {
-        icon: 'text-accent',
-        count: 'text-accent',
-        tile: 'border-accent/35 bg-accent/10 hover:border-accent/70 hover:bg-accent/20',
-    },
-    SFTP: {
-        icon: 'text-info',
-        count: 'text-info',
-        tile: 'border-info/35 bg-info/10 hover:border-info/70 hover:bg-info/20',
-    },
-    RDP: {
-        icon: 'text-violet',
-        count: 'text-violet',
-        tile: 'border-violet/35 bg-violet/10 hover:border-violet/70 hover:bg-violet/20',
-    },
-    HTTP: {
-        icon: 'text-warning',
-        count: 'text-warning',
-        tile: 'border-warning/35 bg-warning/10 hover:border-warning/70 hover:bg-warning/20',
-    },
+    SSH: { icon: 'text-accent' },
+    SFTP: { icon: 'text-info' },
+    RDP: { icon: 'text-violet' },
+    HTTP: { icon: 'text-warning' },
 } as const;
 
 interface NodeCardProps {
@@ -124,7 +99,6 @@ interface NodeCardProps {
     onShutdown?: (node: TunnelNode) => void;
     onRefreshStats?: (node: TunnelNode) => void;
     onConfigure?: (node: TunnelNode) => void;
-    onShare?: (node: TunnelNode) => void;
     onViewNodeId?: (node: TunnelNode) => void;
     onRename?: (node: TunnelNode) => void;
     onDelete?: (node: TunnelNode) => void;
@@ -174,8 +148,6 @@ interface NodeCardProps {
     statusPending?: boolean;
 }
 
-import { useState } from 'react';
-
 export function NodeCard({
     node,
     onCreateTunnel,
@@ -185,7 +157,6 @@ export function NodeCard({
     onShutdown,
     onRefreshStats,
     onConfigure,
-    onShare,
     onViewNodeId,
     onRename,
     onDelete,
@@ -208,8 +179,6 @@ export function NodeCard({
     actionsDisabled = false,
     statusPending = false,
 }: NodeCardProps) {
-    const cardRef = useRef<HTMLDivElement>(null);
-
     const formatDuration = (totalSeconds: number) => {
         const seconds = Math.max(0, Math.floor(totalSeconds));
         if (seconds < 60) return `${seconds}s`;
@@ -255,8 +224,8 @@ export function NodeCard({
     const freeDiskBytes = Math.max(0, diskTotalBytes - diskUsedBytes);
     // The bar shows the aggregate, but the aggregate is the reassuring number: a
     // host with a 4 TB array and a full 2 GB /boot reads as barely used. The
-    // fullest single mount is what an operator actually needs, so it is named
-    // beside the bar — and it is the only mount the dashboard's disk alert is
+    // fullest single mount is what an operator actually needs, so it sets the
+    // disk meter's colour — and it is the only mount the dashboard's disk alert is
     // allowed to fire on, which is why both read it from the same helper. Every
     // other mount stays behind the storage dialog, unalerted.
     const fullestDisk = displayedFilesystem(node.stats);
@@ -289,13 +258,8 @@ export function NodeCard({
     // practically every node, so counting it would title a section "Local
     // network" over a single row the dialog never used to bother with.
     const hasLanDetails = !!(gatewayIp || gatewayMac || lanCidr || lanIface) || isContainer !== null;
-    const publicIp = (publicIpInfo?.ip ?? '').trim();
-    const publicLocation = [publicIpInfo?.city, publicIpInfo?.country]
-        .filter((part) => !!part?.trim())
-        .join(', ');
     const plottable = hasCoordinates(publicIpInfo);
     const nodeLocationLabel = locationLabel(publicIpInfo);
-    const nodeCoordinateLabel = coordinateLabel(publicIpInfo);
     const countryFlag = flagFromCountryCode(publicIpInfo?.country_code);
     const normalizeServiceName = (service: string) => service.trim().toUpperCase().replace(/[\s_-]+/g, '');
     const monitorCount = node.monitor_count;
@@ -310,8 +274,7 @@ export function NodeCard({
         .reduce((sum, kind) => sum + serviceCount(kind), 0);
 
     const [ipBlurred, setIpBlurred] = useState(false);
-    const [locationDialogOpen, setLocationDialogOpen] = useState(false);
-    const [diskDialogOpen, setDiskDialogOpen] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(false);
 
     // SSH Modal State
     const [sshDialogOpen, setSshDialogOpen] = useState(false);
@@ -397,570 +360,225 @@ export function NodeCard({
         else onEditHttpProxy?.(serviceId);
     };
 
+    const isLive = !isConfirmedOffline && !isResolving && !isIncompatible && !showConnectedLoader;
+    const statusLabel = isIncompatible
+        ? 'Incompatible'
+        : statusPending
+            ? 'Checking'
+            : isResolving || showConnectedLoader
+                ? 'Connecting'
+                : node.is_online ? 'Online' : 'Offline';
+    const statusTone = isIncompatible
+        ? 'text-warning'
+        : isResolving || showConnectedLoader
+            ? 'text-warning'
+            : node.is_online ? 'text-success' : 'text-muted-foreground';
+    const osLabel = node.stats.host_os_info?.trim() || 'Unknown OS';
+
+    const services = [
+        { kind: 'SSH' as const, label: 'SSH', Icon: Terminal },
+        { kind: 'SFTP' as const, label: 'SFTP', Icon: FolderOpen },
+        { kind: 'RDP' as const, label: 'RDP', Icon: MonitorPlay },
+        { kind: 'HTTP' as const, label: 'HTTP', Icon: HttpProxyIcon },
+    ];
+
+    const blur = (value: string) => (ipBlurred ? '••••••••' : value);
+
     return (
-        <div className="@container relative overflow-hidden rounded-lg md:overflow-visible">
-            {/* Main Card */}
+        <div className="relative h-full">
+            {/*
+             * The card answers three questions and nothing else: is it up, is it
+             * healthy, how do I get in. Everything an operator reads less often —
+             * addresses, mounts, the map, process counts — lives behind Details,
+             * so a fleet of twenty reads as twenty rows of the same shape.
+             */}
             <div
-                ref={cardRef}
                 className={cn(
-                    'group gradient-card mac-squircle border rounded-lg p-4 relative h-full flex flex-col',
-                    'hover:border-hairline-strong hover:shadow-window-raised',
-                    'border-hairline',
-                    'transition-[box-shadow,border-color] duration-200 ease-mac',
-                    (isConfirmedOffline || isResolving || isIncompatible) && 'select-none'
+                    'group flex h-full flex-col rounded-lg border border-hairline bg-card transition-colors duration-100',
+                    'hover:border-hairline-strong',
                 )}
             >
-                {(isConfirmedOffline || isResolving || isIncompatible) && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/45 backdrop-blur-sm">
-                        <div className={cn(
-                            'flex items-center gap-2 rounded-full border bg-card/90 px-3 py-1.5 text-sm font-medium shadow-sm select-none',
-                            isIncompatible
-                                ? 'border-orange-400/35 text-orange-500'
-                                : isResolving
-                                    ? 'border-warning/35 text-warning'
-                                    : 'border-red-400/35 text-red-500'
-                        )}>
-                            {isResolving && !isIncompatible ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : null}
-                            <span>
-                                {isIncompatible
-                                    ? 'Incompatible'
-                                    : statusPending
-                                        ? 'Checking'
-                                        : isResolving
-                                            ? 'Connecting'
-                                            : 'Offline'}
-                            </span>
-                        </div>
-                    </div>
-                )}
-                {showConnectedLoader && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/45 backdrop-blur-sm">
-                        <div className="flex items-center gap-2 rounded-full border border-primary/35 bg-card/90 px-3 py-1.5 text-sm font-medium text-primary shadow-sm">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Connecting...</span>
-                        </div>
-                    </div>
-                )}
                 {/* Header */}
-                <div className="relative z-30 flex items-start">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {/* Selection checkbox removed */}
-                        <StatusIndicator isOnline={node.is_online} pending={isResolving} size="md" />
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2 min-w-0">
-                                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                                    {node.name}
-                                </h3>
-                                <div className="relative z-30 flex items-center gap-2 flex-shrink-0">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 rounded-full border border-transparent text-muted-foreground transition-colors hover:border-hairline hover:bg-secondary/60 hover:text-foreground"
-                                                aria-label={`Open actions for ${node.name}`}
-                                            >
-                                                <MoreVertical className="w-4 h-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="end"
-                                            className="w-56 p-2"
-                                        >
-                                            <DropdownMenuLabel className="px-2 py-1">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[11px] font-medium text-muted-foreground">Node actions</span>
-                                                    <span className={cn(
-                                                        'text-[11px] font-medium',
-                                                        isIncompatible
-                                                            ? 'text-orange-500'
-                                                            : isResolving
-                                                                ? 'text-warning'
-                                                                : node.is_online ? 'text-emerald-500' : 'text-red-500'
-                                                    )}>
-                                                        {isIncompatible
-                                                            ? 'Incompatible'
-                                                            : statusPending
-                                                                ? 'Checking'
-                                                                : isResolving
-                                                                    ? 'Connecting'
-                                                                    : node.is_online ? 'Online' : 'Offline'}
-                                                    </span>
-                                                </div>
-                                            </DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => onViewNodeId?.(node)}>
-                                                <Globe className="mr-2 w-4 h-4" />
-                                                View Node ID
-                                            </DropdownMenuItem>
-                                            {/* Renaming, sharing and deleting are the node's
-                                                *configuration*, so they are the owner's — and an
-                                                administrator's. Omitted rather than shown disabled:
-                                                a menu is read top to bottom, and three greyed rows
-                                                would say "you nearly can" about something that will
-                                                never be true for this person on this machine.
-                                                "View Node ID" stays, because it is the one thing
-                                                here that reading a node already entitles you to. */}
-                                            {canManage ? (
-                                                <>
-                                                    <DropdownMenuItem onClick={() => onRename?.(node)}>
-                                                        <Pencil className="mr-2 w-4 h-4" />
-                                                        Rename Node
-                                                    </DropdownMenuItem>
-                                                    {/* Sharing lives beside the other things you can do *to*
-                                                        a node rather than beside the ways of connecting to
-                                                        one: it changes who reaches the machine, not how. */}
-                                                    {onShare ? (
-                                                        <DropdownMenuItem onClick={() => onShare(node)}>
-                                                            <Share2 className="mr-2 w-4 h-4" />
-                                                            Share Node
-                                                        </DropdownMenuItem>
-                                                    ) : null}
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() => onDelete?.(node)}
-                                                        className="text-destructive focus:text-destructive"
-                                                    >
-                                                        <Trash2 className="mr-2 w-4 h-4" />
-                                                        Delete Node
-                                                    </DropdownMenuItem>
-                                                </>
-                                            ) : null}
-                                            {/* SSH Modal handled by parent */}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </div>
-                            {isShared && sharedBy ? (
-                                <p className="text-xs text-accent truncate">
-                                    <span className="bg-accent/20 px-1.5 py-0.5 rounded mr-1">Shared</span>
-                                    by {sharedBy}
-                                </p>
+                <div className="flex items-start gap-2.5 px-3.5 pt-3">
+                    <span className="mt-[6px] shrink-0">
+                        <StatusIndicator isOnline={node.is_online} pending={isResolving || showConnectedLoader} size="sm" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <h3 className="truncate text-[14px] font-semibold leading-5 text-foreground">
+                                {node.name}
+                            </h3>
+                            {isShared ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="shrink-0 rounded-sm border border-hairline px-1 text-[10px] leading-4 text-muted-foreground">
+                                            Shared
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{sharedBy ? `Shared with you by ${sharedBy}` : 'Shared with you'}</TooltipContent>
+                                </Tooltip>
                             ) : null}
                         </div>
+                        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] leading-4 text-muted-foreground">
+                            {countryFlag ? (
+                                <span aria-hidden="true" className="shrink-0" title={nodeLocationLabel || undefined}>{countryFlag}</span>
+                            ) : null}
+                            <span className="truncate">{osLabel}</span>
+                            {isContainer ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <ContainerIcon className="h-3.5 w-3.5 shrink-0 text-lime" aria-label="Runs in a container" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>Agent runs inside a container</TooltipContent>
+                                </Tooltip>
+                            ) : null}
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                        {isLive ? (
+                            <span className="pt-[3px] text-[12px] tabular-nums text-muted-foreground" title="Host uptime">
+                                {formatDuration(node.stats.host_uptime_secs)}
+                            </span>
+                        ) : (
+                            <span className={cn('flex items-center gap-1 pt-[3px] text-[12px] font-medium', statusTone)}>
+                                {(isResolving || showConnectedLoader) && !isIncompatible ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : null}
+                                {statusLabel}
+                            </span>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="-mr-1.5 h-7 w-7 text-muted-foreground hover:text-foreground md:h-7 md:w-7"
+                                    aria-label={`Open actions for ${node.name}`}
+                                >
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
+                                    <Info className="mr-2 h-4 w-4" />
+                                    View details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onViewNodeId?.(node)}>
+                                    <Globe className="mr-2 h-4 w-4" />
+                                    View node ID
+                                </DropdownMenuItem>
+                                {/* Renaming and deleting are the node's
+                                    configuration, so they are the owner's — and an
+                                    administrator's. Omitted rather than shown disabled. */}
+                                {canManage ? (
+                                    <>
+                                        <DropdownMenuItem onClick={() => onRename?.(node)}>
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Rename node
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            onClick={() => onDelete?.(node)}
+                                            className="text-destructive focus:text-destructive"
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Delete node
+                                        </DropdownMenuItem>
+                                    </>
+                                ) : null}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-4 mt-1">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs text-muted-foreground font-mono block truncate">
-                                        {node.stats.host_name?.trim() || 'Hostname unavailable'}
-                                    </p>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                MAC {node.stats.host_mac}
-                            </TooltipContent>
-                        </Tooltip>
-                        {/* Sits beside the OS chip because it qualifies it: the
-                            OS string of a containerised agent describes the
-                            image, not the machine. Shown only when the agent
-                            positively reports a container, so it reads as a
-                            marker rather than a field — the false case is left
-                            to the stats row below. */}
-                        {isContainer ? (
-                            <Tooltip>
+                {/* Resources. One row, three readings. When the node is not live
+                    the numbers are from its last report, so they are withheld
+                    rather than shown as if current. */}
+                <div className="grid grid-cols-3 gap-3 px-3.5 pb-3 pt-2.5">
+                    <Meter
+                        label="CPU"
+                        value={cpuPercent}
+                        live={isLive}
+                        hint={`Load ${loadAverageLabel}`}
+                    />
+                    <Meter
+                        label="Memory"
+                        value={memoryPercent}
+                        live={isLive}
+                        hint={`${formatBytes(node.stats.host_mem_used_bytes)} of ${formatBytes(node.stats.host_mem_total_bytes)}`}
+                    />
+                    <Meter
+                        label="Disk"
+                        value={hasDiskStats ? diskPercent : null}
+                        live={isLive}
+                        // The aggregate is the reassuring number; the fullest mount
+                        // is the one that pages someone, so it gets the warning tone.
+                        tone={fullestDisk ? percentUsed(fullestDisk) : undefined}
+                        hint={hasDiskStats
+                            ? `${formatBytes(diskUsedBytes)} of ${formatBytes(diskTotalBytes)}${fullestDisk ? ` · fullest ${fullestDisk.mount} ${percentUsed(fullestDisk).toFixed(0)}%` : ''}`
+                            : 'No storage reported'}
+                    />
+                </div>
+
+                {/* Services + details */}
+                <div className="mt-auto flex items-center gap-0.5 border-t border-hairline px-2 py-1.5">
+                    {services.map(({ kind, label, Icon }) => {
+                        const count = serviceCount(kind);
+                        const configured = count > 0;
+                        const tint = SERVICE_TINTS[kind];
+
+                        return (
+                            <Tooltip key={kind}>
                                 <TooltipTrigger asChild>
-                                    <span className="flex items-center gap-1 text-xs text-lime bg-lime/10 border border-lime/25 px-1.5 py-1 rounded whitespace-nowrap shrink-0">
-                                        <ContainerIcon className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="font-medium">Container</span>
-                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => void runOrPickInstance(kind)}
+                                        // An empty slot is an add button, which is
+                                        // configuration — a grantee cannot use it.
+                                        disabled={!isLive || actionsDisabled || (!configured && !canManage)}
+                                        aria-label={configured
+                                            ? `Open ${label} on ${node.name}`
+                                            : canManage
+                                                ? `Add a ${label} service to ${node.name}`
+                                                : `No ${label} service on ${node.name}`}
+                                        className={cn(
+                                            'flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium transition-colors',
+                                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70',
+                                            'disabled:cursor-not-allowed disabled:opacity-40',
+                                            configured
+                                                ? 'text-foreground hover:bg-secondary'
+                                                : 'text-muted-foreground/60 hover:bg-secondary hover:text-muted-foreground',
+                                        )}
+                                    >
+                                        <Icon className={cn('h-3.5 w-3.5 shrink-0', configured ? tint.icon : '')} />
+                                        <span>{label}</span>
+                                        {configured && count > 1 ? (
+                                            <span className="tabular-nums text-muted-foreground">{count}</span>
+                                        ) : null}
+                                    </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    Agent runs inside a container
-                                    {lanIface ? ` on ${lanIface}` : ''}
-                                    {lanCidr ? ` (${ipBlurred ? '••••••••' : lanCidr})` : ''}
+                                    {!isLive
+                                        ? `${node.name} is ${statusLabel.toLowerCase()}`
+                                        : configured
+                                            ? `Open ${label}${count > 1 ? ` (${count} services)` : ''}`
+                                            : canManage
+                                                ? `No ${label} service yet — click to add one`
+                                                : `No ${label} service. Only this node's owner can add one.`}
                                 </TooltipContent>
                             </Tooltip>
-                        ) : null}
-                        <span className="whitespace-nowrap rounded-[6px] border border-hairline bg-white/[0.06] px-2 py-1 text-xs text-muted-foreground">
-                            {node.is_online ? node.stats.host_os_info : 'Unknown'}
-                        </span>
-                    </div>
-                </div>
-
-                {/* CPU and memory are a pair: one number each, same shape, and
-                    they read fine side by side. Disk is not one of them — see
-                    below. */}
-                <div className="relative z-10 grid grid-cols-2 gap-3 mb-3">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div>
-                                <StatBar label="CPU" value={cpuPercent} icon={<Cpu className="w-4 h-4" />} />
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            Host CPU: {node.stats.host_cpu.toFixed(2)}%
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div>
-                                <StatBar label="Memory" value={memoryPercent} icon={<Activity className="w-4 h-4" />} />
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {formatBytes(node.stats.host_mem_used_bytes)} / {formatBytes(node.stats.host_mem_total_bytes)} • Free {formatBytes(freeMemoryBytes)}
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-
-                {/* Storage gets the full width rather than a third of it.
-                    Squeezed into the three-column row its bar was a stub, its
-                    label collided with its own percentage, and the one stat that
-                    is *clickable* looked identical to the two that are not.
-
-                    It also carries more than the other two legitimately can: CPU
-                    and memory are a single number each, where this is an
-                    aggregate over mounts that can disagree — a 4 TB array at 20%
-                    beside a full 2 GB `/boot` reads as "fine" until you open it.
-                    So the fullest mount is named inline, and the whole row opens
-                    the breakdown. */}
-                {hasDiskStats ? (
-                    <div className="relative z-10 mb-4">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    type="button"
-                                    onClick={() => setDiskDialogOpen(true)}
-                                    className="mac-squircle w-full rounded-lg border border-hairline bg-white/[0.035] p-3 text-left shadow-[inset_0_1px_0_0_var(--specular)] transition-colors hover:border-hairline-strong hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
-                                    aria-label={`Storage breakdown for ${node.name || 'this node'}`}
-                                >
-                                    <StatBar
-                                        label="Storage"
-                                        value={diskPercent}
-                                        icon={<HardDrive className="w-4 h-4" />}
-                                    />
-                                    <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                                        <span className="truncate font-mono">
-                                            {formatBytes(diskUsedBytes)} / {formatBytes(diskTotalBytes)}
-                                            <span className="text-muted-foreground/70">
-                                                {' '}· {formatBytes(freeDiskBytes)} free
-                                            </span>
-                                        </span>
-                                        {fullestDisk ? (
-                                            <span
-                                                className={cn(
-                                                    'shrink-0 tabular-nums',
-                                                    percentUsed(fullestDisk) >= DISK_DANGER_PERCENT
-                                                        ? 'text-destructive'
-                                                        : percentUsed(fullestDisk) >= DISK_WARN_PERCENT
-                                                            ? 'text-warning'
-                                                            : 'text-muted-foreground/70',
-                                                )}
-                                            >
-                                                {fullestDisk.mount} {percentUsed(fullestDisk).toFixed(0)}%
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {disks.length === 1 ? '1 mount' : `${disks.length} mounts`} — click for the
-                                breakdown
-                            </TooltipContent>
-                        </Tooltip>
-                    </div>
-                ) : null}
-
-                {/* Extended Stats Grid */}
-                <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-x-4 gap-y-0.5 mb-3 text-xs">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 px-1 py-1">
-                                <Clock className="w-3.5 h-3.5 shrink-0 text-accent/80" />
-                                <span className="text-muted-foreground">Uptime</span>
-                                <span className="ml-auto font-mono text-foreground">{formatDuration(node.stats.host_uptime_secs)}</span>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {node.stats.host_uptime_secs}s
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div
-                                className="flex items-center gap-2 px-1 py-1 cursor-pointer"
-                                onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
-                            >
-                                <Globe className="w-3.5 h-3.5 shrink-0 text-info/80" />
-                                <span className="text-muted-foreground shrink-0">IP</span>
-                                <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
-                                    {displayIp || 'unknown'}
-                                </span>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            Public: {ipBlurred ? '••••••••' : (displayIp || 'IP unavailable')}
-                            <br />
-                            Local: {ipBlurred ? '••••••••' : (displayLocalIp || 'IP unavailable')}
-                            {publicIp && publicIp !== displayIp ? (
-                                <>
-                                    <br />
-                                    Reported: {ipBlurred ? '••••••••' : publicIp}
-                                </>
-                            ) : null}
-                            {publicLocation ? (
-                                <>
-                                    <br />
-                                    Location: {publicLocation}
-                                </>
-                            ) : null}
-                            {publicIpInfo?.asn_org ? (
-                                <>
-                                    <br />
-                                    Network: {publicIpInfo.asn_org}
-                                </>
-                            ) : null}
-                        </TooltipContent>
-                    </Tooltip>
-                    {/* The LAN segment, sat next to IP because it answers the same
-                        question one hop further out: not "what address is this
-                        node" but "what network is it on". Conditional on the
-                        value — a host with no default route, or an agent too old
-                        to report one, gets no empty row — and carrying the same
-                        double-click blur as the IP above, since it is an address
-                        too. The subnet rides in the tooltip rather than taking a
-                        row of its own: it is the same fact one field wider, and
-                        the grid slot is better spent on the container flag. */}
-                    {gatewayIp ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div
-                                    className="flex items-center gap-2 px-1 py-1 cursor-pointer"
-                                    onDoubleClick={() => setIpBlurred((blurred) => !blurred)}
-                                >
-                                    <Router className="w-3.5 h-3.5 shrink-0 text-pink/80" />
-                                    <span className="text-muted-foreground shrink-0">Gateway</span>
-                                    <span className={cn('ml-auto min-w-0 font-mono text-foreground truncate', ipBlurred && 'blur-sm select-none')}>
-                                        {gatewayIp}
-                                    </span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                Default gateway: {ipBlurred ? '••••••••' : gatewayIp}
-                                {gatewayMac ? (
-                                    <>
-                                        <br />
-                                        MAC: {ipBlurred ? '••••••••' : gatewayMac}
-                                    </>
-                                ) : null}
-                                {lanCidr ? (
-                                    <>
-                                        <br />
-                                        Subnet: {ipBlurred ? '••••••••' : lanCidr}
-                                    </>
-                                ) : null}
-                                {lanIface ? (
-                                    <>
-                                        <br />
-                                        Interface: {lanIface}
-                                    </>
-                                ) : null}
-                                {isContainer ? (
-                                    <>
-                                        <br />
-                                        Agent runs in a container, so this may be a bridge network
-                                    </>
-                                ) : null}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : null}
-                    {/* Whether the agent is containerised, stated flatly rather
-                        than left to be inferred from a 172.17.x address. Plain
-                        true/false because it is a plain boolean; the row is not
-                        blurred, since unlike its neighbours it discloses no
-                        address. */}
-                    {isContainer !== null ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 px-1 py-1">
-                                    <ContainerIcon className="w-3.5 h-3.5 shrink-0 text-lime/80" />
-                                    <span className="text-muted-foreground shrink-0">Container</span>
-                                    <span className="ml-auto min-w-0 font-mono text-foreground truncate">
-                                        {isContainer ? 'true' : 'false'}
-                                    </span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {isContainer
-                                    ? 'Agent runs inside a container — its local IP and subnet describe the container network, not the host LAN'
-                                    : 'Agent runs directly on the host, not in a container'}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : null}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 px-1 py-1">
-                                <Gauge className="w-3.5 h-3.5 shrink-0 text-warning/80" />
-                                <span className="text-muted-foreground">Load</span>
-                                <span className="ml-auto font-mono text-foreground">{node.stats.host_load_average[0].toFixed(2)}</span>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            {loadAverageLabel}
-                        </TooltipContent>
-                    </Tooltip>
-                    <div className="flex items-center gap-2 px-1 py-1">
-                        <Cpu className="w-3.5 h-3.5 shrink-0 text-violet/80" />
-                        <span className="text-muted-foreground">Procs</span>
-                        <span className="ml-auto font-mono text-foreground">{node.stats.host_processes}</span>
-                    </div>
-                    {/* Open sockets on the host — reported by the agent every
-                        heartbeat and, until now, the one metric the dashboard
-                        never showed. */}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2 px-1 py-1">
-                                <Network className="w-3.5 h-3.5 shrink-0 text-primary/70" />
-                                <span className="text-muted-foreground">Connections</span>
-                                <span className="ml-auto font-mono text-foreground">{node.stats.host_connections}</span>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            Network connections open on the host
-                        </TooltipContent>
-                    </Tooltip>
-                    {/* Uptime monitors whose checks run from this node. Absent
-                        (rather than 0) for a node restored from an older cache,
-                        which is why the row is conditional on the field
-                        existing rather than on it being non-zero. */}
-                    {monitorCount !== undefined ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex items-center gap-2 px-1 py-1">
-                                    <Activity className="w-3.5 h-3.5 shrink-0 text-success/80" />
-                                    <span className="text-muted-foreground">Monitors</span>
-                                    <span className="ml-auto font-mono text-foreground">{monitorCount}</span>
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {monitorCount === 0
-                                    ? 'No uptime checks run from this node'
-                                    : `${monitorCount} uptime ${monitorCount === 1 ? 'check runs' : 'checks run'} from this node`}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : null}
-                </div>
-
-                {/* Where the node's public address geolocates to. Only rendered
-                    when the agent's login lookup actually resolved coordinates —
-                    a host with no egress reports none, and an empty map frame
-                    would say less than no map at all. */}
-                {plottable ? (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <LocationStrip
-                                location={publicIpInfo}
-                                active={node.is_online}
-                                blurred={ipBlurred}
-                                subject="node location"
-                                onClick={() => setLocationDialogOpen(true)}
-                                className="mb-3"
-                            />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            Open map
-                            {publicIpInfo?.time_zone ? <><br />Timezone: {publicIpInfo.time_zone}</> : null}
-                            {publicIpInfo?.asn_org ? <><br />Network: {publicIpInfo.asn_org}</> : null}
-                        </TooltipContent>
-                    </Tooltip>
-                ) : null}
-
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 mb-4 pt-3 border-t border-hairline">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className="text-muted-foreground/60">
-                                Connected: {formatDuration(node.connected_for_secs)}
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            Connected for {node.connected_for_secs}s
-                        </TooltipContent>
-                    </Tooltip>
-                    <span className="text-muted-foreground/70">Version: {nodeVersion || 'unknown'}</span>
-                </div>
-
-                {/* Services — the card's primary affordance. Configured kinds carry a
-                    count; unconfigured ones stay muted with a + so the card doubles
-                    as the place you add them. */}
-                <div className="mt-auto">
-                    <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[11px] font-medium text-muted-foreground">Services</span>
-                        {totalServiceCount > 0 ? (
-                            <span className="font-mono text-[11px] text-muted-foreground/70">{totalServiceCount} configured</span>
-                        ) : null}
-                    </div>
-                    <div className="grid grid-cols-1 min-[450px]:grid-cols-2 gap-2">
-                        {([
-                            { kind: 'SSH' as const, label: 'SSH', Icon: Terminal },
-                            { kind: 'SFTP' as const, label: 'SFTP', Icon: FolderOpen },
-                            { kind: 'RDP' as const, label: 'RDP', Icon: MonitorPlay },
-                            { kind: 'HTTP' as const, label: 'HTTP', Icon: HttpProxyIcon },
-                        ]).map(({ kind, label, Icon }) => {
-                            const count = serviceCount(kind);
-                            const configured = count > 0;
-                            const tint = SERVICE_TINTS[kind];
-
-                            return (
-                                <Tooltip key={kind}>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            type="button"
-                                            onClick={() => void runOrPickInstance(kind)}
-                                            // An empty tile is an *add* button, which is
-                                            // configuration. A grantee can open what is already
-                                            // there and nothing else, so the tile stays visible —
-                                            // "this node has no SFTP" is true and worth knowing —
-                                            // but it does not invite a click that cannot work.
-                                            disabled={actionsDisabled || (!configured && !canManage)}
-                                            aria-label={configured
-                                                ? `Open ${label} on ${node.name}`
-                                                : canManage
-                                                    ? `Add a ${label} service to ${node.name}`
-                                                    : `No ${label} service on ${node.name}`}
-                                            className={cn(
-                                                'mac-squircle flex items-center gap-2.5 rounded-[9px] border px-3 py-2.5 text-left transition-colors',
-                                                'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
-                                                'disabled:cursor-not-allowed disabled:opacity-50',
-                                                configured
-                                                    ? tint.tile
-                                                    : 'border-dashed border-hairline hover:border-hairline-strong hover:bg-white/[0.05]'
-                                            )}
-                                        >
-                                            <Icon className={cn(
-                                                'w-4 h-4 shrink-0',
-                                                configured ? tint.icon : 'text-muted-foreground/60'
-                                            )} />
-                                            <span className={cn(
-                                                'flex-1 truncate text-xs font-medium',
-                                                configured ? 'text-foreground' : 'text-muted-foreground'
-                                            )}>
-                                                {label}
-                                            </span>
-                                            {configured ? (
-                                                <span className={cn('font-mono text-xs font-semibold', tint.count)}>{count}</span>
-                                            ) : (
-                                                <Plus className="w-3.5 h-3.5 shrink-0 text-muted-foreground/60" />
-                                            )}
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {configured
-                                            ? `${count} ${label} ${count === 1 ? 'service' : 'services'}`
-                                            : canManage
-                                                ? `No ${label} service yet - click to add one`
-                                                : `No ${label} service. Only this node's owner can add one.`}
-                                    </TooltipContent>
-                                </Tooltip>
-                            );
-                        })}
-                    </div>
+                        );
+                    })}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-7 gap-0.5 px-2 text-[12px] text-muted-foreground hover:text-foreground md:h-7 md:px-2 md:text-[12px]"
+                        onClick={() => setDetailsOpen(true)}
+                        aria-label={`View details for ${node.name}`}
+                    >
+                        Details
+                        <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
                 </div>
             </div>
 
@@ -1073,80 +691,219 @@ export function NodeCard({
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={diskDialogOpen} onOpenChange={setDiskDialogOpen}>
-                <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <HardDrive className="h-4 w-4" />
-                            Storage
+            {/* Node details: everything the card leaves out. */}
+            <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <DialogContent className="flex h-[min(85vh,620px)] flex-col gap-0 p-0 sm:max-w-2xl">
+                    <DialogHeader className="space-y-1 border-b border-hairline px-5 pb-3 pt-4 text-left">
+                        <DialogTitle className="flex items-center gap-2 pr-8 text-[16px]">
+                            <StatusIndicator isOnline={node.is_online} pending={isResolving || showConnectedLoader} size="sm" />
+                            <span className="truncate">{node.name}</span>
+                            <span className={cn('text-[12px] font-medium', statusTone)}>{statusLabel}</span>
                         </DialogTitle>
-                        <DialogDescription>
-                            Every filesystem {node.name || 'this node'} reported, largest first.
-                            Bind mounts and subvolumes of one device are counted once, so these
-                            add up to the total on the card.
+                        <DialogDescription className="truncate font-mono text-[12px]">
+                            {node.stats.host_name?.trim() || 'Hostname unavailable'} · {osLabel}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <DiskDetails disks={disks} formatBytes={formatBytes} />
+                    <Tabs defaultValue="overview" className="flex min-h-0 flex-1 flex-col">
+                        <div className="flex items-center justify-between gap-3 px-5 pt-3">
+                            <TabsList>
+                                <TabsTrigger value="overview">Overview</TabsTrigger>
+                                <TabsTrigger value="storage">Storage</TabsTrigger>
+                                <TabsTrigger value="network">Network</TabsTrigger>
+                            </TabsList>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1.5 px-2 text-[12px] text-muted-foreground md:h-8"
+                                onClick={() => setIpBlurred((blurred) => !blurred)}
+                                aria-pressed={ipBlurred}
+                            >
+                                {ipBlurred ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                                {ipBlurred ? 'Show addresses' : 'Hide addresses'}
+                            </Button>
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-4">
+                            <TabsContent value="overview" className="mt-0 space-y-5">
+                                {!isLive ? (
+                                    <p className="rounded-md border border-hairline bg-secondary/50 px-3 py-2 text-[12px] text-muted-foreground">
+                                        {statusLabel}. Figures below are from the node&apos;s last report.
+                                    </p>
+                                ) : null}
+                                <section className="space-y-3">
+                                    <h4 className="text-[13px] font-semibold text-foreground">Resources</h4>
+                                    <DetailMeter
+                                        label="CPU"
+                                        value={cpuPercent}
+                                        detail={`${node.stats.host_cpu.toFixed(1)}% · load ${loadAverageLabel}`}
+                                    />
+                                    <DetailMeter
+                                        label="Memory"
+                                        value={memoryPercent}
+                                        detail={`${formatBytes(node.stats.host_mem_used_bytes)} of ${formatBytes(node.stats.host_mem_total_bytes)} · ${formatBytes(freeMemoryBytes)} free`}
+                                    />
+                                    {hasDiskStats ? (
+                                        <DetailMeter
+                                            label="Storage"
+                                            value={diskPercent}
+                                            tone={fullestDisk ? percentUsed(fullestDisk) : undefined}
+                                            detail={`${formatBytes(diskUsedBytes)} of ${formatBytes(diskTotalBytes)} · ${formatBytes(freeDiskBytes)} free${fullestDisk ? ` · fullest ${fullestDisk.mount} ${percentUsed(fullestDisk).toFixed(0)}%` : ''}`}
+                                        />
+                                    ) : null}
+                                </section>
+                                <section>
+                                    <h4 className="mb-2 text-[13px] font-semibold text-foreground">System</h4>
+                                    <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                                        <DetailRow label="Uptime" value={formatDuration(node.stats.host_uptime_secs)} />
+                                        <DetailRow label="Connected for" value={formatDuration(node.connected_for_secs)} />
+                                        <DetailRow label="Agent version" value={nodeVersion || 'Unknown'} mono />
+                                        <DetailRow label="Processes" value={String(node.stats.host_processes)} mono />
+                                        <DetailRow label="Open connections" value={String(node.stats.host_connections)} mono />
+                                        {monitorCount !== undefined ? (
+                                            <DetailRow label="Monitors on this node" value={String(monitorCount)} mono />
+                                        ) : null}
+                                        {isContainer !== null ? (
+                                            <DetailRow label="Runs in a container" value={isContainer ? 'Yes' : 'No'} />
+                                        ) : null}
+                                        <DetailRow label="MAC address" value={blur(node.stats.host_mac || 'Unknown')} mono />
+                                        <DetailRow label="Services" value={totalServiceCount === 0 ? 'None' : String(totalServiceCount)} mono />
+                                    </dl>
+                                </section>
+                            </TabsContent>
+
+                            <TabsContent value="storage" className="mt-0">
+                                {hasDiskStats ? (
+                                    <>
+                                        <p className="mb-3 text-[12px] text-muted-foreground">
+                                            Every filesystem this node reported, largest first. Bind mounts and
+                                            subvolumes of one device are counted once.
+                                        </p>
+                                        <DiskDetails disks={disks} formatBytes={formatBytes} />
+                                    </>
+                                ) : (
+                                    <p className="text-[13px] text-muted-foreground">
+                                        This node has not reported any storage. Agents older than the disk
+                                        report show nothing here.
+                                    </p>
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="network" className="mt-0 space-y-5">
+                                <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                                    <DetailRow label="Address seen by server" value={blur(displayIp || 'Unknown')} mono />
+                                    <DetailRow label="Local address" value={blur(displayLocalIp || 'Unknown')} mono />
+                                </dl>
+                                {plottable ? (
+                                    <div className="h-56 w-full overflow-hidden rounded-md border border-hairline">
+                                        {/* Mounted only while this tab is open, which keeps
+                                            MapLibre to a single WebGL context. */}
+                                        <NodeLocationDetailMap
+                                            latitude={publicIpInfo.latitude}
+                                            longitude={publicIpInfo.longitude}
+                                            label={nodeLocationLabel || node.name}
+                                            className="h-full w-full"
+                                        />
+                                    </div>
+                                ) : null}
+                                {publicIpInfo ? (
+                                    <section>
+                                        <h4 className="mb-2 text-[13px] font-semibold text-foreground">
+                                            Public address{nodeLocationLabel ? ` · ${nodeLocationLabel}` : ''}
+                                        </h4>
+                                        <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
+                                    </section>
+                                ) : null}
+                                {hasLanDetails ? (
+                                    <section>
+                                        <h4 className="mb-2 text-[13px] font-semibold text-foreground">Local network</h4>
+                                        <LanFingerprintDetails lan={lan} localIp={displayLocalIp} blurred={ipBlurred} />
+                                    </section>
+                                ) : null}
+                            </TabsContent>
+                        </div>
+                    </Tabs>
                 </DialogContent>
             </Dialog>
+        </div>
+    );
+}
 
-            {/* Mounted only while open, which is what keeps MapLibre to a single
-                WebGL context no matter how many nodes are on screen. */}
-            <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
-                {/* The second section can push the map past a short viewport, so
-                    the dialog scrolls its own body rather than the page. */}
-                <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            {countryFlag ? <span aria-hidden="true">{countryFlag}</span> : null}
-                            {nodeLocationLabel || 'Node location'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Where {node.name || 'this node'} reported its public address from when it
-                            logged in. Geolocated from that address, so it is accurate to a city at best.
-                        </DialogDescription>
-                    </DialogHeader>
+/** Percent → status colour. Shared by the card meters and the details dialog. */
+function meterTone(percent: number) {
+    if (percent >= DISK_DANGER_PERCENT) return { bar: 'bg-destructive', text: 'text-destructive' };
+    if (percent >= DISK_WARN_PERCENT) return { bar: 'bg-warning', text: 'text-warning' };
+    return { bar: 'bg-accent', text: 'text-foreground' };
+}
 
-                    {locationDialogOpen && plottable ? (
-                        <div className="h-72 w-full overflow-hidden rounded-lg border border-hairline">
-                            <NodeLocationDetailMap
-                                latitude={publicIpInfo.latitude}
-                                longitude={publicIpInfo.longitude}
-                                label={nodeLocationLabel || node.name}
-                                className="h-full w-full"
-                            />
-                        </div>
-                    ) : null}
+/**
+ * A card reading: label and number on one line, a 3px bar under it. `tone`
+ * overrides the value used for colour, so the disk meter can show the aggregate
+ * while warning on the fullest mount.
+ */
+function Meter({ label, value, live, hint, tone }: {
+    label: string;
+    value: number | null;
+    live: boolean;
+    hint?: string;
+    tone?: number;
+}) {
+    const shown = live && value !== null;
+    const colour = meterTone(tone ?? value ?? 0);
 
-                    {/* Two halves of one question — where the node's traffic comes
-                        out, and where it starts. The headings only earn their
-                        keep once both are on screen, so a node whose agent
-                        reported no LAN keeps the dialog exactly as it was. */}
-                    {hasLanDetails ? (
-                        <div className="space-y-4">
-                            <section>
-                                <h4 className="mb-2 text-[11px] font-medium text-muted-foreground">
-                                    Public address
-                                </h4>
-                                <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
-                            </section>
-                            <section className="border-t border-hairline pt-4">
-                                <h4 className="mb-2 text-[11px] font-medium text-muted-foreground">
-                                    Local network
-                                </h4>
-                                <LanFingerprintDetails
-                                    lan={lan}
-                                    localIp={displayLocalIp}
-                                    blurred={ipBlurred}
-                                />
-                            </section>
-                        </div>
-                    ) : (
-                        <LocationDetails location={publicIpInfo} blurred={ipBlurred} />
-                    )}
-                </DialogContent>
-            </Dialog>
+    const body = (
+        <div className="min-w-0">
+            <div className="flex items-baseline justify-between gap-1 text-[11px] leading-4">
+                <span className="text-muted-foreground">{label}</span>
+                <span className={cn('font-mono tabular-nums', shown ? colour.text : 'text-muted-foreground/60')}>
+                    {shown ? `${Math.round(value)}%` : '—'}
+                </span>
+            </div>
+            <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-muted">
+                {shown ? (
+                    <div
+                        className={cn('h-full rounded-full transition-[width] duration-500', colour.bar)}
+                        style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
+                    />
+                ) : null}
+            </div>
+        </div>
+    );
+
+    if (!hint || !shown) return body;
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{body}</TooltipTrigger>
+            <TooltipContent>{hint}</TooltipContent>
+        </Tooltip>
+    );
+}
+
+function DetailMeter({ label, value, detail, tone }: { label: string; value: number; detail: string; tone?: number }) {
+    const colour = meterTone(tone ?? value);
+
+    return (
+        <div>
+            <div className="flex items-baseline justify-between gap-3 text-[12px]">
+                <span className="font-medium text-foreground">{label}</span>
+                <span className="truncate text-muted-foreground">{detail}</span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                    className={cn('h-full rounded-full', colour.bar)}
+                    style={{ width: `${Math.max(1, Math.min(100, value))}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function DetailRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+    return (
+        <div className="flex items-baseline justify-between gap-4 border-b border-hairline py-1.5 text-[12px]">
+            <dt className="shrink-0 text-muted-foreground">{label}</dt>
+            <dd className={cn('min-w-0 truncate text-right text-foreground', mono && 'font-mono')}>{value}</dd>
         </div>
     );
 }

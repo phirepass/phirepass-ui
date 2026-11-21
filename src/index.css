@@ -40,67 +40,47 @@
     --color-sidebar-border: hsl(var(--sidebar-border));
     --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-    /* Light that falls on an edge, rather than a colour that sits on it.
-        macOS draws separators as white at a low alpha so they pick up whatever
-        material is behind them instead of fighting it. `specular` is the top
-        highlight of a raised surface; `hairline` is the 1px edge. */
+    /* Edges. Opaque greys rather than alpha whites: every surface in the
+        console is solid, so an edge never has to adapt to what is behind it. */
     --color-hairline: var(--hairline);
     --color-hairline-strong: var(--hairline-strong);
     --color-specular: var(--specular);
 
     --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
-    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 1px);
+    --radius-sm: calc(var(--radius) - 2px);
 
-    /* SF Pro first, so a Mac renders the real thing — that alone carries most
-        of the resemblance. Inter is the stand-in everywhere else; the character
-        variants below nudge it toward SF's open apertures where it is present. */
+    /* IBM Plex: an engineering face, drawn for technical documentation, with
+        a mono sibling that shares its metrics — hostnames and IPs sit on the
+        same baseline as the prose around them. Loaded in src/app/layout.tsx. */
     --font-sans:
-        -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-        "Inter var", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+        var(--font-plex-sans), "IBM Plex Sans", system-ui, "Segoe UI", Roboto,
+        sans-serif;
     --font-mono:
-        ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo,
-        Consolas, monospace;
+        var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono",
+        Menlo, Consolas, monospace;
 
-    /* Vibrancy. The saturation boost is the part that reads as Apple: blurring
-        alone greys everything out, `saturate` pulls the wallpaper's colour back
-        through the material. */
-    --blur-material: 30px;
-    --blur-hud: 22px;
+    /* No vibrancy in the console. The variables stay so `.mac-material`
+        call sites compile; they resolve to nothing. */
+    --blur-material: 0px;
+    --blur-hud: 0px;
 
-    /* Elevation, as a set of named materials rather than per-component guesses.
-        Each is one specular top edge + one contact shadow + one ambient shadow,
-        which is how a macOS surface separates from what is under it. */
-    /* Compact pass: content surfaces carry a single contact shadow instead
-        of a wide ambient one. In a dense grid the wide shadows overlapped
-        their neighbours and turned the gutters into a grey smear. */
-    --shadow-window:
-        inset 0 1px 0 0 hsl(0 0% 100% / 0.04), 0 1px 2px 0 hsl(0 0% 0% / 0.28);
-    --shadow-window-raised:
-        inset 0 1px 0 0 hsl(0 0% 100% / 0.06), 0 2px 8px -2px hsl(0 0% 0% / 0.45);
-    --shadow-panel:
-        inset 0 1px 0 0 hsl(0 0% 100% / 0.08), 0 4px 12px -4px hsl(0 0% 0% / 0.5),
-        0 32px 72px -16px hsl(0 0% 0% / 0.72);
-    --shadow-menu:
-        inset 0 1px 0 0 hsl(0 0% 100% / 0.07), 0 2px 6px -2px hsl(0 0% 0% / 0.4),
-        0 16px 40px -10px hsl(0 0% 0% / 0.62);
-    --shadow-control:
-        inset 0 1px 0 0 hsl(0 0% 100% / 0.1), 0 1px 2px 0 hsl(0 0% 0% / 0.36);
-    --shadow-control-pressed: inset 0 1px 3px 0 hsl(0 0% 0% / 0.42);
-    --shadow-sunken:
-        inset 0 1px 2px 0 hsl(0 0% 0% / 0.42),
-        inset 0 0 0 1px hsl(0 0% 100% / 0.04);
-    --shadow-thumb:
-        0 1px 2px 0 hsl(0 0% 0% / 0.45), 0 3px 8px -2px hsl(0 0% 0% / 0.32);
+    /* Elevation. Flat by default: a panel is separated by its border, and only
+        things that float (menus, dialogs) cast a shadow at all. */
+    --shadow-window: 0 1px 0 0 hsl(220 40% 3% / 0.35);
+    --shadow-window-raised: 0 1px 0 0 hsl(220 40% 3% / 0.35);
+    --shadow-panel: 0 16px 40px -12px hsl(220 50% 2% / 0.7);
+    --shadow-menu: 0 8px 24px -8px hsl(220 50% 2% / 0.65);
+    --shadow-control: 0 1px 0 0 hsl(220 40% 3% / 0.3);
+    --shadow-control-pressed: none;
+    --shadow-sunken: none;
+    --shadow-thumb: 0 1px 2px 0 hsl(220 40% 3% / 0.5);
 
-    /* The curve every macOS surface moves on: quick off the mark, long settle,
-        no overshoot. Used in place of Tailwind's default ease for anything that
-        travels — sheets, menus, the segmented-control thumb. */
-    --ease-mac: cubic-bezier(0.32, 0.72, 0, 1);
-    --ease-mac-in: cubic-bezier(0.4, 0, 0.68, 0.06);
+    --ease-mac: cubic-bezier(0.2, 0, 0, 1);
+    --ease-mac-in: cubic-bezier(0.4, 0, 1, 1);
 
-    --animate-accordion-down: accordion-down 0.2s var(--ease-mac);
-    --animate-accordion-up: accordion-up 0.2s var(--ease-mac);
+    --animate-accordion-down: accordion-down 0.16s var(--ease-mac);
+    --animate-accordion-up: accordion-up 0.16s var(--ease-mac);
 }
 
 @keyframes accordion-down {
@@ -114,194 +94,100 @@
 }
 
 @layer base {
+    /*
+    * Slate console.
+    *
+    * Blue-grey rather than near-black: at this lightness a 1px border between
+    * two panels is still visible, which is what lets the layout drop shadows
+    * and gradients entirely. One interactive hue (cobalt). Green, amber and red
+    * belong to status only — a healthy node is green, a button never is.
+    */
     :root {
-        /* Graphite: cool-neutral, never pure black. macOS dark mode keeps a
-            slight blue cast so that warm accents (amber, red) still read warm
-            against it. */
-        --background: 224 20% 6%;
-        --foreground: 220 16% 96%;
+        --background: 216 31% 8%;
+        --foreground: 216 25% 92%;
 
-        /* The window material. Rendered at 90–96% over the wallpaper by
-            `.gradient-card`, so the desktop's colour tints it faintly rather
-            than every card sitting on the same dead grey. */
-        --card: 224 14% 12%;
-        --card-foreground: 220 16% 96%;
+        --card: 219 28% 11%;
+        --card-foreground: 216 25% 92%;
 
-        /* Menus and popovers sit one step brighter than a window, because they
-            float above it and catch more light. */
-        --popover: 224 14% 15%;
-        --popover-foreground: 220 16% 96%;
+        --popover: 219 26% 13%;
+        --popover-foreground: 216 25% 92%;
 
-        --primary: 210 20% 98%;
-        --primary-foreground: 224 24% 7%;
+        /* High-emphasis neutral: titles, selected text, the near-white
+            control. Not the brand colour — that is `--accent`. */
+        --primary: 216 30% 96%;
+        --primary-foreground: 219 30% 10%;
 
-        --secondary: 222 12% 17%;
-        --secondary-foreground: 220 16% 96%;
+        --secondary: 218 24% 15%;
+        --secondary-foreground: 216 25% 92%;
 
-        --muted: 222 12% 20%;
-        --muted-foreground: 220 10% 62%;
+        --muted: 218 22% 17%;
+        --muted-foreground: 216 13% 62%;
 
-        /* Dominant brand colour, in the slot macOS reserves for the user's
-            accent. Deliberately *not* reused for primary buttons: the same
-            green already means "online" on every node card, and a CTA wearing
-            it would compete with status. */
-        --accent: 158 62% 41%;
-        --accent-foreground: 210 20% 98%;
+        /* Cobalt. Actions, selection, focus, healthy-metric bars. */
+        --accent: 224 86% 62%;
+        --accent-foreground: 0 0% 100%;
 
-        --destructive: 356 68% 54%;
-        --destructive-foreground: 210 20% 98%;
+        --destructive: 356 72% 58%;
+        --destructive-foreground: 0 0% 100%;
 
-        --success: 158 62% 44%;
-        --success-foreground: 210 20% 98%;
+        --success: 152 60% 46%;
+        --success-foreground: 0 0% 100%;
 
-        --warning: 38 88% 56%;
-        --warning-foreground: 224 30% 8%;
+        --warning: 38 92% 56%;
+        --warning-foreground: 219 30% 8%;
 
-        /* Secondary brand accent used sparingly alongside the dominant green */
-        --info: 205 72% 54%;
-        --info-foreground: 210 20% 98%;
+        --info: 199 80% 58%;
+        --info-foreground: 219 30% 8%;
 
-        /* Fourth service hue, so each service kind reads distinctly on a node card.
-            68% lightness rather than a deeper violet: at 64% it measured 4.41:1
-            against the tinted card, just under AA for the small count text. */
-        --violet: 265 72% 68%;
-        --violet-foreground: 210 20% 98%;
+        --violet: 262 70% 70%;
+        --violet-foreground: 0 0% 100%;
 
-        /* Two icon-only hues for the node card's network rows. Every other stat
-            icon already claims one of the hues above, so these two were placed in
-            the widest gaps left on the wheel — 265→356 and 38→158 — to stay
-            tellable apart from their neighbours at 14px: pink sits clear of
-            violet, lime clear of both the emerald accent and the amber warning.
-            Icon tints only, hence no `-foreground` pair; both measure well past
-            AA on the card (~6.5:1 and ~7.5:1) even before the /80 they render at. */
-        --pink: 322 70% 66%;
-        --lime: 96 48% 55%;
+        --pink: 322 66% 68%;
+        --lime: 96 46% 56%;
 
-        /* Opaque stand-in for the hairline, kept because a handful of call
-            sites (Recharts grids, the landing grid overlay) interpolate
-            `hsl(var(--border))` directly and cannot take an alpha colour.
-            Tuned to match `--hairline` as seen over `--card`. */
-        --border: 220 11% 19%;
-        --input: 224 18% 8%;
-        --ring: 158 62% 46%;
+        --border: 218 23% 20%;
+        --input: 219 30% 9%;
+        --ring: 224 86% 62%;
 
-        /* 8px. Panels step up to 10–12px on their own; controls step down to
-            4–6px. The chain is deliberate: containers rounder than
-            the elements inside them. */
-        --radius: 0.5rem;
+        /* 6px. Small and consistent: controls and panels share it, dialogs
+            step up to 8px. */
+        --radius: 0.375rem;
 
-        /* Edge light. Alpha whites rather than fixed greys, so a separator
-            behaves the same over a window, a menu and a sunken well. */
-        --hairline: hsl(0 0% 100% / 0.1);
-        --hairline-strong: hsl(0 0% 100% / 0.16);
-        --specular: hsl(0 0% 100% / 0.07);
+        --hairline: hsl(218 23% 20%);
+        --hairline-strong: hsl(218 20% 28%);
+        --specular: transparent;
 
-        /* Control fills.
-            A macOS control is lit from above: every one of these is a vertical
-            ramp from a brighter top to a darker bottom, which together with the
-            specular edge in `--shadow-control` is what makes a button read as a
-            physical key rather than a coloured rectangle. Kept here rather than
-            inline so the whole control set can be re-lit in one place. */
-        /* Light on a surface, rather than a colour ramp per variant.
-            The earlier form baked one gradient per button colour, which meant a
-            caller overriding just `bg-*` (every destructive confirm in the app
-            does) kept the *previous* variant's gradient painted on top and got a
-            white button where it asked for a red one. A sheen is colour-agnostic:
-            it lightens the top edge and shades the bottom of whatever background
-            is underneath, so overrides compose and there is one ramp to tune
-            instead of four. */
-        --fill-sheen: linear-gradient(
-            180deg,
-            hsl(0 0% 100% / 0.13) 0%,
-            hsl(0 0% 100% / 0.03) 52%,
-            hsl(0 0% 0% / 0.08) 100%
-        );
-        --fill-sheen-hover: linear-gradient(
-            180deg,
-            hsl(0 0% 100% / 0.22) 0%,
-            hsl(0 0% 100% / 0.08) 52%,
-            hsl(0 0% 0% / 0.05) 100%
-        );
-        /* Pressed: the light comes from below instead, which is what a key
-            looks like when it is down. */
-        --fill-sheen-pressed: linear-gradient(
-            180deg,
-            hsl(0 0% 0% / 0.12) 0%,
-            hsl(0 0% 0% / 0.04) 100%
-        );
-        --fill-control: linear-gradient(
-            180deg,
-            hsl(0 0% 100% / 0.115) 0%,
-            hsl(0 0% 100% / 0.055) 100%
-        );
-        --fill-control-hover: linear-gradient(
-            180deg,
-            hsl(0 0% 100% / 0.17) 0%,
-            hsl(0 0% 100% / 0.095) 100%
-        );
-        --fill-accent: linear-gradient(
-            180deg,
-            hsl(158 60% 46%) 0%,
-            hsl(158 62% 37%) 100%
-        );
-        /* The raised element of a segmented control / the knob of a switch. */
-        --fill-thumb: linear-gradient(
-            180deg,
-            hsl(222 10% 31%) 0%,
-            hsl(222 12% 24%) 100%
-        );
+        /* Control fills, kept as `background-image` variables so the existing
+            `bg-[image:var(--fill-*)]` call sites keep working — each is now a
+            flat colour (a one-stop gradient) or a plain tint overlay. */
+        --fill-sheen: none;
+        --fill-sheen-hover: linear-gradient(hsl(0 0% 100% / 0.08), hsl(0 0% 100% / 0.08));
+        --fill-sheen-pressed: linear-gradient(hsl(0 0% 0% / 0.12), hsl(0 0% 0% / 0.12));
+        --fill-control: linear-gradient(hsl(218 24% 15%), hsl(218 24% 15%));
+        --fill-control-hover: linear-gradient(hsl(218 22% 19%), hsl(218 22% 19%));
+        --fill-accent: linear-gradient(hsl(224 86% 62%), hsl(224 86% 62%));
+        --fill-thumb: linear-gradient(hsl(218 20% 27%), hsl(218 20% 27%));
 
-        /* Vibrant chrome. These are the surfaces that get `.mac-material`:
-            translucent enough for the wallpaper to come through, ramped so the
-            top edge stays lighter than the bottom. */
-        --fill-toolbar: linear-gradient(
-            180deg,
-            hsl(224 18% 11% / 0.82) 0%,
-            hsl(224 20% 8% / 0.72) 100%
-        );
-        --fill-menu: linear-gradient(
-            180deg,
-            hsl(var(--popover) / 0.96) 0%,
-            hsl(var(--popover) / 0.92) 100%
-        );
-        --fill-panel: linear-gradient(
-            180deg,
-            hsl(224 14% 14% / 0.92) 0%,
-            hsl(224 16% 11% / 0.86) 100%
-        );
+        --fill-toolbar: linear-gradient(hsl(var(--background)), hsl(var(--background)));
+        --fill-menu: linear-gradient(hsl(var(--popover)), hsl(var(--popover)));
+        --fill-panel: linear-gradient(hsl(var(--popover)), hsl(var(--popover)));
 
-        /* Custom design tokens */
-        --glow-primary: 0 0 24px hsl(210 20% 98% / 0.16);
-        --glow-success: 0 0 12px hsl(158 62% 44% / 0.45);
-        --glow-danger: 0 0 12px hsl(356 68% 54% / 0.45);
+        --glow-primary: none;
+        --glow-success: none;
+        --glow-danger: none;
 
-        --gradient-dark: linear-gradient(
-            180deg,
-            hsl(224 20% 7%) 0%,
-            hsl(224 22% 5%) 100%
-        );
-        /* Opaque. A translucent card's contrast depended on which wash of
-            the wallpaper it happened to sit over, so the same text measured
-            differently at the top and bottom of a page. */
-        --gradient-card: linear-gradient(
-            180deg,
-            hsl(var(--card)) 0%,
-            hsl(224 14% 11%) 100%
-        );
-        --gradient-accent: linear-gradient(
-            135deg,
-            hsl(158 62% 44%) 0%,
-            hsl(176 55% 38%) 100%
-        );
+        --gradient-dark: linear-gradient(hsl(var(--background)), hsl(var(--background)));
+        --gradient-card: linear-gradient(hsl(var(--card)), hsl(var(--card)));
+        --gradient-accent: linear-gradient(hsl(var(--accent)), hsl(var(--accent)));
 
-        --sidebar-background: 224 20% 6%;
-        --sidebar-foreground: 220 16% 96%;
-        --sidebar-primary: 210 20% 98%;
-        --sidebar-primary-foreground: 224 24% 7%;
-        --sidebar-accent: 222 12% 17%;
-        --sidebar-accent-foreground: 220 16% 96%;
-        --sidebar-border: 220 11% 19%;
-        --sidebar-ring: 210 20% 98%;
+        --sidebar-background: 218 32% 6%;
+        --sidebar-foreground: 216 18% 80%;
+        --sidebar-primary: 216 30% 96%;
+        --sidebar-primary-foreground: 219 30% 10%;
+        --sidebar-accent: 218 24% 13%;
+        --sidebar-accent-foreground: 216 25% 94%;
+        --sidebar-border: 218 26% 14%;
+        --sidebar-ring: 224 86% 62%;
     }
 }
 
@@ -312,9 +198,6 @@
 
     html {
         font-family: var(--font-sans);
-        /* Inter's alternate 4/6/9/a; inert on SF Pro and on any fallback that
-            does not ship them. */
-        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         text-rendering: optimizeLegibility;
@@ -325,42 +208,14 @@
         min-height: 100vh;
         min-height: 100dvh;
         background-color: hsl(var(--background));
-        letter-spacing: -0.006em;
+        font-size: 14px;
+        line-height: 1.5;
     }
 
-    /* The desktop: low-alpha washes over graphite, painted on a fixed layer
-        rather than with `background-attachment: fixed`. iOS ignores the
-        attachment (the washes then stretch over the whole document height) and
-        Blink repaints the full viewport on every scroll frame to honour it; a
-        fixed pseudo-element is composited once and simply stays put. The grain
-        overlay is gone — at this density there is no large soft gradient left
-        to band. */
-    body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        pointer-events: none;
-        background-image:
-            radial-gradient(
-                1200px 720px at 8% -10%,
-                hsl(158 70% 42% / 0.1),
-                transparent 62%
-            ),
-            radial-gradient(
-                1040px 660px at 94% 2%,
-                hsl(205 80% 50% / 0.08),
-                transparent 60%
-            );
-        background-repeat: no-repeat;
-    }
-
-    /* SF Display switches to tighter tracking above ~20px; mimic that so
-        headings do not read loose next to the body text. */
     h1,
     h2,
     h3 {
-        letter-spacing: -0.021em;
+        letter-spacing: -0.01em;
     }
 
     code,
@@ -371,7 +226,7 @@
     }
 
     ::selection {
-        background: hsl(var(--accent) / 0.32);
+        background: hsl(var(--accent) / 0.35);
     }
 
     /* Dashboard pages keep the page scrollbar on screen at all times.
@@ -383,7 +238,7 @@
     html.dashboard-scroll {
         overflow-y: scroll;
         scrollbar-width: thin;
-        scrollbar-color: hsl(0 0% 100% / 0.16) transparent;
+        scrollbar-color: hsl(218 20% 28%) transparent;
     }
 
     html.dashboard-scroll::-webkit-scrollbar {
@@ -395,14 +250,14 @@
     }
 
     html.dashboard-scroll::-webkit-scrollbar-thumb {
-        background-color: hsl(0 0% 100% / 0.16);
+        background-color: hsl(218 20% 28%);
         border: 3px solid transparent;
         background-clip: padding-box;
         border-radius: 9999px;
     }
 
     html.dashboard-scroll::-webkit-scrollbar-thumb:hover {
-        background-color: hsl(0 0% 100% / 0.28);
+        background-color: hsl(218 18% 36%);
     }
 
     /* Undo the scroll-lock gap compensation on dashboard pages.
@@ -460,10 +315,7 @@
     }
 
     .text-gradient {
-        background: var(--gradient-accent);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: hsl(var(--foreground));
     }
 }
 
@@ -483,38 +335,20 @@
         }
     }
 
-    /* Vibrancy: the chrome materials. Backdrop blur plus a saturation boost,
-        so what shows through keeps its colour instead of going grey. */
-    .mac-material {
-        backdrop-filter: blur(var(--blur-material)) saturate(180%);
-        -webkit-backdrop-filter: blur(var(--blur-material)) saturate(180%);
-    }
-
+    /* Retired: the console has no translucent chrome. Kept as no-ops so the
+        call sites that still carry the class need no edit. */
+    .mac-material,
     .mac-material-hud {
-        backdrop-filter: blur(var(--blur-hud)) saturate(180%);
-        -webkit-backdrop-filter: blur(var(--blur-hud)) saturate(180%);
-    }
-
-    /* System setting, honoured: Accessibility → Display → Reduce transparency
-        turns every material solid rather than merely less blurred. */
-    @media (prefers-reduced-transparency: reduce) {
-        .mac-material,
-        .mac-material-hud {
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-            background-color: hsl(var(--popover));
-        }
+        backdrop-filter: none;
     }
 
     @keyframes pulse-glow {
         0%,
         100% {
             opacity: 1;
-            box-shadow: 0 0 8px currentColor;
         }
         50% {
             opacity: 0.6;
-            box-shadow: 0 0 16px currentColor;
         }
     }
 
@@ -572,17 +406,7 @@
     * ever placed on a `relative overflow-hidden` parent.
     */
     .pp-bloom {
-        background:
-            radial-gradient(
-                52% 120% at 10% -10%,
-                hsl(var(--accent) / 0.22) 0%,
-                transparent 68%
-            ),
-            radial-gradient(
-                46% 120% at 84% 110%,
-                hsl(var(--info) / 0.14) 0%,
-                transparent 66%
-            );
+        background: hsl(var(--accent) / 0.06);
     }
 
     /* The bell rings, briefly, every few seconds — long gaps so it reads as
@@ -662,14 +486,10 @@
     * static, so nothing is lost.
     */
     .pp-logo {
-        filter: drop-shadow(0 8px 22px hsl(160 92% 46% / 0.42));
-        transition: filter 0.4s ease, transform 0.4s ease;
+        transition: transform 0.2s ease;
     }
 
-    .pp-logo:hover {
-        filter: drop-shadow(0 8px 22px hsl(165 92% 50% / 0.45));
-        transform: translateY(-1px);
-    }
+
 
     @keyframes pp-flow {
         from {

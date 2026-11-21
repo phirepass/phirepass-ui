@@ -157,7 +157,7 @@ export default function PipelinesPage() {
     };
 
     return (
-        <div className="container mx-auto max-w-5xl space-y-6 px-4 py-8">
+        <div className="w-full max-w-5xl space-y-5 px-4 py-5 md:px-6">
             <PageHeader
                 title="Pipelines"
                 description="Scheduled work that runs on your agents, one step at a time."
@@ -167,7 +167,7 @@ export default function PipelinesPage() {
                     </span>
                 }
                 actions={canManage ? (
-                    <Button asChild className="gap-2 rounded-full">
+                    <Button asChild className="gap-2">
                         <Link href="/dashboard/pipelines/new">
                             <Plus className="h-4 w-4" />
                             New pipeline
@@ -198,7 +198,7 @@ export default function PipelinesPage() {
                     title="No pipelines yet"
                     description="A pipeline is a schedule and a list of steps — fetch something, reshape it, hand it on."
                     action={canManage ? (
-                        <Button asChild className="gap-2 rounded-full">
+                        <Button asChild className="gap-2">
                             <Link href="/dashboard/pipelines/new">
                                 <Plus className="h-4 w-4" />
                                 New pipeline

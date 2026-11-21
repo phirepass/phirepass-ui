@@ -283,7 +283,7 @@ export default function UsersPage() {
     };
 
     const inviteButton = canInvite ? (
-        <Button size="sm" className="gap-2 rounded-full" onClick={() => setInviteOpen(true)}>
+        <Button size="sm" className="gap-2" onClick={() => setInviteOpen(true)}>
             <Plus className="h-4 w-4" />
             Invite
         </Button>
@@ -312,7 +312,7 @@ export default function UsersPage() {
     }, [members, ownerCount]);
 
     return (
-        <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
+        <div className="w-full max-w-5xl space-y-5 px-4 py-5 md:px-6">
             <PageHeader
                 title="Members"
                 description={data?.org
@@ -328,7 +328,7 @@ export default function UsersPage() {
                     icon={Users}
                     title="Could not load the member list"
                     description={error}
-                    action={<Button variant="outline" className="rounded-full" onClick={reload}>Try again</Button>}
+                    action={<Button variant="outline" onClick={reload}>Try again</Button>}
                 />
             ) : (
                 <>
@@ -376,10 +376,10 @@ export default function UsersPage() {
                             return (
                                 <section key={group.id}>
                                     <div className="mb-2.5 flex items-center gap-2.5 px-1">
-                                        <h2 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-muted-foreground/80">
+                                        <h2 className="text-[13px] font-semibold text-foreground">
                                             {group.title}
                                         </h2>
-                                        <span className="rounded-full bg-white/[0.06] px-1.5 py-px text-[10px] font-medium tabular-nums text-muted-foreground/70">
+                                        <span className="rounded-sm bg-secondary px-1.5 py-px text-[11px] font-medium tabular-nums text-muted-foreground">
                                             {entries.length}
                                         </span>
                                         <span className="hidden text-[11px] text-muted-foreground/50 sm:inline">
@@ -390,7 +390,7 @@ export default function UsersPage() {
 
                                     {/* One container, hairline dividers — the group
                                         is the object, not each person inside it. */}
-                                    <div className="gradient-card mac-squircle divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline">
+                                    <div className="divide-y divide-hairline overflow-hidden rounded-lg border border-hairline bg-card">
                                         {entries.map((member) => (
                                             <MemberRow
                                                 key={member.id}

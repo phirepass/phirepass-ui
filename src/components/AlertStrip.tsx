@@ -19,16 +19,16 @@ export interface AlertEntry {
 
 const LEVEL_STYLES: Record<AlertLevel, { panel: string; icon: string }> = {
     error: {
-        panel: 'bg-destructive/10 border-destructive/30',
+        panel: 'bg-destructive/[0.07] border-destructive/25 border-l-destructive',
         icon: 'text-destructive',
     },
     warning: {
-        panel: 'bg-warning/10 border-warning/30',
+        panel: 'bg-warning/[0.06] border-warning/25 border-l-warning',
         icon: 'text-warning',
     },
     info: {
-        panel: 'bg-primary/10 border-primary/30',
-        icon: 'text-primary',
+        panel: 'bg-info/[0.06] border-info/25 border-l-info',
+        icon: 'text-info',
     },
 };
 
@@ -101,7 +101,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                 return (
                     <div
                         key={alert.id}
-                        className={cn('mac-squircle flex items-center gap-2.5 rounded-lg border px-3 py-1.5 transition-all', styles.panel)}
+                        className={cn('flex items-center gap-2.5 rounded-md border border-l-[3px] px-3 py-1.5', styles.panel)}
                     >
                         <Icon className={cn('w-4 h-4 flex-shrink-0', styles.icon)} />
 
@@ -111,7 +111,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:shrink-0">
                                 <h4 className="font-medium text-sm">{alert.title}</h4>
                                 {alert.tag ? (
-                                    <span className="rounded-[5px] border border-hairline bg-white/[0.06] px-1.5 py-px font-mono text-[11px] text-muted-foreground">
+                                    <span className="rounded-sm border border-hairline bg-background px-1.5 py-px font-mono text-[11px] text-muted-foreground">
                                         {alert.tag}
                                     </span>
                                 ) : null}
@@ -122,7 +122,7 @@ export function AlertStrip({ alerts, className }: AlertStripProps) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                            className="h-6 w-6 md:h-6 md:w-6 flex-shrink-0 text-muted-foreground hover:text-foreground"
                             // Named rather than a bare "Dismiss", so a screen
                             // reader three alerts down says which one it closes.
                             aria-label={`Dismiss alert: ${alert.title}`}

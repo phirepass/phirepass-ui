@@ -109,32 +109,6 @@ export function MonitorCard({
                     monitor.paused && 'opacity-70'
                 )}
             >
-                {/* ── watermark ────────────────────────────────────────
-                    The kind's own icon as the card's ground, matching the
-                    overview panels so a card and its group read as the same
-                    family.
-
-                    In its own clipping layer rather than on the card: the
-                    wrapper above is `md:overflow-visible` so menus and tooltips
-                    can escape the card, and adding `overflow-hidden` to make the
-                    bleed work would have clipped those too.
-
-                    Decorative — `aria-hidden`, `pointer-events-none`, and low
-                    enough in opacity to tint the card without touching any
-                    text's contrast. Sits under the `z-30` content below. */}
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-xl"
-                >
-                    <KindIcon
-                        className={cn(
-                            'absolute -bottom-10 -right-10 h-56 w-56 opacity-[0.07]',
-                            kindStyle.text,
-                        )}
-                        strokeWidth={0.75}
-                    />
-                </div>
-
                 {/* Header */}
                 <div className="relative z-30">
                     <div className="min-w-0 flex-1">

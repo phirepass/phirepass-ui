@@ -17,15 +17,15 @@ export type StatTone =
  * Per-tone icon colour plus the wash behind it. Written out in full because
  * Tailwind cannot resolve class names assembled at runtime.
  */
-const TONE_STYLES: Record<StatTone, { icon: string; well: string }> = {
-    neutral: { icon: 'text-muted-foreground', well: 'bg-white/[0.06]' },
-    primary: { icon: 'text-primary', well: 'bg-white/[0.06]' },
-    accent: { icon: 'text-accent', well: 'bg-accent/10' },
-    success: { icon: 'text-success', well: 'bg-success/10' },
-    danger: { icon: 'text-destructive', well: 'bg-destructive/10' },
-    warning: { icon: 'text-warning', well: 'bg-warning/10' },
-    info: { icon: 'text-info', well: 'bg-info/10' },
-    violet: { icon: 'text-violet', well: 'bg-violet/10' },
+const TONE_STYLES: Record<StatTone, { icon: string }> = {
+    neutral: { icon: 'text-muted-foreground' },
+    primary: { icon: 'text-foreground' },
+    accent: { icon: 'text-accent' },
+    success: { icon: 'text-success' },
+    danger: { icon: 'text-destructive' },
+    warning: { icon: 'text-warning' },
+    info: { icon: 'text-info' },
+    violet: { icon: 'text-violet' },
 };
 
 export interface StatTile {
@@ -34,7 +34,7 @@ export interface StatTile {
     icon: LucideIcon;
     tone?: StatTone;
     /**
-    * Extra context. Surfaced on hover rather than as a third line, so every
+    * Extra context. Surfaced on hover rather than as a second line, so every
     * tile on every page keeps exactly the same height.
     */
     hint?: string;
@@ -54,28 +54,24 @@ const COLUMN_CLASSES: Record<NonNullable<StatTilesProps['columns']>, string> = {
 };
 
 /**
- * The summary strip that sits under a page header. Every dashboard page renders
- * its stats through this one component, so the row is the same height on all of
- * them — which only holds because the tile body is fixed at two lines. Anything
- * that would add a third belongs in the tooltip.
+ * The summary strip that sits under a page header: one bordered panel divided
+ * into single-line cells, rather than a card per number. The cells read as one
+ * row of readings about the same thing, and the one-line body keeps the strip
+ * the same height on every page. Anything more belongs in the tooltip.
  */
 export function StatTiles({ tiles, className, columns = 4 }: StatTilesProps) {
     return (
-        <div className={cn('grid grid-cols-2 gap-2.5', COLUMN_CLASSES[columns], className)}>
+        <div className={cn('grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-hairline bg-hairline [&>*:last-child:nth-child(odd)]:col-span-2 md:[&>*:last-child:nth-child(odd)]:col-span-1', COLUMN_CLASSES[columns], className)}>
             {tiles.map((tile) => {
                 const tone = TONE_STYLES[tile.tone ?? 'neutral'];
 
+                // One line per reading: icon, label, then the number pushed to
+                // the right edge, so the whole strip is a single 40px band.
                 const body = (
-                    <div className="gradient-card mac-squircle flex items-center gap-3 rounded-lg border border-hairline px-3 py-2.5 transition-[box-shadow,border-color] duration-200 ease-mac hover:border-hairline-strong hover:shadow-window-raised">
-                        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md mac-squircle', tone.well, tone.icon)}>
-                            <tile.icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="truncate text-lg font-semibold leading-tight tracking-[-0.02em] tabular-nums">{tile.value}</p>
-                            <p className="truncate text-[12px] text-muted-foreground">
-                                {tile.label}
-                            </p>
-                        </div>
+                    <div className="flex h-full min-w-0 items-center gap-2.5 bg-card px-4 py-3">
+                        <tile.icon className={cn('h-4 w-4 shrink-0', tone.icon)} />
+                        <span className="min-w-0 truncate text-[14px] text-muted-foreground">{tile.label}</span>
+                        <span className="ml-auto shrink-0 text-[18px] font-semibold leading-6 tabular-nums text-foreground">{tile.value}</span>
                     </div>
                 );
 

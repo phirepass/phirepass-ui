@@ -24,14 +24,16 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, description, actions, badge, className }: PageHeaderProps) {
     return (
-        <div className={cn('flex flex-col md:flex-row md:items-center md:justify-between gap-3', className)}>
+        // Ruled off from the content below: the rule, not a card, is what
+        // separates a page's title from its data.
+        <div className={cn('flex flex-col gap-3 border-b border-hairline pb-4 md:flex-row md:items-end md:justify-between', className)}>
             <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
-                    <h1 className="text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground">{title}</h1>
+                    <h1 className="text-[20px] font-semibold leading-7 text-foreground">{title}</h1>
                     {badge}
                 </div>
                 {description ? (
-                    <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
+                    <p className="mt-0.5 max-w-[72ch] text-[13px] text-muted-foreground">{description}</p>
                 ) : null}
             </div>
             {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

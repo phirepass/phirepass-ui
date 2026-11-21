@@ -143,7 +143,7 @@ const RateLimiting = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-4 space-y-4">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-5 md:px-6 space-y-5">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

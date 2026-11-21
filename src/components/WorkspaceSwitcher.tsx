@@ -47,9 +47,10 @@ interface WorkspaceSwitcherProps {
     /**
      * `toolbar` is the macOS pop-up button in the desktop header. `inline` is a
      * plain list for the mobile sheet, which is painted above the menu layer —
-     * a portalled dropdown would open behind it.
+     * a portalled dropdown would open behind it. `sidebar` is the full-width
+     * pop-up at the top of the desktop sidebar.
      */
-    variant?: 'toolbar' | 'inline';
+    variant?: 'toolbar' | 'inline' | 'sidebar';
     /** The mobile sheet closes itself once a switch is under way. */
     onSwitch?: () => void;
 }
@@ -161,15 +162,16 @@ export function WorkspaceSwitcher({ currentOrgId, variant = 'toolbar', onSwitch 
         // The separator belongs to the switcher, not to the header: it marks
         // this control off from the wordmark, and an account with one workspace
         // must not be left with a hairline floating beside the logo.
-        <div className="flex items-center gap-3">
-            <div className="h-6 w-px bg-hairline" />
+        <div className={cn('flex items-center gap-3', variant === 'sidebar' && 'w-full')}>
+            {variant === 'toolbar' ? <div className="h-6 w-px bg-hairline" /> : null}
             <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
                     aria-label={`Workspace: ${current.org.name}`}
                     className={cn(
-                        'flex h-9 max-w-[13rem] items-center gap-2 rounded-[8px] border border-hairline bg-[image:var(--fill-control)] px-2 pr-1.5 shadow-control mac-squircle',
+                        variant === 'sidebar' ? 'w-full' : 'max-w-[13rem]',
+                        'flex h-9 items-center gap-2 rounded-md border border-hairline bg-[image:var(--fill-control)] px-2 pr-1.5 shadow-control mac-squircle',
                         'transition-[background-color,box-shadow] duration-150 ease-mac hover:bg-white/[0.06]',
                         'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45',
                     )}
@@ -177,7 +179,7 @@ export function WorkspaceSwitcher({ currentOrgId, variant = 'toolbar', onSwitch 
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] bg-white/[0.07] text-[10px] font-semibold ring-1 ring-hairline">
                         {monogram(current.org.name)}
                     </span>
-                    <span className="truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                    <span className="min-w-0 flex-1 truncate text-left text-[13px] font-medium text-foreground">
                         {current.org.name}
                     </span>
                     <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

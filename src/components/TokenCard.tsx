@@ -78,28 +78,6 @@ export function TokenCard({ token, onRevoke, onViewDetails, revealedSecret }: To
                 !isActive && 'opacity-70'
             )}
         >
-            {/* ── watermark ────────────────────────────────────────────
-                The same treatment the monitor cards and group panels carry, so
-                a token reads as part of the same family of things.
-
-                In its own clipping layer rather than `overflow-hidden` on the
-                card: the dropdown does portal out, but a tooltip or a future
-                popover might not, and clipping them would be a silent regression
-                for a purely decorative gain.
-
-                `aria-hidden` and `pointer-events-none` — the card already says
-                what it is, and this must never intercept a click meant for the
-                reveal button or the menu. */}
-            <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-xl"
-            >
-                <KeyRound
-                    className="absolute -bottom-8 -right-8 h-44 w-44 text-accent opacity-[0.07]"
-                    strokeWidth={0.75}
-                />
-            </div>
-
             {/* Header */}
             <div className="relative z-10 flex items-center gap-2.5 min-w-0">
                 <StatusIndicator isOnline={isActive} size="sm" />

@@ -155,7 +155,7 @@ function InviteForm({ onCancel, onSubmit, existingEmails, actorRole }: InviteFor
                 <Button variant="ghost" onClick={onCancel} disabled={submitting}>
                     Cancel
                 </Button>
-                <Button onClick={() => void submit()} disabled={submitting} className="gap-2 rounded-full">
+                <Button onClick={() => void submit()} disabled={submitting} className="gap-2">
                     {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                     Send invitation
                 </Button>

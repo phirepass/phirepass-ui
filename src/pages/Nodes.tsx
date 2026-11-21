@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { NodeCard } from '@/components/NodeCard';
 import { BulkActionsBar } from '@/components/BulkActionsBar';
 import { AddNodeDialog } from '@/components/AddNodeDialog';
-import { ShareNodeDialog } from '@/components/ShareNodeDialog';
 import { SharedElsewhereNotice } from '@/components/SharedElsewhereNotice';
 import { SessionDock } from '@/components/SessionDock';
 import { MonitoringAlerts } from '@/components/MonitoringAlerts';
@@ -45,7 +44,9 @@ import {
     PaginationPrevious,
 } from '@/components/ui/pagination';
 
-const NODES_PER_PAGE = 6;
+// 12 fills whole rows at every grid width (1, 2, 3 and 4 columns), and the
+// compact card keeps a full page within about two screens.
+const NODES_PER_PAGE = 12;
 
 /** A stable empty list, so "show nothing" is not a new array on every render. */
 const EMPTY_NODES: TunnelNode[] = [];
@@ -240,9 +241,7 @@ export default function Nodes() {
     // Add Node dialog
     const [addNodeOpen, setAddNodeOpen] = useState(false);
 
-    // Share dialogs
-    const [shareDialogOpen, setShareDialogOpen] = useState(false);
-    const [nodeToShare, setNodeToShare] = useState<TunnelNode | null>(null);
+    // Node ID dialog
     const [viewNodeIdDialogOpen, setViewNodeIdDialogOpen] = useState(false);
     const [nodeToViewId, setNodeToViewId] = useState<TunnelNode | null>(null);
     const [nodeIdCopied, setNodeIdCopied] = useState(false);
@@ -585,11 +584,6 @@ export default function Nodes() {
 
 
 
-    const handleShare = (node: TunnelNode) => {
-        setNodeToShare(node);
-        setShareDialogOpen(true);
-    };
-
     const handleViewNodeId = (node: TunnelNode) => {
         setNodeToViewId(node);
         setNodeIdCopied(false);
@@ -622,7 +616,6 @@ export default function Nodes() {
         // Tabs are labelled from the session, so a rename has to reach them or
         // it looks like it only half worked.
         sessions.renameNode(nodeId, nextName);
-        setNodeToShare((prev) => (prev && prev.id === nodeId ? { ...prev, name: nextName } : prev));
     };
 
     const handleRenameNode = (node: TunnelNode) => {
@@ -695,7 +688,6 @@ export default function Nodes() {
         // to, so a tab offering the button would offer something that can only
         // fail.
         sessions.closeNode(nodeId);
-        setNodeToShare((prev) => (prev && prev.id === nodeId ? null : prev));
     };
 
     const handleDeleteNode = (node: TunnelNode) => {
@@ -1060,7 +1052,6 @@ export default function Nodes() {
         );
 
         setNodes((prev) => prev.map(updateNodeServices));
-        setNodeToShare((prev) => (prev && prev.id === nodeId ? updateNodeServices(prev) : prev));
     };
 
     const updateSshServiceInNode = (nodeId: string, isEnabled: boolean) => updateServiceInNode(nodeId, 'SSH', isEnabled);
@@ -1683,7 +1674,7 @@ export default function Nodes() {
     };
 
     return (
-        <div className="container mx-auto px-4 py-4 space-y-4">
+        <div className="mx-auto w-full max-w-[1600px] px-4 py-5 md:px-6 space-y-5">
             <PageHeader
                 title="Nodes"
                 description="Manage your connected servers and infrastructure"
@@ -1782,7 +1773,7 @@ export default function Nodes() {
                     <div
                         className={cn(
                             viewMode === 'grid'
-                                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3'
                                 : 'flex flex-col gap-3'
                         )}
                     >
@@ -1811,7 +1802,6 @@ export default function Nodes() {
                                 onCreateTunnel={guardLive(handleCreateTunnel)}
                                 onOpenFiles={guardLive(handleOpenFiles)}
                                 onRefreshStats={handleRefreshStats}
-                                onShare={handleShare}
                                 onViewNodeId={handleViewNodeId}
                                 onRename={handleRenameNode}
                                 onDelete={handleDeleteNode}
@@ -2410,13 +2400,6 @@ export default function Nodes() {
                         onDisconnect={sessions.disconnect}
                         onReconnect={sessions.reconnect}
                         onStatus={sessions.setStatus}
-                    />
-
-                    {/* Share Node Dialog */}
-                    <ShareNodeDialog
-                        open={shareDialogOpen}
-                        onOpenChange={setShareDialogOpen}
-                        node={nodeToShare}
                     />
 
                     <Dialog

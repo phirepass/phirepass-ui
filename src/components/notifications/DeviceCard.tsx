@@ -52,16 +52,6 @@ export function DeviceCard({ device, paused, onRename, onRevoke }: DeviceCardPro
                 paused && 'opacity-60'
             )}
         >
-            {/* Platform bloom. Blurred well past its own bounds so it reads as
-                light in the corner of the card rather than a shape on it. */}
-            <div
-                aria-hidden
-                className={cn(
-                    'pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl',
-                    'opacity-90 transition-opacity duration-300 ease-mac group-hover:opacity-100',
-                    platform.bloom
-                )}
-            />
 
             <div className="relative flex flex-1 items-start justify-between gap-3 p-4">
                 <div className="flex min-w-0 items-start gap-3">
