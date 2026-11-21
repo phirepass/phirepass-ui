@@ -58,7 +58,13 @@ export function TerminalSessions({
                         // the element and nothing else does. The key sits on
                         // this wrapper because the generated JSX types for a
                         // custom element do not carry React's own props.
-                        <div key={`${session.id}@${session.generation}`} className="h-full w-full">
+                        //
+                        // The background is xterm's theme background
+                        // (`#0b1021` in the widget). The fit only uses whole
+                        // rows, so up to one row of height is left over at the
+                        // bottom; without this, the dock's lighter `bg-black/20`
+                        // shows through there as a band under the terminal.
+                        <div key={`${session.id}@${session.generation}`} className="h-full w-full bg-[#0b1021]">
                             {/*
                               * No inline style. The widget's own `:host` is a
                               * full-size **column flex** container, and the
