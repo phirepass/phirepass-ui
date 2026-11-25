@@ -70,7 +70,7 @@
         "next": "^16.4.6",
         "next-themes": "^0.4.6",
         "pg": "^8.23.1",
-        "phirepass-channel": "0.1.362",
+        "phirepass-channel": "0.1.363",
         "phirepass-widgets": "0.0.121",
         "qrcode": "^1.5.4",
         "react": "^19.3.1",
